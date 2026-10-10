@@ -18,11 +18,11 @@ local connections, tweens = {}, {}
 local destroyed, closing = false, false
 local controller = {}
 local colors = {
-    navy = Color3.fromRGB(12, 29, 49),
-    glass = Color3.fromRGB(19, 43, 66),
+    navy = Color3.fromRGB(13, 28, 49),
+    glass = Color3.fromRGB(26, 47, 76),
     text = Color3.fromRGB(238, 244, 252),
-    muted = Color3.fromRGB(157, 179, 203),
-    cyan = Color3.fromRGB(49, 196, 241),
+    muted = Color3.fromRGB(167, 188, 219),
+    cyan = Color3.fromRGB(48, 202, 244),
     lavender = Color3.fromRGB(159, 137, 223),
     ivory = Color3.fromRGB(249, 233, 198),
     error = Color3.fromRGB(255, 149, 157),
@@ -88,25 +88,39 @@ local viewport = make("Frame", {
 local panel = make("CanvasGroup", {
     Name = "KeyWindow", AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(552, 468),
-    BackgroundColor3 = colors.navy, BackgroundTransparency = 0.09,
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 1,
+    GroupColor3 = Color3.fromRGB(255, 255, 255),
     BorderSizePixel = 0, GroupTransparency = 1, ClipsDescendants = true,
 }, viewport)
 round(panel, 18)
-local edge = stroke(panel, colors.cyan, 0.12, 1.5)
+local edge = stroke(panel, Color3.fromRGB(255, 255, 255), 0.08, 1.5)
 make("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, colors.cyan),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(134, 188, 245)),
         ColorSequenceKeypoint.new(1, colors.lavender),
     }), Rotation = 32,
 }, edge)
-make("UIGradient", {
-    Color = ColorSequence.new(Color3.fromRGB(30, 59, 82), Color3.fromRGB(9, 23, 41)),
-    Rotation = 35,
+-- A gradient on CanvasGroup tints its entire rendered subtree. Keep the
+-- group neutral and shade only this background frame. White is intentional:
+-- UIGradient multiplies the underlying color rather than replacing it.
+local background = make("Frame", {
+    Name = "GlassBackground", Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+    BackgroundTransparency = 0.025, BorderSizePixel = 0,
+    ZIndex = 0, Active = false,
 }, panel)
+round(background, 18)
+make("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(27, 50, 83)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(17, 34, 59)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(21, 35, 65)),
+    }), Rotation = 35,
+}, background)
 local scaling = make("UIScale", {Scale = 1}, panel)
 local header = make("Frame", {
     Name = "Header", BackgroundColor3 = colors.glass,
-    BackgroundTransparency = 0.6, BorderSizePixel = 0,
+    BackgroundTransparency = 0.68, BorderSizePixel = 0,
     Size = UDim2.new(1, 0, 0, 64),
 }, panel)
 make("Frame", {
@@ -185,7 +199,7 @@ for _, offset in ipairs({{17, 11}, {13, 15}}) do
 end
 local function button(name, caption, y, primary)
     local object = make("TextButton", {
-        Name = name, BackgroundColor3 = primary and colors.cyan or colors.navy,
+        Name = name, BackgroundColor3 = primary and Color3.fromRGB(255, 255, 255) or colors.navy,
         BackgroundTransparency = primary and 0 or 0.3, BorderSizePixel = 0,
         Position = UDim2.fromOffset(28, y), Size = UDim2.new(1, -56, 0, 48),
         Text = caption, TextColor3 = primary and colors.navy or colors.text,
