@@ -2,6 +2,7 @@
 -- This file contains the entire window; it does not load the dashboard or games.
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 assert(player, "Serenity key window requires a local player")
 local environment = _G
@@ -85,6 +86,11 @@ local viewport = make("Frame", {
     Name = "SafeViewport", BackgroundTransparency = 1,
     Size = UDim2.fromScale(1, 1), Active = false,
 }, gui)
+-- Measure inherited GUI scaling separately from the window's own UIScale.
+local scaleProbe = make("Frame", {
+    Name = "ScaleProbe", BackgroundTransparency = 1,
+    Size = UDim2.fromOffset(100, 100), Active = false,
+}, viewport)
 local panel = make("CanvasGroup", {
     Name = "KeyWindow", AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(552, 468),
@@ -274,20 +280,20 @@ function controller:Resize()
     if destroyed then return end
     local dimensions = viewport.AbsoluteSize
     if dimensions.X <= 0 or dimensions.Y <= 0 then return end
+    local mobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+    local naturalHeight = #statusLabel.Text > 24 and 520 or 468
+    -- Always fit the complete layout: never shorten the body and hide controls.
+    panel.Size = UDim2.fromOffset(552, naturalHeight)
     local availableWidth = math.max(1, dimensions.X - 32)
     local availableHeight = math.max(1, dimensions.Y - 32)
-    local wantedHeight = panel.Size.Y.Offset
-    -- Preserve the desktop proportions. Small landscape screens use scrolling
-    -- rather than reducing text below a readable scale.
-    -- Keep the key gate compact on PC; larger monitors do not enlarge it.
-    local maximumScale = 460 / 552
-    local scale = math.min(maximumScale, availableWidth / 552, availableHeight / wantedHeight)
-    local widthScale = math.min(maximumScale, availableWidth / 552)
-    if scale < 0.8 and widthScale >= 0.8 then
-        scale = math.min(widthScale, 1)
-        panel.Size = UDim2.fromOffset(552, math.min(wantedHeight, availableHeight / scale))
+    if mobile then
+        availableWidth = math.min(availableWidth, dimensions.X * 0.78)
+        availableHeight = math.min(availableHeight, dimensions.Y * 0.80)
     end
-    scaling.Scale = scale
+    local inheritedScale = scaleProbe.AbsoluteSize.X / 100
+    if inheritedScale <= 0 then inheritedScale = 1 end
+    local fittedScale = math.min(460 / 552, availableWidth / 552, availableHeight / naturalHeight)
+    scaling.Scale = fittedScale / inheritedScale
 end
 function controller:Destroy()
     if destroyed then return end
@@ -356,11 +362,8 @@ bind(close.Activated, function()
     animate(panel, 0.16, {GroupTransparency = 1})
     task.delay(0.18, function() controller:Destroy() end)
 end)
-bind(viewport:GetPropertyChangedSignal("AbsoluteSize"), function()
-    -- Restore the natural height before calculating a new orientation.
-    panel.Size = UDim2.fromOffset(552, #statusLabel.Text > 24 and 520 or 468)
-    controller:Resize()
-end)
+bind(viewport:GetPropertyChangedSignal("AbsoluteSize"), function() controller:Resize() end)
+bind(scaleProbe:GetPropertyChangedSignal("AbsoluteSize"), function() controller:Resize() end)
 controller.Gui = gui
 controller.Input = input
 controller.IsPreview = true
