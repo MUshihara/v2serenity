@@ -164,7 +164,9 @@ local close = make("TextButton", {
 local body = make("ScrollingFrame", {
     Name = "Body", BackgroundTransparency = 1, BorderSizePixel = 0,
     Position = UDim2.fromOffset(0, 64), Size = UDim2.new(1, 0, 1, -114),
-    CanvasSize = UDim2.fromOffset(0, 354), ScrollBarThickness = 3,
+    CanvasSize = UDim2.fromOffset(0, 354), ScrollBarThickness = 5,
+    Active = true, ScrollingEnabled = true, ClipsDescendants = true,
+    VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar,
     ScrollBarImageColor3 = colors.cyan, ScrollingDirection = Enum.ScrollingDirection.Y,
     ElasticBehavior = Enum.ElasticBehavior.WhenScrollable,
 }, panel)
@@ -280,19 +282,24 @@ function controller:Resize()
     if destroyed then return end
     local dimensions = viewport.AbsoluteSize
     if dimensions.X <= 0 or dimensions.Y <= 0 then return end
-    local mobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+    -- Mobile devices can report keyboard support even without a physical one.
+    local mobile = UserInputService.TouchEnabled
     local naturalHeight = #statusLabel.Text > 24 and 520 or 468
-    -- Always fit the complete layout: never shorten the body and hide controls.
-    panel.Size = UDim2.fromOffset(552, naturalHeight)
     local availableWidth = math.max(1, dimensions.X - 32)
     local availableHeight = math.max(1, dimensions.Y - 32)
+    local targetWidth = 460
     if mobile then
-        availableWidth = math.min(availableWidth, dimensions.X * 0.78)
-        availableHeight = math.min(availableHeight, dimensions.Y * 0.80)
+        targetWidth = 420
+        availableWidth = math.min(availableWidth, dimensions.X * 0.70)
+        availableHeight = math.min(availableHeight, dimensions.Y * 0.76)
     end
     local inheritedScale = scaleProbe.AbsoluteSize.X / 100
     if inheritedScale <= 0 then inheritedScale = 1 end
-    local fittedScale = math.min(460 / 552, availableWidth / 552, availableHeight / naturalHeight)
+    local fittedScale = math.min(targetWidth / 552, availableWidth / 552)
+    -- Short screens retain readable controls; only the central body scrolls.
+    -- CanvasSize keeps every action reachable beneath the fixed header/footer.
+    local fittedHeight = math.min(naturalHeight, availableHeight / fittedScale)
+    panel.Size = UDim2.fromOffset(552, fittedHeight)
     scaling.Scale = fittedScale / inheritedScale
 end
 function controller:Destroy()
