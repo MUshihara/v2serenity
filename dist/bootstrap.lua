@@ -279,8 +279,10 @@ function controller:Resize()
     local wantedHeight = panel.Size.Y.Offset
     -- Preserve the desktop proportions. Small landscape screens use scrolling
     -- rather than reducing text below a readable scale.
-    local scale = math.min(1.15, availableWidth / 552, availableHeight / wantedHeight)
-    local widthScale = math.min(1.15, availableWidth / 552)
+    -- Keep the key gate compact on PC; larger monitors do not enlarge it.
+    local maximumScale = 460 / 552
+    local scale = math.min(maximumScale, availableWidth / 552, availableHeight / wantedHeight)
+    local widthScale = math.min(maximumScale, availableWidth / 552)
     if scale < 0.8 and widthScale >= 0.8 then
         scale = math.min(widthScale, 1)
         panel.Size = UDim2.fromOffset(552, math.min(wantedHeight, availableHeight / scale))
