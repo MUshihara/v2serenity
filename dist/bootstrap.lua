@@ -93,7 +93,7 @@ local scaleProbe = make("Frame", {
 }, viewport)
 local panel = make("CanvasGroup", {
     Name = "KeyWindow", AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(552, 374),
+    Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(552, 358),
     BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 1,
     GroupColor3 = Color3.fromRGB(255, 255, 255),
     BorderSizePixel = 0, GroupTransparency = 1, ClipsDescendants = true,
@@ -163,8 +163,9 @@ local close = make("TextButton", {
 
 round(close, 8)
 stroke(close, colors.muted, 0.75)
-local body = make("Frame", {
+local body = make("CanvasGroup", {
     Name = "Body", BackgroundTransparency = 1, BorderSizePixel = 0,
+    GroupTransparency = 0, GroupColor3 = Color3.fromRGB(255, 255, 255),
     Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -98),
     ClipsDescendants = false,
 }, panel)
@@ -226,27 +227,12 @@ verify.Size = UDim2.new(0.64, -36, 0, 48)
 local getKey = button("GetKey", "Get a key", 170, false)
 getKey.Position = UDim2.new(0.64, 4, 0, 170)
 getKey.Size = UDim2.new(0.36, -32, 0, 48)
-local rememberButton = make("TextButton", {
-    Name = "RememberKey", BackgroundTransparency = 1, Text = "",
-    Position = UDim2.fromOffset(25, 230), Size = UDim2.fromOffset(234, 40),
-    AutoButtonColor = false,
-}, body)
-local check = make("TextLabel", {
-    BackgroundColor3 = colors.glass, BackgroundTransparency = 0.1,
-    Position = UDim2.fromOffset(3, 8), Size = UDim2.fromOffset(24, 24),
-    Text = "", TextColor3 = colors.navy, Font = Enum.Font.GothamBold,
-    TextSize = 18, BorderSizePixel = 0,
-}, rememberButton)
-round(check, 5)
-local checkEdge = stroke(check, colors.muted, 0.55)
-text(rememberButton, "Remember my key", 14, UDim2.fromOffset(39, 0), UDim2.new(1, -39, 1, 0))
-local remembered = false
 local statusDot = make("Frame", {
     BackgroundColor3 = colors.muted, BorderSizePixel = 0,
-    Position = UDim2.fromOffset(288, 245), Size = UDim2.fromOffset(7, 7),
+    Position = UDim2.fromOffset(28, 242), Size = UDim2.fromOffset(7, 7),
 }, body)
 round(statusDot, 7)
-local statusLabel = text(body, "Ready to verify", 13, UDim2.fromOffset(304, 233), UDim2.new(1, -332, 0, 32), colors.muted)
+local statusLabel = text(body, "Ready to verify", 13, UDim2.fromOffset(44, 228), UDim2.new(1, -72, 0, 30), colors.muted)
 statusLabel.TextWrapped = true
 
 local footer = make("Frame", {
@@ -271,13 +257,8 @@ function controller:SetStatus(message, kind)
     statusLabel.Text = message
     statusLabel.TextColor3 = color
     statusDot.BackgroundColor3 = color
-    -- Longer feedback gets a full-width row beneath the checkbox.
-    local expanded = #message > 24
-    statusLabel.Position = UDim2.fromOffset(expanded and 44 or 304, expanded and 274 or 233)
-    statusLabel.Size = UDim2.new(1, expanded and -72 or -332, 0, expanded and 40 or 32)
-    statusDot.Position = UDim2.fromOffset(expanded and 28 or 288, expanded and 289 or 245)
-    panel.Size = UDim2.fromOffset(552, expanded and 426 or 374)
-    controller:Resize()
+    -- Feedback always occupies the same row; text never resizes the window.
+
 end
 function controller:Resize()
     if destroyed then return end
@@ -285,7 +266,7 @@ function controller:Resize()
     if dimensions.X <= 0 or dimensions.Y <= 0 then return end
     -- Mobile devices can report keyboard support even without a physical one.
     local mobile = UserInputService.TouchEnabled
-    local naturalHeight = #statusLabel.Text > 24 and 426 or 374
+    local naturalHeight = 358
     local availableWidth = math.max(1, dimensions.X - 32)
     local availableHeight = math.max(1, dimensions.Y - 32)
     local targetWidth = 460
@@ -324,14 +305,6 @@ bind(verify.Activated, submit)
 bind(input.FocusLost, function(enterPressed) if enterPressed then submit() end end)
 bind(input.Focused, function() animate(inputEdge, 0.12, {Color = colors.cyan, Transparency = 0.12}) end)
 bind(input.FocusLost, function() animate(inputEdge, 0.12, {Color = colors.muted, Transparency = 0.52}) end)
-bind(rememberButton.Activated, function()
-    if destroyed or closing then return end
-    remembered = not remembered
-    check.Text = remembered and "✓" or ""
-    check.BackgroundColor3 = remembered and colors.cyan or colors.glass
-    checkEdge.Color = remembered and colors.cyan or colors.muted
-    controller:SetStatus(remembered and "Key saving will be enabled with authentication." or "Ready to verify", "info")
-end)
 bind(paste.Activated, function()
     local readClipboard = environment.getclipboard or getclipboard
     if type(readClipboard) ~= "function" then
@@ -347,9 +320,86 @@ bind(paste.Activated, function()
         controller:SetStatus("Clipboard unavailable. Paste into the key field.", "error")
     end
 end)
-bind(getKey.Activated, function()
-    controller:SetStatus("The get-key link has not been configured yet.", "info")
-end)
+local providers = make("CanvasGroup", {
+    Name = "Providers", BackgroundTransparency = 1, BorderSizePixel = 0,
+    GroupTransparency = 1, GroupColor3 = Color3.fromRGB(255, 255, 255),
+    Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -98),
+    Visible = false, ClipsDescendants = false,
+}, panel)
+local back = make("TextButton", {
+    Name = "Back", BackgroundColor3 = colors.glass, BackgroundTransparency = 0.35,
+    Position = UDim2.fromOffset(28, 10), Size = UDim2.fromOffset(38, 38),
+    Text = "←", TextSize = 24, Font = Enum.Font.Gotham,
+    TextColor3 = colors.text, AutoButtonColor = false, BorderSizePixel = 0,
+}, providers)
+round(back, 8)
+stroke(back, colors.muted, 0.7)
+text(providers, "Get your key", 24, UDim2.fromOffset(80, 10), UDim2.new(1, -108, 0, 32), colors.text, true)
+text(providers, "Choose a service to continue.", 15, UDim2.fromOffset(80, 43), UDim2.new(1, -108, 0, 24), colors.muted)
+local providerFeedback = text(providers, "", 12, UDim2.fromOffset(28, 240), UDim2.new(1, -56, 0, 18), colors.muted)
+local providerLinks = {}
+function controller:SetProviderLinks(links)
+    if type(links) ~= "table" then return end
+    for _, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
+        local url = links[name]
+        providerLinks[name] = type(url) == "string" and url:match("^https://") and url or nil
+    end
+end
+controller:SetProviderLinks(environment.__SerenityKeyLinks)
+for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
+    local option = make("TextButton", {
+        Name = name, BackgroundColor3 = colors.glass, BackgroundTransparency = 0.2,
+        Position = UDim2.fromOffset(28, 82 + (index - 1) * 54),
+        Size = UDim2.new(1, -56, 0, 48), BorderSizePixel = 0,
+        Text = "", AutoButtonColor = false,
+    }, providers)
+    round(option, 9)
+    stroke(option, colors.muted, 0.6)
+    local mark = make("TextLabel", {
+        BackgroundColor3 = colors.cyan, BackgroundTransparency = 0.84,
+        Position = UDim2.fromOffset(12, 10), Size = UDim2.fromOffset(28, 28),
+        Text = name:sub(1, 1), Font = Enum.Font.GothamBold, TextSize = 14,
+        TextColor3 = colors.cyan, BorderSizePixel = 0,
+    }, option)
+    round(mark, 7)
+    text(option, name, 17, UDim2.fromOffset(54, 0), UDim2.new(1, -102, 1, 0), colors.text, true)
+    text(option, "→", 22, UDim2.new(1, -40, 0, 0), UDim2.fromOffset(28, 48), colors.muted)
+    bind(option.MouseEnter, function() animate(option, 0.12, {BackgroundTransparency = 0}) end)
+    bind(option.MouseLeave, function() animate(option, 0.12, {BackgroundTransparency = 0.2}) end)
+    bind(option.Activated, function()
+        if destroyed or closing then return end
+        local url = providerLinks[name]
+        if not url then
+            providerFeedback.Text = name .. " link is not configured yet."
+            return
+        end
+        local copy = environment.setclipboard or setclipboard or toclipboard
+        local ok = type(copy) == "function" and pcall(copy, url)
+        providerFeedback.Text = ok and (name .. " link copied. Open it in your browser.") or "Clipboard unavailable on this device."
+    end)
+end
+local showingProviders, switching = false, false
+local function switchView(show)
+    if destroyed or closing or switching or showingProviders == show then return end
+    switching = true
+    showingProviders = show
+    input:ReleaseFocus()
+    local incoming = show and providers or body
+    local outgoing = show and body or providers
+    local direction = show and 1 or -1
+    incoming.Position = UDim2.fromOffset(22 * direction, 56)
+    incoming.GroupTransparency = 1
+    incoming.Visible = true
+    animate(outgoing, 0.16, {GroupTransparency = 1, Position = UDim2.fromOffset(-22 * direction, 56)})
+    animate(incoming, 0.20, {GroupTransparency = 0, Position = UDim2.fromOffset(0, 56)})
+    task.delay(0.21, function()
+        if destroyed then return end
+        outgoing.Visible = false
+        switching = false
+    end)
+end
+bind(getKey.Activated, function() providerFeedback.Text = ""; switchView(true) end)
+bind(back.Activated, function() switchView(false) end)
 bind(discord.Activated, function()
     local copy = environment.setclipboard or setclipboard or toclipboard
     if type(copy) == "function" then
