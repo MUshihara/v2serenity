@@ -93,7 +93,7 @@ local scaleProbe = make("Frame", {
 }, viewport)
 local panel = make("CanvasGroup", {
     Name = "KeyWindow", AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(552, 468),
+    Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(552, 374),
     BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 1,
     GroupColor3 = Color3.fromRGB(255, 255, 255),
     BorderSizePixel = 0, GroupTransparency = 1, ClipsDescendants = true,
@@ -127,7 +127,7 @@ local scaling = make("UIScale", {Scale = 1}, panel)
 local header = make("Frame", {
     Name = "Header", BackgroundColor3 = colors.glass,
     BackgroundTransparency = 0.68, BorderSizePixel = 0,
-    Size = UDim2.new(1, 0, 0, 64),
+    Size = UDim2.new(1, 0, 0, 56),
 }, panel)
 make("Frame", {
     BackgroundColor3 = colors.muted, BackgroundTransparency = 0.85,
@@ -136,7 +136,7 @@ make("Frame", {
 }, header)
 -- The compass uses native GUI shapes; no external image asset is required.
 local emblem = make("Frame", {
-    BackgroundTransparency = 1, Position = UDim2.fromOffset(24, 16),
+    BackgroundTransparency = 1, Position = UDim2.fromOffset(24, 12),
     Size = UDim2.fromOffset(32, 32),
 }, header)
 for i = 0, 11 do
@@ -153,31 +153,29 @@ for i = 0, 11 do
         end
     end
 end
-text(header, "SERENITY", 20, UDim2.fromOffset(69, 0), UDim2.fromOffset(220, 64), colors.text, true)
+text(header, "SERENITY", 20, UDim2.fromOffset(69, 0), UDim2.fromOffset(220, 56), colors.text, true)
 local close = make("TextButton", {
-    Name = "Close", BackgroundTransparency = 1, Text = "×",
+    Name = "Close", BackgroundColor3 = colors.glass, BackgroundTransparency = 0.6, Text = "×",
     TextColor3 = colors.muted, TextSize = 30, Font = Enum.Font.Gotham,
-    AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10),
+    AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 6),
     Size = UDim2.fromOffset(44, 44), AutoButtonColor = false,
 }, header)
 
-local body = make("ScrollingFrame", {
+round(close, 8)
+stroke(close, colors.muted, 0.75)
+local body = make("Frame", {
     Name = "Body", BackgroundTransparency = 1, BorderSizePixel = 0,
-    Position = UDim2.fromOffset(0, 64), Size = UDim2.new(1, 0, 1, -114),
-    CanvasSize = UDim2.fromOffset(0, 354), ScrollBarThickness = 5,
-    Active = true, ScrollingEnabled = true, ClipsDescendants = true,
-    VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar,
-    ScrollBarImageColor3 = colors.cyan, ScrollingDirection = Enum.ScrollingDirection.Y,
-    ElasticBehavior = Enum.ElasticBehavior.WhenScrollable,
+    Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -98),
+    ClipsDescendants = false,
 }, panel)
-local title = text(body, "Welcome to Serenity", 28, UDim2.fromOffset(24, 18), UDim2.new(1, -48, 0, 36), colors.text, true)
+local title = text(body, "Welcome to Serenity", 26, UDim2.fromOffset(24, 12), UDim2.new(1, -48, 0, 32), colors.text, true)
 title.TextXAlignment = Enum.TextXAlignment.Center
-local subtitle = text(body, "Enter your key to continue.", 16, UDim2.fromOffset(24, 57), UDim2.new(1, -48, 0, 24), colors.muted)
+local subtitle = text(body, "Enter your key to continue.", 16, UDim2.fromOffset(24, 47), UDim2.new(1, -48, 0, 24), colors.muted)
 subtitle.TextXAlignment = Enum.TextXAlignment.Center
-text(body, "License key", 16, UDim2.fromOffset(28, 100), UDim2.new(1, -56, 0, 22), colors.text, true)
+text(body, "License key", 15, UDim2.fromOffset(28, 81), UDim2.new(1, -56, 0, 22), colors.text, true)
 local inputShell = make("Frame", {
     BackgroundColor3 = colors.glass, BackgroundTransparency = 0.28,
-    Position = UDim2.fromOffset(28, 130), Size = UDim2.new(1, -56, 0, 48),
+    Position = UDim2.fromOffset(28, 108), Size = UDim2.new(1, -56, 0, 48),
     BorderSizePixel = 0,
 }, body)
 round(inputShell, 9)
@@ -222,11 +220,15 @@ local function button(name, caption, y, primary)
     bind(object.MouseLeave, function() animate(object, 0.12, {BackgroundTransparency = primary and 0 or 0.3}) end)
     return object
 end
-local verify = button("Verify", "Verify key  →", 194, true)
-local getKey = button("GetKey", "Get a key", 252, false)
+-- One action row keeps the complete key gate visible in phone landscape.
+local verify = button("Verify", "Verify key  →", 170, true)
+verify.Size = UDim2.new(0.64, -36, 0, 48)
+local getKey = button("GetKey", "Get a key", 170, false)
+getKey.Position = UDim2.new(0.64, 4, 0, 170)
+getKey.Size = UDim2.new(0.36, -32, 0, 48)
 local rememberButton = make("TextButton", {
     Name = "RememberKey", BackgroundTransparency = 1, Text = "",
-    Position = UDim2.fromOffset(25, 311), Size = UDim2.fromOffset(234, 40),
+    Position = UDim2.fromOffset(25, 230), Size = UDim2.fromOffset(234, 40),
     AutoButtonColor = false,
 }, body)
 local check = make("TextLabel", {
@@ -241,25 +243,25 @@ text(rememberButton, "Remember my key", 14, UDim2.fromOffset(39, 0), UDim2.new(1
 local remembered = false
 local statusDot = make("Frame", {
     BackgroundColor3 = colors.muted, BorderSizePixel = 0,
-    Position = UDim2.fromOffset(288, 326), Size = UDim2.fromOffset(7, 7),
+    Position = UDim2.fromOffset(288, 245), Size = UDim2.fromOffset(7, 7),
 }, body)
 round(statusDot, 7)
-local statusLabel = text(body, "Ready to verify", 13, UDim2.fromOffset(304, 314), UDim2.new(1, -332, 0, 32), colors.muted)
+local statusLabel = text(body, "Ready to verify", 13, UDim2.fromOffset(304, 233), UDim2.new(1, -332, 0, 32), colors.muted)
 statusLabel.TextWrapped = true
 
 local footer = make("Frame", {
     Name = "Footer", BackgroundTransparency = 1,
-    Position = UDim2.new(0, 0, 1, -50), Size = UDim2.new(1, 0, 0, 50),
+    Position = UDim2.new(0, 0, 1, -42), Size = UDim2.new(1, 0, 0, 42),
 }, panel)
 make("Frame", {
     BackgroundColor3 = colors.muted, BackgroundTransparency = 0.85,
     Position = UDim2.fromOffset(24, 0), Size = UDim2.new(1, -48, 0, 1), BorderSizePixel = 0,
 }, footer)
-text(footer, "Need help?", 13, UDim2.fromOffset(28, 1), UDim2.fromOffset(80, 48), colors.muted)
+text(footer, "Need help?", 13, UDim2.fromOffset(28, 1), UDim2.fromOffset(80, 40), colors.muted)
 local discord = make("TextButton", {
     Name = "Discord", BackgroundTransparency = 1, Text = "Join Discord",
     TextColor3 = colors.cyan, TextSize = 13, Font = Enum.Font.Gotham,
-    Position = UDim2.fromOffset(106, 1), Size = UDim2.fromOffset(100, 48),
+    Position = UDim2.fromOffset(106, 1), Size = UDim2.fromOffset(100, 40),
     TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
 }, footer)
 
@@ -271,11 +273,10 @@ function controller:SetStatus(message, kind)
     statusDot.BackgroundColor3 = color
     -- Longer feedback gets a full-width row beneath the checkbox.
     local expanded = #message > 24
-    statusLabel.Position = UDim2.fromOffset(expanded and 44 or 304, expanded and 356 or 314)
+    statusLabel.Position = UDim2.fromOffset(expanded and 44 or 304, expanded and 274 or 233)
     statusLabel.Size = UDim2.new(1, expanded and -72 or -332, 0, expanded and 40 or 32)
-    statusDot.Position = UDim2.fromOffset(expanded and 28 or 288, expanded and 371 or 326)
-    body.CanvasSize = UDim2.fromOffset(0, expanded and 406 or 354)
-    panel.Size = UDim2.fromOffset(552, expanded and 520 or 468)
+    statusDot.Position = UDim2.fromOffset(expanded and 28 or 288, expanded and 289 or 245)
+    panel.Size = UDim2.fromOffset(552, expanded and 426 or 374)
     controller:Resize()
 end
 function controller:Resize()
@@ -284,22 +285,20 @@ function controller:Resize()
     if dimensions.X <= 0 or dimensions.Y <= 0 then return end
     -- Mobile devices can report keyboard support even without a physical one.
     local mobile = UserInputService.TouchEnabled
-    local naturalHeight = #statusLabel.Text > 24 and 520 or 468
+    local naturalHeight = #statusLabel.Text > 24 and 426 or 374
     local availableWidth = math.max(1, dimensions.X - 32)
     local availableHeight = math.max(1, dimensions.Y - 32)
     local targetWidth = 460
     if mobile then
         targetWidth = 420
         availableWidth = math.min(availableWidth, dimensions.X * 0.70)
-        availableHeight = math.min(availableHeight, dimensions.Y * 0.76)
+        availableHeight = math.min(availableHeight, dimensions.Y * 0.84)
     end
     local inheritedScale = scaleProbe.AbsoluteSize.X / 100
     if inheritedScale <= 0 then inheritedScale = 1 end
-    local fittedScale = math.min(targetWidth / 552, availableWidth / 552)
-    -- Short screens retain readable controls; only the central body scrolls.
-    -- CanvasSize keeps every action reachable beneath the fixed header/footer.
-    local fittedHeight = math.min(naturalHeight, availableHeight / fittedScale)
-    panel.Size = UDim2.fromOffset(552, fittedHeight)
+    -- Fit the entire form on both axes. No shortened body and no scrolling.
+    local fittedScale = math.min(targetWidth / 552, availableWidth / 552, availableHeight / naturalHeight)
+    panel.Size = UDim2.fromOffset(552, naturalHeight)
     scaling.Scale = fittedScale / inheritedScale
 end
 function controller:Destroy()
@@ -320,7 +319,6 @@ local function submit()
     end
     -- No key is logged, saved, sent, or accepted by this visual-only build.
     controller:SetStatus("UI test only. Authentication is not connected yet.", "info")
-    body.CanvasPosition = Vector2.new(0, 1000)
 end
 bind(verify.Activated, submit)
 bind(input.FocusLost, function(enterPressed) if enterPressed then submit() end end)
@@ -351,7 +349,6 @@ bind(paste.Activated, function()
 end)
 bind(getKey.Activated, function()
     controller:SetStatus("The get-key link has not been configured yet.", "info")
-    body.CanvasPosition = Vector2.new(0, 1000)
 end)
 bind(discord.Activated, function()
     local copy = environment.setclipboard or setclipboard or toclipboard
@@ -360,7 +357,6 @@ bind(discord.Activated, function()
         if ok then controller:SetStatus("Discord invite copied.", "info"); return end
     end
     controller:SetStatus("Discord: discord.gg/pWPs7428wE", "info")
-    body.CanvasPosition = Vector2.new(0, 1000)
 end)
 bind(close.Activated, function()
     if closing then return end
