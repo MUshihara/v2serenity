@@ -57,16 +57,16 @@ local Tokens = {}
 
 -- Serenity M3: compact 1.4:1 desktop canvas inspired by professional utility panels.
 Tokens.Size = {
-    Window = Vector2.new(878, 600),
+    Window = Vector2.new(798, 546),
     Topbar = 56,
-    Sidebar = 210,
+    Sidebar = 200,
     SidebarBrand = 66,
     SidebarUser = 64,
     SidebarCollapsed = 62,
     Footer = 0,
 
     NavGroup = 24,
-    NavRow = 40,
+    NavRow = 36,
     NavIcon = 22,
     GameContext = 64,
     MetricPill = 26,
@@ -75,11 +75,11 @@ Tokens.Size = {
 
     SectionLabel = 36,
     SectionHeader = 50,
-    Control = 46,
-    ControlWithDescription = 64,
+    Control = 40,
+    ControlWithDescription = 56,
     Button = 46,
-    Slider = 62,
-    Select = 62,
+    Slider = 55,
+    Select = 54,
     Status = 46,
 
     RadiusShell = 14,
@@ -93,19 +93,19 @@ Tokens.Size = {
 
 Tokens.Type = {
     Brand = 15,
-    BrandSub = 10,
+    BrandSub = 9,
     TopSelect = 13,
     Page = 17,
     PageSub = 9,
     NavGroup = 9,
-    Nav = 14,
+    Nav = 13,
     Section = 10,
-    Control = 16,
-    Description = 11,
-    Value = 14,
+    Control = 14,
+    Description = 9,
+    Value = 12,
     Status = 9,
-    User = 14,
-    UserSub = 10,
+    User = 12,
+    UserSub = 9,
     Metric = 9,
     BannerTitle = 11,
     BannerBody = 9,
@@ -845,7 +845,7 @@ function Section.new(parent, deps, props)
     stack.Parent = frame
 
     local header = Instance.new("TextButton")
-    header.BackgroundTransparency = 0
+    header.BackgroundTransparency = 1
     header.BackgroundColor3 = tokens.Color.PanelSoft
     local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,6);headerCorner.Parent=header
     header.Text = ""
@@ -865,7 +865,7 @@ function Section.new(parent, deps, props)
     )
     title.TextTransparency = 0
     title.Text = props.Title or "Section"
-    title.TextSize = 15
+    title.TextSize = 14
     title.TextColor3 = tokens.Color.Text
     local underline = Instance.new("Frame")
     underline.Name = "SectionAccent"
@@ -873,7 +873,7 @@ function Section.new(parent, deps, props)
     underline.Position = UDim2.new(0, 12, 1, -3)
     underline.BorderSizePixel = 0
     underline.BackgroundColor3 = props.Accent or tokens.Color.Accent
-    underline.BackgroundTransparency = 0.35
+    underline.BackgroundTransparency = 0.65
     underline.Parent = header
 
     -- Opt-in feature groups preserve legacy section sizing and presentation.
@@ -3056,7 +3056,7 @@ for i,preset in ipairs(presets) do
     strip.Position=UDim2.fromOffset(10,11);strip.Size=UDim2.new(1,-20,0,5);strip.Parent=tile
     local round=Instance.new("UICorner");round.CornerRadius=UDim.new(1,0);round.Parent=strip
     local name=Typography.Label(tile,"Control",Tokens,preset.Name,UDim2.fromOffset(10,24),UDim2.new(1,-31,0,20),Tokens.Color.Text)
-    name.TextSize=12;name.TextTruncate=Enum.TextTruncate.AtEnd
+    name.TextSize=11;name.TextTruncate=Enum.TextTruncate.AtEnd
     local badge=Typography.Label(tile,"Control",Tokens,"",UDim2.new(1,-21,0,24),UDim2.fromOffset(16,20),preset.Color)
     badge:SetAttribute("FixedPresetColor",true)
     presetTiles[preset.Name]={Badge=badge,Stroke=stroke}
@@ -3102,7 +3102,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.31";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.32";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3214,8 +3214,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.31"})
-    for i,data in ipairs({{"More comfortable reading","Larger labels, controls and window."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Simple confirmations","Compact dialogs without branding."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.32"})
+    for i,data in ipairs({{"Softer section styling","Lighter headings with less visual clutter."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Simple confirmations","Compact dialogs without branding."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3249,7 +3249,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.31",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.32",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3455,7 +3455,7 @@ app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.31 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.32 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
