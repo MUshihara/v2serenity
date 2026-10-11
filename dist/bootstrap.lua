@@ -20,6 +20,32 @@ local destroyed, closing = false, false
 local controller = {}
 local verifying, authenticated, attempt = false, false, 0
 local authLoader = "https://flowauth.net/v1/loaders/1648c904082188891affedeaf4cf550d.lua"
+local pendingKey
+local cacheFile = "Serenity_Test_Project_Key.txt"
+local readKeyFile = environment.readfile or readfile
+local writeKeyFile = environment.writefile or writefile
+local deleteKeyFile = environment.delfile or delfile
+local function readSavedKey()
+    if type(readKeyFile) ~= "function" then return nil end
+    local ok, value = pcall(readKeyFile, cacheFile)
+    if not ok or type(value) ~= "string" or #value > 512 then return nil end
+    value = value:match("^%s*(.-)%s*$")
+    if value == "" or value:find("[\r\n]") then return nil end
+    return value
+end
+local function saveVerifiedKey(key)
+    if type(writeKeyFile) ~= "function" or type(key) ~= "string" or key == "" then return false end
+    return pcall(writeKeyFile, cacheFile, key)
+end
+function controller:ForgetSavedKey()
+    if type(deleteKeyFile) == "function" then
+        local ok = pcall(deleteKeyFile, cacheFile)
+        if ok then return true end
+    end
+    if type(writeKeyFile) == "function" then return pcall(writeKeyFile, cacheFile, "") end
+    return false
+end
+
 local colors = {
     navy = Color3.fromRGB(13, 28, 49),
     glass = Color3.fromRGB(26, 47, 76),
@@ -357,6 +383,8 @@ function controller:CompleteAuthentication()
     -- Called by the protected FlowAuth payload, never by loader return values.
     if destroyed or closing or not verifying or authenticated then return false end
     authenticated = true
+    saveVerifiedKey(pendingKey)
+    pendingKey = nil
     closing = true
     input.Text = ""
     self:SetStatus("Key verified. Opening Serenity...", "info")
@@ -375,6 +403,7 @@ local function submit()
     end
     attempt = attempt + 1
     local currentAttempt = attempt
+    pendingKey = key
     setVerifying(true)
     controller:SetStatus("Checking your key...", "info")
     task.spawn(function()
@@ -386,14 +415,20 @@ local function submit()
             if not run then error(compileError or "Loader unavailable", 0) end
             run()
         end)
-        -- Restore the caller's key; never log or persist the submitted key.
+        -- Restore the caller's key; only the success callback saves verified keys.
         environment.script_key = previousKey
         key = nil
         if destroyed or authenticated or currentAttempt ~= attempt then return end
+        pendingKey = nil
         setVerifying(false)
         local message = "Authentication did not complete. Check your key and try again."
         if not ok then
             local detail = tostring(failure):lower()
+            if detail:find("invalid_key", 1, true) or detail:find("expired", 1, true)
+                or detail:find("premium_required", 1, true) or detail:find("hwid", 1, true) then
+                controller:ForgetSavedKey()
+                input.Text = ""
+            end
             if detail:find("premium_required", 1, true) then
                 message = "This key needs access to the Serenity test project."
             elseif detail:find("expired", 1, true) then
@@ -724,8 +759,14 @@ controller.Gui = gui
 controller.Input = input
 controller.IsPreview = false
 controller.AuthenticationConnected = true
+controller.AutoSaveAvailable = type(writeKeyFile) == "function"
 controller.FlowAuthLoader = "https://flowauth.net/v1/loaders/1648c904082188891affedeaf4cf550d.lua"
 environment.__SerenityKeyWindowTest = controller
 controller:Resize()
 animate(panel, 0.22, {GroupTransparency = 0})
+local savedKey = readSavedKey()
+if savedKey then
+    input.Text = savedKey
+    task.defer(submit)
+end
 return controller
