@@ -443,14 +443,14 @@ local function localProviderIcon(name)
     return nil
 end
 
--- Use the supplied picture unchanged; ImageRect removes its transparent margins.
+-- Render the full picture: crop coordinates can break when the client resizes textures.
 local headerLogoUri = localProviderIcon("HeaderLogo")
 if headerLogoUri then
     local headerLogo = make("ImageLabel", {
         Name = "SerenityHeaderLogo", BackgroundTransparency = 1,
         Image = headerLogoUri, ImageColor3 = Color3.fromRGB(255, 255, 255),
-        ImageRectOffset = Vector2.new(30, 136), ImageRectSize = Vector2.new(1989, 429),
-        Position = UDim2.fromOffset(24, 1), Size = UDim2.fromOffset(250, 54),
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 24, 0.5, -1), Size = UDim2.fromOffset(230, 80),
         ScaleType = Enum.ScaleType.Fit, Visible = true, ZIndex = 2,
     }, header)
     local function updateHeaderLogo()
