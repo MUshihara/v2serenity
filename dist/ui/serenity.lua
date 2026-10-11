@@ -606,6 +606,7 @@ local Icons = {}
 
 Icons.Map = {
     home = "rbxassetid://98755624629571",
+    dashboard = "rbxassetid://98755624629571",
     about = "rbxassetid://124560466474914",
     info = "rbxassetid://124560466474914",
     automation = "rbxassetid://80451686744860",
@@ -845,6 +846,17 @@ function Section.new(parent, deps, props)
         tokens.Color.TextDim
     )
     title.TextTransparency = 0.16
+    title.Text = props.Title or "Section"
+    title.TextSize = 12
+    title.TextColor3 = tokens.Color.TextMuted
+    local underline = Instance.new("Frame")
+    underline.Name = "SectionAccent"
+    underline.Size = UDim2.fromOffset(26, 2)
+    underline.Position = UDim2.new(0, 2, 1, -2)
+    underline.BorderSizePixel = 0
+    underline.BackgroundColor3 = props.Accent or tokens.Color.Accent
+    underline.BackgroundTransparency = 0.35
+    underline.Parent = header
 
     -- Opt-in feature groups preserve legacy section sizing and presentation.
     if props.Description then
@@ -908,6 +920,7 @@ function Section.new(parent, deps, props)
     body.LayoutOrder = props.Description and 3 or 2
     body.Parent = frame
     deps.Material.Section(body, tokens)
+    body:SetAttribute("ReadingSurface", true)
 
     local list = Instance.new("UIListLayout")
     list.Padding = UDim.new(0, 0)
@@ -2781,6 +2794,9 @@ refreshMaterials=function()
                 local amount=(100-materialState.Opacity)/100
                 if deps.Mobile then amount=math.min(amount,0.08) end
                 object.BackgroundTransparency=off and 0 or (role=="Shell" and amount or role=="Sidebar" and amount*0.55 or amount*0.8)
+                if object:GetAttribute("ReadingSurface") then
+                    object.BackgroundTransparency=math.min(object.BackgroundTransparency,0.06)
+                end
                 local g=object:FindFirstChild("GlassSheen") or object:FindFirstChild("ShellTone")
                 if not g then g=Instance.new("UIGradient");g.Name="GlassSheen";g.Parent=object end
                 g.Rotation=115
@@ -2867,186 +2883,189 @@ Toggle.new(controls.Body, deps, {Title="Disabled Toggle", Default=false, Enabled
 Slider.new(controls.Body, deps, {Title="Slider", Min=0, Max=100, Step=1, Default=50, Suffix="%"})
 Select.new(controls.Body, deps, {Title="Dropdown", Options={"Option A","Option B","Option C"}, Default="Option A"})
 
--- Dashboard: local UI preview; no simulated live service counts.
+-- Dashboard: local preview with real player/session context; services stay disconnected.
 do
-    local function card(parent, height, color)
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, -4, 0, height)
-        frame.Parent = parent
-        Material.Section(frame, Tokens)
-        if color then frame.BackgroundColor3 = color end
-        return frame
+    local player=game:GetService("Players").LocalPlayer
+    local started=os.clock()
+    local function logicalWidth(frame)
+        return frame.AbsoluteSize.X/math.max(deps.UIScale.Scale,0.01)
     end
-    local function label(parent, text, x, y, w, h, size, color)
-        local l = Typography.Label(parent, "Control", Tokens, text, UDim2.fromOffset(x,y), UDim2.new(1,w,0,h), color or Tokens.Color.Text)
-        l.TextSize = size
-        l.Font = size >= 14 and Enum.Font.GothamBold or Enum.Font.Gotham
+    local function card(parent,height,order)
+        local f=Instance.new("Frame");f.Size=UDim2.new(1,-4,0,height)
+        f.LayoutOrder=order or 1;f.Parent=parent;Material.Section(f,Tokens)
+        f:SetAttribute("ReadingSurface",true)
+        return f
+    end
+    local function label(parent,message,x,y,w,h,size,color)
+        local l=Typography.Label(parent,"Control",Tokens,message,UDim2.fromOffset(x,y),UDim2.new(1,w,0,h),color or Tokens.Color.Text)
+        l.TextSize=size or 13;l.Font=(size or 13)>=14 and Enum.Font.GothamBold or Enum.Font.Gotham
         return l
     end
-    local title = card(dashboard, 53)
-    title.BackgroundTransparency = 1
-    title:FindFirstChild("PanelStroke"):Destroy()
-    label(title,"Dashboard",0,0,deps.Mobile and 0 or -175,31,deps.Mobile and 22 or 25)
-    label(title,"Everything you need, in one place.",0,31,deps.Mobile and 0 or -175,22,12,Tokens.Color.TextMuted)
-    local invite=Instance.new("TextButton")
-    invite.Name="DashboardDiscord"
-    invite.Size=UDim2.fromOffset(162,48)
-    invite.Position=UDim2.new(1,-164,0,2)
-    invite.Text=""
-    invite.AutoButtonColor=false
-    invite.Parent=title
-    invite.Visible=not deps.Mobile
-    Material.Section(invite,Tokens)
-    label(invite,"Discord",12,5,-24,20,14)
-    local inviteHint=label(invite,"Copy invite · news & updates",12,27,-24,16,10,Tokens.Color.TextMuted)
-    invite.Activated:Connect(function()
-        local copy=setclipboard or toclipboard
-        local ok=type(copy)=="function" and pcall(copy,"https://discord.gg/pWPs7428wE")
-        inviteHint.Text=ok and "Invite copied" or "Copy unavailable"
-        task.delay(2,function() if inviteHint.Parent then inviteHint.Text="Copy invite · news & updates" end end)
-    end)
-    local metrics = Instance.new("Frame")
-    metrics.Size=UDim2.new(1,-4,0,58);metrics.BackgroundTransparency=1;metrics.Parent=dashboard
-    local tiles={}
-    for i,entry in ipairs({{"WORKSPACE","UI preview"},{"ACTIVE NOW","Not connected"},{"STATUS","UI ready"}}) do
-        local tile=card(metrics,58);tiles[i]=tile
-        local notch=Instance.new("Frame");notch.BorderSizePixel=0
-        notch.Size=UDim2.fromOffset(3,19);notch.Position=UDim2.fromOffset(0,20)
-        notch.BackgroundColor3=i==3 and Tokens.Color.Mint or Tokens.Color.Accent;notch.Parent=tile
-        local curve=Instance.new("UICorner");curve.CornerRadius=UDim.new(1,0);curve.Parent=notch
-        label(tile,entry[1],12,7,-24,17,9,Tokens.Color.TextMuted)
-        local value=label(tile,entry[2],12,26,-24,25,15,i==3 and Tokens.Color.Mint or Tokens.Color.Text)
-        value.TextTruncate=Enum.TextTruncate.AtEnd
+    local function button(parent,message,callback)
+        local b=Instance.new("TextButton");b.Text=message;b.AutoButtonColor=false
+        b.Font=Enum.Font.GothamMedium;b.TextSize=12;b.TextColor3=Tokens.Color.Text
+        b.Parent=parent;Material.Inset(b,Tokens)
+        runtime:TrackConnection(b.Activated:Connect(callback))
+        local normal=b.BackgroundTransparency
+        runtime:TrackConnection(b.MouseEnter:Connect(function() Motion:Tween(b,"Hover",{BackgroundTransparency=0.05}) end))
+        runtime:TrackConnection(b.MouseLeave:Connect(function() Motion:Tween(b,"Hover",{BackgroundTransparency=normal}) end))
+        return b
+    end
+    local heading=Instance.new("Frame");heading.Size=UDim2.new(1,-4,0,48)
+    heading.BackgroundTransparency=1;heading.LayoutOrder=1;heading.Parent=dashboard
+    local dashboardTitle=label(heading,"Dashboard",0,0,-112,27,23)
+    local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
+    local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
+    badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
+    badge.Text="UI TEST  ·  M4.26";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
+    local function arrangeHeading()
+        local wide=logicalWidth(heading)>=350
+        badge.Visible=wide
+        dashboardTitle.Size=UDim2.new(1,wide and -112 or 0,0,27)
+        dashboardSubtitle.Size=UDim2.new(1,wide and -112 or 0,0,18)
+    end
+    runtime:TrackConnection(heading:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHeading));arrangeHeading()
+
+    local hero=card(dashboard,142,2);hero.Name="DashboardHero";hero.ClipsDescendants=true
+    local accent=Instance.new("Frame");accent.BorderSizePixel=0
+    accent.Size=UDim2.new(0,3,1,-32);accent.Position=UDim2.fromOffset(0,16)
+    accent.BackgroundColor3=Tokens.Color.Accent;accent.Parent=hero
+    local greeting=label(hero,"Welcome back, "..player.DisplayName,18,15,-125,28,20)
+    greeting.TextTruncate=Enum.TextTruncate.AtEnd
+    local note=label(hero,"Choose a workspace below. Make Serenity yours.",18,48,-125,34,12,Tokens.Color.TextMuted)
+    note.TextWrapped=true;note.TextYAlignment=Enum.TextYAlignment.Top
+    local portrait=Instance.new("ImageLabel");portrait.Name="DashboardAvatar"
+    portrait.AnchorPoint=Vector2.new(1,0);portrait.Position=UDim2.new(1,-18,0,19)
+    portrait.Size=UDim2.fromOffset(68,68);portrait.BackgroundTransparency=0.2
+    portrait.BackgroundColor3=Tokens.Color.PanelSoft;portrait.ScaleType=Enum.ScaleType.Fit
+    portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420";portrait.Parent=hero
+    local curve=Instance.new("UICorner");curve.CornerRadius=UDim.new(1,0);curve.Parent=portrait
+    local ring=Instance.new("UIStroke");ring.Color=Tokens.Color.Accent;ring.Transparency=0.5;ring.Parent=portrait
+    -- Fallback identity remains readable if the thumbnail is unavailable.
+    local initial=label(portrait,player.DisplayName:sub(1,1):upper(),0,0,0,68,24)
+    initial.TextXAlignment=Enum.TextXAlignment.Center
+    local function avatarLoaded() initial.Visible=not portrait.IsLoaded end
+    runtime:TrackConnection(portrait:GetPropertyChangedSignal("IsLoaded"):Connect(avatarLoaded));avatarLoaded()
+    local explore=button(hero,"Explore components  ›",function() app:SelectPage("Playground") end)
+    explore.Position=UDim2.fromOffset(18,94);explore.Size=UDim2.fromOffset(166,34)
+    local customize=button(hero,"Customize",function() app:SelectPage("Settings") end)
+    customize.Position=UDim2.fromOffset(192,94);customize.Size=UDim2.fromOffset(104,34)
+    local function arrangeHero()
+        local wide=logicalWidth(hero)>=390
+        explore.Size=UDim2.fromOffset(math.max(80,math.min(166,logicalWidth(hero)-36)),34)
+        portrait.Visible=wide
+        greeting.Size=UDim2.new(1,wide and -125 or -36,0,28)
+        note.Size=UDim2.new(1,wide and -125 or -36,0,34)
+        customize.Visible=logicalWidth(hero)>=320
+    end
+    runtime:TrackConnection(hero:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHero));arrangeHero()
+
+    local metrics=Instance.new("Frame");metrics.Size=UDim2.new(1,-4,0,60)
+    metrics.BackgroundTransparency=1;metrics.LayoutOrder=3;metrics.Parent=dashboard
+    local tiles,values={},{}
+    for i,data in ipairs({{"SESSION","00:00","activity"},{"CURRENT PLACE",tostring(game.PlaceId),"server"},{"CONNECTION","Preview only","info"}}) do
+        local tile=card(metrics,60);tiles[i]=tile
+        local icon=Icons.Create(tile,data[3],15,Tokens.Color.Accent,UDim2.fromOffset(12,11))
+        label(tile,data[1],34,9,-42,18,10,Tokens.Color.TextMuted)
+        values[i]=label(tile,data[2],12,30,-24,22,i==2 and 13 or 15)
+        values[i].TextTruncate=Enum.TextTruncate.AtEnd
     end
     local function arrangeMetrics()
-        local width=metrics.AbsoluteSize.X;if width<=0 then return end
-        local count=width>=470 and 3 or (width>=300 and 2 or 1)
-        local gap=8;local tileWidth=(width-gap*(count-1))/count
+        local width=logicalWidth(metrics);if width<=0 then return end
+        local count=width>=480 and 3 or (width>=310 and 2 or 1)
+        local gap=8;local w=(width-gap*(count-1))/count
         for i,tile in ipairs(tiles) do
-            tile.Size=UDim2.fromOffset(tileWidth,58)
-            tile.Position=UDim2.fromOffset(((i-1)%count)*(tileWidth+gap),math.floor((i-1)/count)*66)
+            tile.Size=UDim2.fromOffset(w,60)
+            tile.Position=UDim2.fromOffset(((i-1)%count)*(w+gap),math.floor((i-1)/count)*68)
         end
-        metrics.Size=UDim2.new(1,-4,0,math.ceil(#tiles/count)*66-8)
+        metrics.Size=UDim2.new(1,-4,0,math.ceil(#tiles/count)*68-8)
     end
-    runtime:TrackConnection(metrics:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeMetrics))
-    arrangeMetrics()
-    local welcome=card(dashboard,140,Color3.fromRGB(36,83,119))
-    welcome.ClipsDescendants=true
-    local engraving=Instance.new("Frame")
-    engraving.BackgroundTransparency=1;engraving.Size=UDim2.fromOffset(140,140)
-    engraving.Position=UDim2.new(1,-140,0,0);engraving.Parent=welcome
-    for i=1,3 do
-        local ring=Instance.new("Frame");ring.BackgroundTransparency=1
-        ring.AnchorPoint=Vector2.new(0.5,0.5);ring.Position=UDim2.fromScale(0.7,0.5)
-        ring.Size=UDim2.fromOffset(48+i*25,48+i*25);ring.Parent=engraving
-        local c=Instance.new("UICorner");c.CornerRadius=UDim.new(1,0);c.Parent=ring
-        local edge=Instance.new("UIStroke");edge.Color=Tokens.Color.Text;edge.Transparency=0.90;edge.Parent=ring
+    runtime:TrackConnection(metrics:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeMetrics));arrangeMetrics()
+    app:Tooltip(tiles[3],"This preview does not connect game automation, authentication or active-user services.")
+    local timer
+    local function updateSession()
+        if runtime.Destroyed then return end
+        if dashboard.Visible and app.Holder.Visible then
+            local elapsed=math.floor(os.clock()-started)
+            values[1].Text=string.format("%02d:%02d",math.floor(elapsed/60),elapsed%60)
+        end
+        timer=task.delay(1,updateSession)
     end
-    local player=game:GetService("Players").LocalPlayer
-    Material.Emblem(welcome,UDim2.fromOffset(16,17),28,Color3.fromRGB(249,233,198),"compass")
-    local greeting=label(welcome,"Welcome back, "..player.DisplayName,56,12,-168,42,18)
-    greeting.TextWrapped=true;greeting.TextYAlignment=Enum.TextYAlignment.Top
-    local subtitle=label(welcome,"Your space. Your settings. Make Serenity yours.",56,58,-168,32,12,Tokens.Color.TextMuted)
-    subtitle.TextWrapped=true;subtitle.TextYAlignment=Enum.TextYAlignment.Top
-    local portrait=Instance.new("ImageLabel")
-    portrait.BackgroundColor3=Color3.fromRGB(16,39,59);portrait.BackgroundTransparency=0.2
-    portrait.AnchorPoint=Vector2.new(1,0);portrait.Position=UDim2.new(1,-18,0,20)
-    portrait.Size=UDim2.fromOffset(76,76);portrait.ScaleType=Enum.ScaleType.Fit
-    portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420";portrait.Parent=welcome
-    local rounded=Instance.new("UICorner");rounded.CornerRadius=UDim.new(1,0);rounded.Parent=portrait
-    local edge=Instance.new("UIStroke");edge.Color=Tokens.Color.Accent;edge.Transparency=0.55;edge.Parent=portrait
-    local launch=Instance.new("TextButton")
-    launch.Name="OpenPlayground";launch.Size=UDim2.fromOffset(128,30)
-    launch.Position=UDim2.fromOffset(16,100);launch.Text="Explore controls  ›"
-    launch.Font=Enum.Font.GothamMedium;launch.TextSize=11;launch.TextColor3=Tokens.Color.Text
-    launch.Parent=welcome;Material.Inset(launch,Tokens)
-    runtime:TrackConnection(launch.Activated:Connect(function() app:SelectPage("Playground") end))
-    local function arrangeWelcome()
-        local width=welcome.AbsoluteSize.X;if width<=0 then return end
-        local wide=width>=350;portrait.Visible=wide;engraving.Visible=wide
-        greeting.Size=UDim2.new(1,wide and -168 or -72,0,42)
-        subtitle.Position=UDim2.fromOffset(wide and 56 or 16,58)
-        subtitle.Size=UDim2.new(1,wide and -168 or -32,0,32)
+    updateSession()
+    runtime:TrackCleanup(function() if timer then pcall(task.cancel,timer) end end)
+
+    local workspaces=card(dashboard,118,4);workspaces.Name="DashboardWorkspaces"
+    label(workspaces,"Jump back in",14,9,-28,24,15)
+    local destinations={
+        {"Automation","Feature controls","automation","Automation"},
+        {"Progression","Stages & upgrades","progression","Progression"},
+        {"Playground","Test interactions","settings","Playground"},
+    }
+    local shortcuts={}
+    for i,data in ipairs(destinations) do
+        local b=button(workspaces,"",function() app:SelectPage(data[4]) end);shortcuts[i]=b
+        Icons.Create(b,data[3],20,Tokens.Color.Accent,UDim2.fromOffset(10,11))
+        local title=label(b,data[1],38,8,-48,22,13)
+        title.Font=Enum.Font.GothamMedium
+        local sub=label(b,data[2],10,38,-20,18,11,Tokens.Color.TextMuted)
+        sub.TextTruncate=Enum.TextTruncate.AtEnd
     end
-    runtime:TrackConnection(welcome:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeWelcome))
-    arrangeWelcome()
-    local cols = ColumnLayout.new(dashboard,deps,{LayoutOrder=4,Gap=10})
-    local quick = Section.new(cols.Left,deps,{Title="Quick settings",
-        Tooltip="Reduced motion removes animated transitions. Glass material controls the appearance of this test window."})
-    for _,l in ipairs(quick.Header:GetChildren()) do if l:IsA("TextLabel") then l.Text="Quick settings"; l.TextSize=15; l.Font=Enum.Font.GothamBold; l.TextColor3=Tokens.Color.Text end end
+    local function arrangeShortcuts()
+        local width=logicalWidth(workspaces);if width<=0 then return end
+        local count=width>=480 and 3 or 1
+        local w=(width-28-8*(count-1))/count
+        for i,b in ipairs(shortcuts) do
+            b.Size=UDim2.fromOffset(w,64)
+            b.Position=UDim2.fromOffset(14+((i-1)%count)*(w+8),41+math.floor((i-1)/count)*72)
+        end
+        workspaces.Size=UDim2.new(1,-4,0,41+math.ceil(#shortcuts/count)*72+5)
+    end
+    runtime:TrackConnection(workspaces:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeShortcuts));arrangeShortcuts()
+
+    local cols=ColumnLayout.new(dashboard,deps,{LayoutOrder=5,Gap=10})
+    local quick=Section.new(cols.Left,deps,{Title="Make it yours",Tooltip="These preferences change the UI. Game rendering and FPS controls belong in Misc."})
     Toggle.new(quick.Body,deps,{Title="Reduced motion",Default=false,Callback=function(v) Motion.Reduced=v end})
     glassSelector(quick.Body,"Glass material")
-    local shortcuts=Instance.new("Frame");shortcuts.BackgroundTransparency=1
-    shortcuts.Size=UDim2.new(1,0,0,40);shortcuts.Parent=quick.Body
-    for i,item in ipairs({{"Playground","Playground"},{"Profile","Profile"}}) do
-        local button=Instance.new("TextButton");button.Text=item[1]
-        button.Size=UDim2.new(0.5,-4,0,36);button.Position=UDim2.new((i-1)*0.5,(i-1)*4,0,2)
-        button.Font=Enum.Font.GothamMedium;button.TextSize=11;button.TextColor3=Tokens.Color.Text
-        button.Parent=shortcuts;Material.Inset(button,Tokens)
-        runtime:TrackConnection(button.Activated:Connect(function() app:SelectPage(item[2]) end))
+    local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
+    openSettings.Size=UDim2.new(1,0,0,38)
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.26"})
+    for i,data in ipairs({{"A clearer home","Profile, session and useful shortcuts."},{"Helpful interactions","Tap ? or try the confirmation dialog."},{"Designed to stay readable","Stronger cards and adaptive layouts."}}) do
+        local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
+        row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
+        local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
+        dot.BorderSizePixel=0;dot.BackgroundColor3=i==2 and Tokens.Color.Lavender or Tokens.Color.Accent;dot.Parent=row
+        label(row,data[1],24,5,-36,22,12)
+        local sub=label(row,data[2],24,27,-36,26,11,Tokens.Color.TextMuted)
+        sub.TextWrapped=true;sub.TextYAlignment=Enum.TextYAlignment.Top
     end
-    local news = Section.new(cols.Right,deps,{Title="What's new"})
-    news.Body:SetAttribute("GlassRole",nil)
-    news.Body.BackgroundTransparency=1
-    for _,child in ipairs(news.Body:GetChildren()) do
-        if child:IsA("UIStroke") or child:IsA("UIGradient") then child:Destroy() end
-    end
-    for _,l in ipairs(news.Header:GetChildren()) do if l:IsA("TextLabel") then l.Text="What's new"; l.TextSize=15; l.Font=Enum.Font.GothamBold; l.TextColor3=Tokens.Color.Text end end
-    for i,item in ipairs({{"Help where you need it","Hover or tap ? for control guidance."},{"Clearer feature groups","Described sections in the Playground."},{"Review before acting","Animated confirmation with Cancel and Escape."}}) do
-        local row=Instance.new("Frame")
-        row.Size=UDim2.new(1,0,0,64)
-        row.BackgroundTransparency=1
-        row.Parent=news.Body
-        local dot=Instance.new("Frame");dot.BorderSizePixel=0;dot.Size=UDim2.fromOffset(5,5)
-        dot.Position=UDim2.fromOffset(5,12);dot.BackgroundColor3=Tokens.Color.Accent;dot.Parent=row
-        local round=Instance.new("UICorner");round.CornerRadius=UDim.new(1,0);round.Parent=dot
-        if i<3 then
-            local track=Instance.new("Frame");track.BorderSizePixel=0;track.Size=UDim2.fromOffset(1,49)
-            track.Position=UDim2.fromOffset(7,19);track.BackgroundColor3=Tokens.Color.Stroke;track.BackgroundTransparency=0.7;track.Parent=row
-        end
-        label(row,item[1],21,3,-29,20,13)
-        local description=label(row,item[2],21,25,-29,34,11,Tokens.Color.TextMuted)
-        description.TextWrapped=true;description.TextYAlignment=Enum.TextYAlignment.Top
-    end
-    local community=card(dashboard,60)
-    community.LayoutOrder=5
-    Material.Emblem(community,UDim2.fromOffset(14,17),25,Tokens.Color.TextMuted,"connection")
-    local communityTitle=label(community,"Serenity community",49,8,-170,23,14)
-    local communityText=label(community,"News, releases and updates.",49,33,-170,32,11,Tokens.Color.TextMuted)
+    local community=card(dashboard,88,6)
+    Icons.Create(community,"webhook",23,Tokens.Color.Accent,UDim2.fromOffset(14,16))
+    local communityTitle=label(community,"Serenity community",48,10,-180,23,15)
+    local communityText=label(community,"Help with keys, updates and premium.",48,36,-180,30,12,Tokens.Color.TextMuted)
     communityText.TextWrapped=true
-    local button=Instance.new("TextButton")
-    button.Size=UDim2.fromOffset(100,31)
-    button.Position=UDim2.new(1,-113,0.5,-15)
-    button.Text="Copy invite"
-    button.Font=Enum.Font.GothamMedium
-    button.TextSize=12
-    button.TextColor3=Tokens.Color.Text
-    button.Parent=community
-    Material.Inset(button,Tokens)
-    local function arrangeCommunity()
-        local width=community.AbsoluteSize.X;if width<=0 then return end
-        local wide=width>=350
-        community.Size=UDim2.new(1,-4,0,wide and 68 or 120)
-        communityTitle.Size=UDim2.new(1,wide and -170 or -62,0,wide and 23 or 42)
-        communityTitle.TextWrapped=true
-        communityText.Position=UDim2.fromOffset(wide and 49 or 14,wide and 33 or 50)
-        communityText.Size=UDim2.new(1,wide and -170 or -28,0,32)
-        button.Position=wide and UDim2.new(1,-113,0.5,-15) or UDim2.fromOffset(14,84)
-    end
-    runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity))
-    arrangeCommunity()
-    button.Activated:Connect(function()
-        local copy = setclipboard or toclipboard
-        if copy then
-            local ok=pcall(copy,"https://discord.gg/pWPs7428wE")
-            button.Text=ok and "Invite copied" or "Copy failed"
-            task.delay(2,function() if button.Parent then button.Text="Copy invite" end end)
-        else button.Text="Copy unavailable" end
+    local join=button(community,"Join Discord  ↗",function()
+        app:Confirm({Title="Join Serenity on Discord",
+            Message="Get help with keys, updates and premium. Confirm to copy the community invite.",
+            ConfirmText="Copy invite",Callback=function(confirmed)
+                if not confirmed then return end
+                local copy=setclipboard or toclipboard
+                local ok=type(copy)=="function" and pcall(copy,"https://discord.gg/pWPs7428wE")
+                app:Notify(ok and "Invite copied" or "Community invite",ok and "Paste the invite into your browser or Discord." or "discord.gg/pWPs7428wE",6,ok and "Success" or "Info")
+            end})
     end)
-    title.LayoutOrder=1;metrics.LayoutOrder=2;welcome.LayoutOrder=3
-    local info=card(about,98)
-    label(info,"Serenity preview",14,12,-28,26,18)
-    local body=label(info,"A compact blue interface. Gameplay controls are demonstrations; live statistics are not connected in this test.",14,43,-28,45,12,Tokens.Color.TextMuted)
+    join.Size=UDim2.fromOffset(130,36)
+    local function arrangeCommunity()
+        local wide=logicalWidth(community)>=440
+        community.Size=UDim2.new(1,-4,0,wide and 82 or 130)
+        communityTitle.Size=UDim2.new(1,wide and -190 or -62,0,23)
+        communityText.Size=UDim2.new(1,wide and -190 or -62,0,32)
+        join.Position=wide and UDim2.new(1,-144,0.5,-18) or UDim2.fromOffset(14,80)
+    end
+    runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
+    local info=card(about,110)
+    label(info,"Serenity preview · M4.26",14,12,-28,26,18)
+    local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
 
@@ -3157,7 +3176,7 @@ app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.25 INTERACTION TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.26 DASHBOARD TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
