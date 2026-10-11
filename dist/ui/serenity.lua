@@ -1800,7 +1800,8 @@ function Desktop.Mount(deps, options)
     avatar.Parent = userFrame
     corner(avatar, 17)
 
-    deps.Typography.Label(userFrame, "User", tokens, localPlayer.DisplayName, UDim2.fromOffset(54, 11), UDim2.new(1, -78, 0, 19), tokens.Color.Text).ZIndex = 6
+    local userNameLabel=deps.Typography.Label(userFrame, "User", tokens, localPlayer.DisplayName, UDim2.fromOffset(54, 11), UDim2.new(1, -78, 0, 19), tokens.Color.Text)
+    userNameLabel.ZIndex = 6
     deps.Typography.Label(userFrame, "UserSub", tokens, "UI TESTER", UDim2.fromOffset(54, 31), UDim2.new(1, -78, 0, 16), tokens.Color.TextDim).ZIndex = 6
     local userChevron = deps.Icons.Create(userFrame, "chevron_right", 13, tokens.Color.TextDim)
     userChevron.AnchorPoint = Vector2.new(1, 0.5)
@@ -1959,6 +1960,8 @@ function Desktop.Mount(deps, options)
         ScopeButton = scopeButton,
         Acrylic = acrylic,
         ProfileButton = userFrame,
+        IdentityAvatar = avatar,
+        IdentityName = userNameLabel,
     }
 
     local function addGroupLabel(name, order)
@@ -2803,6 +2806,17 @@ local function reducedMotionToggle(parent)
     return control
 end
 local hideDashboardName=false
+local identityBindings={}
+local function registerIdentity(object,property,shown,hidden)
+    if not object then return end
+    table.insert(identityBindings,{Object=object,Property=property,Shown=shown,Hidden=hidden})
+    object[property]=hideDashboardName and hidden or shown
+end
+local function refreshIdentity()
+    for _,binding in ipairs(identityBindings) do
+        binding.Object[binding.Property]=hideDashboardName and binding.Hidden or binding.Shown
+    end
+end
 local selectedTheme="Midnight"
 local selectedPreset="Serenity Grimoire"
 local presetControl
@@ -3115,7 +3129,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.37";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.38";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3131,6 +3145,9 @@ do
     accent.BackgroundColor3=Tokens.Color.Accent;accent.Parent=hero
     hideDashboardName=savedAppearance and savedAppearance.HideDashboardName==true or false
     local greeting=label(hero,hideDashboardName and "Welcome back" or "Welcome back, "..player.DisplayName,18,15,-125,28,20)
+    registerIdentity(greeting,"Text","Welcome back, "..player.DisplayName,"Welcome back")
+    registerIdentity(app.IdentityName,"Text",player.DisplayName,"Hidden profile")
+    registerIdentity(app.IdentityAvatar,"ImageTransparency",0,1)
     greeting.TextTruncate=Enum.TextTruncate.AtEnd
     local note=label(hero,"Choose a workspace below. Make Serenity yours.",18,48,-125,34,12,Tokens.Color.TextMuted)
     note.TextWrapped=true;note.TextYAlignment=Enum.TextYAlignment.Top
@@ -3142,6 +3159,7 @@ do
     portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420";portrait.Parent=hero
     local curve=Instance.new("UICorner");curve.CornerRadius=UDim.new(1,0);curve.Parent=portrait
     local ring=Instance.new("UIStroke");ring.Color=Tokens.Color.Accent;ring.Transparency=0.5;ring.Parent=portrait
+    registerIdentity(portrait,"ImageTransparency",0,1)
     -- Show the thumbnail directly; executor load flags can remain false after rendering.
     local explore=button(hero,"Explore components  ›",function() app:SelectPage("Playground") end)
     explore.Position=UDim2.fromOffset(18,94);explore.Size=UDim2.fromOffset(166,34)
@@ -3223,15 +3241,15 @@ do
     local quick=Section.new(cols.Left,deps,{Title="Make it yours",Tooltip="These preferences change the UI. Game rendering and FPS controls belong in Misc."})
     Toggle.new(quick.Body,deps,{Title="Hide my name",Default=hideDashboardName,Callback=function(value)
         hideDashboardName=value==true
-        greeting.Text=hideDashboardName and "Welcome back" or "Welcome back, "..player.DisplayName
+        refreshIdentity()
         saveAppearance()
     end})
     reducedMotionToggle(quick.Body)
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.37"})
-    for i,data in ipairs({{"Dashboard name privacy","Hide your name; your preference saves."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.38"})
+    for i,data in ipairs({{"Profile privacy","Hide your name, avatar and profile details."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3265,7 +3283,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.37",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.38",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3294,9 +3312,9 @@ do
         return b
     end
     local profileSection=Section.new(profile,deps,{Title="Your profile"})
-    text(profileSection.Body,player.DisplayName,32)
-    text(profileSection.Body,"@"..player.Name,28)
-    text(profileSection.Body,"User ID: "..player.UserId,28)
+    registerIdentity(text(profileSection.Body,player.DisplayName,32),"Text",player.DisplayName,"Hidden profile")
+    registerIdentity(text(profileSection.Body,"@"..player.Name,28),"Text","@"..player.Name,"Username hidden")
+    registerIdentity(text(profileSection.Body,"User ID: "..player.UserId,28),"Text","User ID: "..player.UserId,"User ID hidden")
     text(profileSection.Body,"Local UI preview — no account changes.",32)
     button(profileSection.Body,"Open component playground",function() app:SelectPage("Playground") end)
     local columns=ColumnLayout.new(lab,deps,{Gap=10})
@@ -3472,7 +3490,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.37 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.38 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
