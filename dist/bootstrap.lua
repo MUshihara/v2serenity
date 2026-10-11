@@ -450,7 +450,23 @@ for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
         Text = "", AutoButtonColor = false,
     }, providers)
     round(option, 9)
-    stroke(option, colors.muted, 0.6)
+    stroke(option, index == 1 and colors.cyan or colors.muted, index == 1 and 0.25 or 0.6)
+    if index == 1 then
+        local accent = make("Frame", {
+            BackgroundColor3 = colors.cyan, BorderSizePixel = 0,
+            Position = UDim2.fromOffset(0, 12), Size = UDim2.fromOffset(3, 24),
+        }, option)
+        round(accent, 2)
+        local recommendation = make("TextLabel", {
+            Name = "RecommendedBadge", Text = "★  Recommended", TextSize = 11,
+            Font = Enum.Font.GothamBold, TextColor3 = colors.cyan,
+            BackgroundColor3 = colors.cyan, BackgroundTransparency = 0.88,
+            BorderSizePixel = 0, Position = UDim2.new(1, -172, 0, 12),
+            Size = UDim2.fromOffset(124, 24),
+        }, option)
+        round(recommendation, 6)
+        stroke(recommendation, colors.cyan, 0.7)
+    end
     local mark = make("TextLabel", {
         BackgroundColor3 = colors.cyan, BackgroundTransparency = 0.84,
         Position = UDim2.fromOffset(12, 10), Size = UDim2.fromOffset(28, 28),
@@ -470,7 +486,16 @@ for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
             if destroyed then return end
             -- Keep the image renderable while loading; the badge stays underneath.
             mark.Visible = not logo.IsLoaded
-            if logo.IsLoaded then controller.IconStatus[name] = "Loaded" end
+            if logo.IsLoaded then
+                controller.IconStatus[name] = "Loaded"
+                if providerFeedback.Text == "Icons unavailable on this device; using letter badges." then
+                    local failed = false
+                    for _, state in pairs(controller.IconStatus) do
+                        if state == "Local image support unavailable" or state == "Local image registration failed" then failed = true end
+                    end
+                    if not failed then providerFeedback.Text = "" end
+                end
+            end
         end
         bind(logo:GetPropertyChangedSignal("IsLoaded"), updateLogo)
         updateLogo()
@@ -520,7 +545,7 @@ end
 bind(getKey.Activated, function()
     providerFeedback.Text = ""
     for _, state in pairs(controller.IconStatus) do
-        if state ~= "Loaded" and state ~= "Loading" then
+        if state == "Local image support unavailable" or state == "Local image registration failed" then
             providerFeedback.Text = "Icons unavailable on this device; using letter badges."
             break
         end
