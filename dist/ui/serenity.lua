@@ -73,7 +73,7 @@ Tokens.Size = {
     SegmentTabs = 34,
     InfoBanner = 62,
 
-    SectionLabel = 24,
+    SectionLabel = 36,
     SectionHeader = 50,
     Control = 40,
     ControlWithDescription = 56,
@@ -349,6 +349,22 @@ function Material.Sidebar(frame, tokens)
     divider.BorderSizePixel = 0
     divider.Parent = frame
     return frame
+end
+
+-- Shared pointer and keyboard feedback for popup choices and filtered lists.
+function Material.OptionHover(button, tokens, selected)
+    local pointer, focused = false, false
+    local baseTransparency = button.BackgroundTransparency
+    local function render()
+        local active = pointer or focused
+        button.BackgroundColor3 = active and tokens.Color.Accent or (selected and tokens.Color.NavActive or tokens.Color.PanelSoft)
+        button.BackgroundTransparency = active and 0.25 or baseTransparency
+        if button.Text ~= "" then button.TextColor3 = active and tokens.Color.Text or (selected and tokens.Color.Text or tokens.Color.TextMuted) end
+    end
+    button.MouseEnter:Connect(function() pointer=true;render() end)
+    button.MouseLeave:Connect(function() pointer=false;render() end)
+    button.SelectionGained:Connect(function() focused=true;render() end)
+    button.SelectionLost:Connect(function() focused=false;render() end)
 end
 
 function Material.Topbar(frame, tokens)
@@ -843,18 +859,18 @@ function Section.new(parent, deps, props)
         "Section",
         tokens,
         string.upper(props.Title or "SECTION"),
-        UDim2.fromOffset(2, 0),
-        UDim2.new(1, props.Status and -110 or -22, 1, 0),
+        UDim2.fromOffset(12, 0),
+        UDim2.new(1, props.Status and -122 or -52, 1, 0),
         tokens.Color.TextDim
     )
-    title.TextTransparency = 0.16
+    title.TextTransparency = 0
     title.Text = props.Title or "Section"
-    title.TextSize = 12
-    title.TextColor3 = tokens.Color.TextMuted
+    title.TextSize = 14
+    title.TextColor3 = tokens.Color.Text
     local underline = Instance.new("Frame")
     underline.Name = "SectionAccent"
     underline.Size = UDim2.fromOffset(26, 2)
-    underline.Position = UDim2.new(0, 2, 1, -2)
+    underline.Position = UDim2.new(0, 12, 1, -3)
     underline.BorderSizePixel = 0
     underline.BackgroundColor3 = props.Accent or tokens.Color.Accent
     underline.BackgroundTransparency = 0.35
@@ -867,7 +883,7 @@ function Section.new(parent, deps, props)
         title.TextTransparency = 0
         local accent = Instance.new("Frame")
         accent.Size = UDim2.fromOffset(3, 14)
-        accent.Position = UDim2.fromOffset(0, 5)
+        accent.Position = UDim2.fromOffset(0, 11)
         accent.BorderSizePixel = 0
         accent.BackgroundColor3 = props.Accent or tokens.Color.Accent
         accent.Parent = header
@@ -1416,6 +1432,7 @@ function Select.new(parent, deps, props)
                 local dc = Instance.new("UICorner") dc.CornerRadius = UDim.new(1, 0) dc.Parent = dot
             end
 
+            deps.Material.OptionHover(item, tokens, selected)
             item.MouseButton1Click:Connect(function()
                 self:Set(option)
                 deps.PopupManager:Close()
@@ -2183,6 +2200,7 @@ function Desktop.Mount(deps, options)
                 subtitle.ZIndex=83
             end
             table.insert(rows,{Frame=row,Match=match,Search=string.lower(match.Title.." "..match.Entry.Title.." "..(match.Description or ""))})
+            deps.Material.OptionHover(row, tokens, categoriesOnly and match.Entry.Id==currentPage)
             row.Activated:Connect(function() jump(match) end)
         end
         local empty=deps.Typography.Label(listFrame,"Value",tokens,categoriesOnly and "No matching categories" or "No matching features",UDim2.new(),UDim2.new(1,-10,0,40),tokens.Color.TextMuted)
@@ -2239,6 +2257,7 @@ function Desktop.Mount(deps, options)
             item.ZIndex = 81
             item.Parent = popup
             corner(item, 6)
+            deps.Material.OptionHover(item, tokens, name == scopeText.Text)
             item.MouseButton1Click:Connect(function()
                 scopeText.Text = name
                 deps.PopupManager:Close()
@@ -2791,25 +2810,30 @@ for key,color in pairs(Tokens.Color) do originalColors[key]=color end
 local function applyTheme(name)
     markCustom()
     selectedTheme=name
+    local previousColors={}
+    for key,color in pairs(Tokens.Color) do previousColors[key]=color end
     local hue=({Ocean=0.57,Lavender=0.72,Rose=0.94,Emerald=0.43,Slate=0.60,Amber=0.09,Crimson=0.99,Arctic=0.52,Amethyst=0.78,Midnight=0.65})[name] or 0.57
     for key,original in pairs(originalColors) do
         local _,sat,val=original:ToHSV()
         local semantic=key=="Mint" or key=="Red" or key=="Amber"
-        local accentKey=key=="Accent" or key=="AccentBright" or key=="Blue"
+        local accentKey=key=="Accent" or key=="AccentBright" or key=="Blue" or key=="Cyan" or key=="Lavender"
         Tokens.Color[key]=(semantic or not accentKey) and original or Color3.fromHSV(hue,name=="Slate" and sat*0.18 or sat,val)
     end
     for _,object in ipairs(app.ScreenGui:GetDescendants()) do
         local props={}
-        if object:IsA("GuiObject") then table.insert(props,"BackgroundColor3") end
+        if object:GetAttribute("FixedPresetColor") then
+            -- Gallery swatches preview their own preset, independent of the active theme.
+        elseif object:IsA("GuiObject") then table.insert(props,"BackgroundColor3") end
         if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then table.insert(props,"TextColor3") end
         if object:IsA("UIStroke") then table.insert(props,"Color") end
         if object:IsA("ImageLabel") or object:IsA("ImageButton") then table.insert(props,"ImageColor3") end
+        if object:GetAttribute("FixedPresetColor") then props={} end
         for _,prop in ipairs(props) do
             themeBindings[object]=themeBindings[object] or {}
             local binding=themeBindings[object][prop]
             if not binding then
                 local original=object[prop]
-                for key,color in pairs(originalColors) do
+                for key,color in pairs(previousColors) do
                     if original==color then binding=key break end
                 end
                 if not binding then binding=original end
@@ -3007,14 +3031,16 @@ for i,preset in ipairs(presets) do
     local tile=Instance.new("TextButton");tile.Name=preset.Name;tile.Text="";tile.AutoButtonColor=false
     tile.BackgroundColor3=Color3.fromRGB(16,29,44);tile.BackgroundTransparency=0.05;tile.LayoutOrder=i;tile.Parent=grid
     local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,8);corner.Parent=tile
-    local stroke=Instance.new("UIStroke");stroke.Color=preset.Color;stroke.Transparency=0.72;stroke.Parent=tile
-    local strip=Instance.new("Frame");strip.BorderSizePixel=0;strip.BackgroundColor3=preset.Color
+    local stroke=Instance.new("UIStroke");stroke.Color=preset.Color;stroke.Transparency=0.72;stroke:SetAttribute("FixedPresetColor",true);stroke.Parent=tile
+    local strip=Instance.new("Frame");strip.BorderSizePixel=0;strip.BackgroundColor3=preset.Color;strip:SetAttribute("FixedPresetColor",true)
     strip.Position=UDim2.fromOffset(10,11);strip.Size=UDim2.new(1,-20,0,5);strip.Parent=tile
     local round=Instance.new("UICorner");round.CornerRadius=UDim.new(1,0);round.Parent=strip
     local name=Typography.Label(tile,"Control",Tokens,preset.Name,UDim2.fromOffset(10,24),UDim2.new(1,-31,0,20),Tokens.Color.Text)
     name.TextSize=11;name.TextTruncate=Enum.TextTruncate.AtEnd
     local badge=Typography.Label(tile,"Control",Tokens,"",UDim2.new(1,-21,0,24),UDim2.fromOffset(16,20),preset.Color)
+    badge:SetAttribute("FixedPresetColor",true)
     presetTiles[preset.Name]={Badge=badge,Stroke=stroke}
+    Material.OptionHover(tile,Tokens,false)
     runtime:TrackConnection(tile.Activated:Connect(function() usePreset(preset.Name) end))
 end
 
@@ -3056,7 +3082,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.28";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.29";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3168,8 +3194,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.28"})
-    for i,data in ipairs({{"A quieter black layout","Sidebar brand and compact controls."},{"Images & live avatar preview","Open Image & Viewport to rotate your avatar."},{"Branded opening reveal","Short transition; ten accent presets."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.29"})
+    for i,data in ipairs({{"Clearer choices","Hover and keyboard highlights in lists."},{"Coordinated preset colors","Accent colors follow your selected theme."},{"Readable section headings","Larger titles with comfortable spacing."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3203,7 +3229,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.28",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.29",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3226,6 +3252,8 @@ do
         b.Text=title;b.TextSize=12;b.Font=Enum.Font.GothamMedium
         b.TextColor3=Tokens.Color.Text;b.Parent=parent
         Material.Inset(b,Tokens)
+        b.AutoButtonColor=false
+        Material.OptionHover(b,Tokens,false)
         b.Activated:Connect(callback)
         return b
     end
@@ -3407,7 +3435,7 @@ app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.28 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.29 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
