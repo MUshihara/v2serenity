@@ -57,10 +57,10 @@ local Tokens = {}
 
 -- Serenity M3: compact 1.4:1 desktop canvas inspired by professional utility panels.
 Tokens.Size = {
-    Window = Vector2.new(780, 540),
-    Topbar = 62,
-    Sidebar = 172,
-    SidebarBrand = 12,
+    Window = Vector2.new(798, 546),
+    Topbar = 56,
+    Sidebar = 200,
+    SidebarBrand = 66,
     SidebarUser = 64,
     SidebarCollapsed = 62,
     Footer = 0,
@@ -78,8 +78,8 @@ Tokens.Size = {
     Control = 40,
     ControlWithDescription = 56,
     Button = 46,
-    Slider = 58,
-    Select = 62,
+    Slider = 55,
+    Select = 54,
     Status = 46,
 
     RadiusShell = 14,
@@ -98,9 +98,9 @@ Tokens.Type = {
     Page = 17,
     PageSub = 9,
     NavGroup = 9,
-    Nav = 12,
+    Nav = 13,
     Section = 10,
-    Control = 13,
+    Control = 14,
     Description = 9,
     Value = 12,
     Status = 9,
@@ -121,32 +121,32 @@ Tokens.Space = {
 }
 
 Tokens.Color = {
-    Shell = Color3.fromRGB(15, 36, 53),
-    ShellDeep = Color3.fromRGB(2, 3, 9),
-    ShellSoft = Color3.fromRGB(8, 9, 18),
-    Sidebar = Color3.fromRGB(13, 32, 48),
-    Topbar = Color3.fromRGB(22, 48, 69),
+    Shell = Color3.fromRGB(16, 18, 25),
+    ShellDeep = Color3.fromRGB(12, 14, 20),
+    ShellSoft = Color3.fromRGB(17, 19, 27),
+    Sidebar = Color3.fromRGB(18, 21, 29),
+    Topbar = Color3.fromRGB(16, 18, 25),
 
-    Panel = Color3.fromRGB(24, 49, 68),
-    PanelSoft = Color3.fromRGB(29, 57, 79),
+    Panel = Color3.fromRGB(23, 26, 35),
+    PanelSoft = Color3.fromRGB(32, 37, 50),
     Surface = Color3.fromRGB(14, 16, 26),
     SurfaceSoft = Color3.fromRGB(17, 20, 31),
     Control = Color3.fromRGB(17, 20, 31),
     ControlHover = Color3.fromRGB(23, 27, 40),
     RowHover = Color3.fromRGB(23, 27, 40),
-    Inset = Color3.fromRGB(20, 43, 63),
+    Inset = Color3.fromRGB(31, 35, 47),
     InsetHover = Color3.fromRGB(24, 28, 42),
     Popup = Color3.fromRGB(13, 15, 25),
 
-    NavActive = Color3.fromRGB(35, 77, 111),
+    NavActive = Color3.fromRGB(33, 38, 51),
     NavHover = Color3.fromRGB(20, 22, 33),
 
-    Text = Color3.fromRGB(247, 244, 235),
+    Text = Color3.fromRGB(228, 231, 240),
     TextMuted = Color3.fromRGB(171, 177, 191),
     TextDim = Color3.fromRGB(161, 173, 192),
 
     Divider = Color3.fromRGB(38, 41, 54),
-    Stroke = Color3.fromRGB(88, 150, 197),
+    Stroke = Color3.fromRGB(49, 55, 70),
     StrokeBright = Color3.fromRGB(112, 121, 146),
 
     Accent = Color3.fromRGB(72, 130, 255),
@@ -711,11 +711,11 @@ function NavItem.new(parent, deps, props)
     local tile=Instance.new("Frame")
     tile.Name="NavGlassTile";tile.Size=UDim2.fromOffset(28,28)
     tile.AnchorPoint=Vector2.new(0.5,0.5);tile.Position=UDim2.new(0,22,0.5,0)
-    tile.BackgroundColor3=tokens.Color.PanelSoft;tile.BackgroundTransparency=0.5
+    tile.BackgroundColor3=tokens.Color.PanelSoft;tile.BackgroundTransparency=1
     tile.BorderSizePixel=0;tile.Parent=row
     local rounding=Instance.new("UICorner");rounding.CornerRadius=UDim.new(0,8);rounding.Parent=tile
     local rim=Instance.new("UIStroke");rim.Name="NavGlassEdge";rim.Color=Color3.new(1,1,1)
-    rim.Transparency=0.72;rim.Thickness=1;rim.Parent=tile
+    rim.Transparency=0.72;rim.Thickness=1;rim.Parent=tile;rim.Enabled=false
     local spectrum=Instance.new("UIGradient");spectrum.Rotation=35
     spectrum.Color=ColorSequence.new(Color3.fromRGB(135,217,255),Color3.fromRGB(222,175,243));spectrum.Parent=rim
     local shine=Instance.new("UIGradient");shine.Rotation=115
@@ -723,7 +723,7 @@ function NavItem.new(parent, deps, props)
     local scale=Instance.new("UIScale");scale.Parent=tile
     local marker=Instance.new("Frame");marker.Name="SelectionMarker";marker.BorderSizePixel=0
     marker.Size=UDim2.fromOffset(2,16);marker.Position=UDim2.new(0,1,0.5,-8)
-    marker.BackgroundColor3=tokens.Color.Accent;marker.BackgroundTransparency=1;marker.Parent=row
+    marker.BackgroundColor3=tokens.Color.Accent;marker.BackgroundTransparency=1;marker.Parent=row;marker.Visible=false
     local curve=Instance.new("UICorner");curve.CornerRadius=UDim.new(1,0);curve.Parent=marker
     local icon = deps.Icons.Create(tile, props.Icon or "info", tokens.Size.NavIcon-2, tokens.Color.TextMuted)
     icon.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -751,7 +751,7 @@ function NavItem.new(parent, deps, props)
     }, NavItem)
 
     row.MouseEnter:Connect(function()
-        deps.Motion:Tween(tile,"Hover",{BackgroundTransparency=0.18})
+        deps.Motion:Tween(tile,"Hover",{BackgroundTransparency=1})
         deps.Motion:Tween(rim,"Hover",{Transparency=0.25})
         deps.Motion:Tween(label,"Hover",{Position=UDim2.fromOffset(deps.Motion.Reduced and 44 or 46,0)})
         if not self.Selected then
@@ -763,7 +763,7 @@ function NavItem.new(parent, deps, props)
     end)
 
     row.MouseLeave:Connect(function()
-        deps.Motion:Tween(tile,"Hover",{BackgroundTransparency=self.Selected and 0.2 or 0.5})
+        deps.Motion:Tween(tile,"Hover",{BackgroundTransparency=1})
         deps.Motion:Tween(rim,"Hover",{Transparency=self.Selected and 0.3 or 0.72})
         deps.Motion:Tween(label,"Hover",{Position=UDim2.fromOffset(44,0)})
         deps.Motion:Tween(scale,"Hover",{Scale=1})
@@ -795,7 +795,7 @@ function NavItem:SetSelected(selected)
     self.Tile.BackgroundColor3=tokens.Color.PanelSoft
     self.Marker.BackgroundColor3=tokens.Color.Accent
     self.Deps.Motion:Tween(self.Marker,"Select",{BackgroundTransparency=self.Selected and 0 or 1})
-    self.Deps.Motion:Tween(self.Tile,"Select",{BackgroundTransparency=self.Selected and 0.2 or 0.5})
+    self.Deps.Motion:Tween(self.Tile,"Select",{BackgroundTransparency=1})
     self.Deps.Motion:Tween(self.Rim,"Select",{Transparency=self.Selected and 0.3 or 0.72})
     self.Icon.ImageColor3 = self.Selected and tokens.Color.Accent or tokens.Color.TextMuted
     self.Label.TextColor3 = self.Selected and tokens.Color.Text or tokens.Color.TextMuted
@@ -829,7 +829,9 @@ function Section.new(parent, deps, props)
     stack.Parent = frame
 
     local header = Instance.new("TextButton")
-    header.BackgroundTransparency = 1
+    header.BackgroundTransparency = 0
+    header.BackgroundColor3 = tokens.Color.PanelSoft
+    local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,6);headerCorner.Parent=header
     header.Text = ""
     header.AutoButtonColor = false
     header.Size = UDim2.new(1, 0, 0, tokens.Size.SectionLabel)
@@ -2282,6 +2284,25 @@ function Desktop.Mount(deps, options)
         star.Position=UDim2.fromOffset(13,10);star.Size=UDim2.fromOffset(30,30)
         pageButton.Position=UDim2.fromOffset(165,5);pageButton.Size=UDim2.fromOffset(110,38)
     end
+    sidebar.Position=UDim2.new();sidebar.Size=UDim2.new(0,tokens.Size.Sidebar,1,0)
+    topbar.Position=UDim2.fromOffset(tokens.Size.Sidebar,0)
+    topbar.Size=UDim2.new(1,-tokens.Size.Sidebar,0,tokens.Size.Topbar)
+    heading.Parent=sidebar;heading.TextSize=13;heading.Position=UDim2.fromOffset(54,15)
+    heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,22)
+    star.Parent=sidebar;star.Position=UDim2.fromOffset(16,17);star.Size=UDim2.fromOffset(26,26)
+    brandSub.Parent=sidebar;brandSub.Position=UDim2.fromOffset(54,37);brandSub.Text="Interface preview"
+    brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,16)
+    pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(190,40)
+    pageButton.BackgroundTransparency=1;pageText.TextSize=17;pageText.TextColor3=tokens.Color.Text
+    navHolder.Position=UDim2.fromOffset(10,66)
+    navHolder.Size=UDim2.new(1,-20,1,-(66+tokens.Size.SidebarUser+8))
+    content.Position=UDim2.fromOffset(tokens.Size.Sidebar+20,tokens.Size.Topbar+4)
+    content.Size=UDim2.new(1,-(tokens.Size.Sidebar+40),1,-(tokens.Size.Topbar+14))
+    -- A static divider replaces the bright full-window glass rim.
+    local divider=Instance.new("Frame");divider.BorderSizePixel=0
+    divider.Position=UDim2.fromOffset(tokens.Size.Sidebar,0);divider.Size=UDim2.new(0,1,1,0)
+    divider.BackgroundColor3=tokens.Color.Divider;divider.Parent=shell
+    edge.Transparency=0.7;edge.Thickness=1
     return app
 end
 
@@ -2774,7 +2795,8 @@ local function applyTheme(name)
     for key,original in pairs(originalColors) do
         local _,sat,val=original:ToHSV()
         local semantic=key=="Mint" or key=="Red" or key=="Amber"
-        Tokens.Color[key]=semantic and original or Color3.fromHSV(hue,name=="Slate" and sat*0.18 or sat,val)
+        local accentKey=key=="Accent" or key=="AccentBright" or key=="Blue"
+        Tokens.Color[key]=(semantic or not accentKey) and original or Color3.fromHSV(hue,name=="Slate" and sat*0.18 or sat,val)
     end
     for _,object in ipairs(app.ScreenGui:GetDescendants()) do
         local props={}
@@ -2796,7 +2818,7 @@ local function applyTheme(name)
             if type(binding)=="string" then object[prop]=Tokens.Color[binding]
             elseif object.Name~="" and object.Parent and object.Parent.Name~="SerenityStar" then
                 local _,sat,val=binding:ToHSV()
-                if sat>0.25 and val<0.65 then object[prop]=Color3.fromHSV(hue,name=="Slate" and sat*0.18 or sat,val) end
+                if sat>0.25 and val<0.65 then object[prop]=Color3.fromHSV(hue,0.06,val) end
             end
         end
     end
@@ -2805,8 +2827,8 @@ local function applyTheme(name)
 end
 
 -- Event-driven materials: no heartbeat, textures or animated full-screen layers.
-local materialState={Mode="Enhanced",Opacity=85,Edge=54,Palette="Aurora",Blur=3}
-local appearancePath="Serenity_UI_Test_Appearance_v1.json"
+local materialState={Mode="Basic",Opacity=100,Edge=30,Palette="Match theme",Blur=0}
+local appearancePath="Serenity_UI_Test_Appearance_v2.json"
 local HttpService=game:GetService("HttpService")
 local saveRevision=0
 saveAppearance=function()
@@ -2853,11 +2875,7 @@ refreshMaterials=function()
                 local g=object:FindFirstChild("GlassSheen") or object:FindFirstChild("ShellTone")
                 if not g then g=Instance.new("UIGradient");g.Name="GlassSheen";g.Parent=object end
                 g.Rotation=115
-                g.Color=off and ColorSequence.new(Color3.new(1,1,1)) or ColorSequence.new({
-                    ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),
-                    ColorSequenceKeypoint.new(0.34,Color3.fromRGB(184,208,237)),
-                    ColorSequenceKeypoint.new(0.52,Color3.fromRGB(232,241,255)),
-                    ColorSequenceKeypoint.new(1,Color3.fromRGB(144,170,209))})
+                g.Color=ColorSequence.new(Color3.new(1,1,1))
                 g.Transparency=NumberSequence.new(0)
                 if not object:FindFirstChildOfClass("UIListLayout") and not object:FindFirstChildOfClass("UIGridLayout") then
                 local lip=object:FindFirstChild("SpecularLip")
@@ -2875,11 +2893,11 @@ refreshMaterials=function()
         end
         if object:IsA("UIStroke") and (object.Name=="PanelStroke" or object.Name=="ShellEdge" or object.Parent.Name=="GlassRim") then
             local outer=object.Parent.Name=="GlassRim"
-            object.Color=Color3.new(1,1,1)
+            object.Color=Tokens.Color.Stroke
             object.Thickness=outer and 1.7 or 1
             object.Transparency=1-(materialState.Edge/100)*(outer and 1 or 0.57)
             local g=object:FindFirstChildOfClass("UIGradient") or Instance.new("UIGradient")
-            g.Parent=object;g.Color=spectrum;g.Rotation=35
+            g.Parent=object;g.Color=ColorSequence.new(Tokens.Color.Stroke);g.Rotation=35
             g.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.52,0.25),NumberSequenceKeypoint.new(1,0)})
         end
     end
@@ -2919,11 +2937,11 @@ local function restoreAppearance(data)
         if type(value)~="number" or value~=value or math.abs(value)==math.huge then return fallback end
         return math.clamp(value,low,high)
     end
-    materialState.Mode=choice(data.Mode,{"Off","Basic","Enhanced"},"Enhanced")
-    materialState.Palette=choice(data.Palette,{"Aurora","Ice","Sunset","Match theme"},"Aurora")
+    materialState.Mode=choice(data.Mode,{"Off","Basic","Enhanced"},"Basic")
+    materialState.Palette=choice(data.Palette,{"Aurora","Ice","Sunset","Match theme"},"Match theme")
     materialState.Edge=number(data.Edge,0,100,54)
-    materialState.Opacity=number(data.Opacity,50,100,85)
-    materialState.Blur=number(data.Blur,0,8,3)
+    materialState.Opacity=number(data.Opacity,50,100,100)
+    materialState.Blur=number(data.Blur,0,8,0)
     local theme=choice(data.Theme,themeNames,"Ocean")
     themeControl:Set(theme,true);paletteControl:Set(materialState.Palette,true)
     edgeControl:Set(materialState.Edge,true);opacityControl:Set(materialState.Opacity,true);blurControl:Set(materialState.Blur,true)
@@ -3038,7 +3056,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.27";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.28";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3150,8 +3168,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.27"})
-    for i,data in ipairs({{"Ten complete looks","Try the preset gallery in Settings."},{"Outline window movement","Preview the destination, then glide."},{"Motion on your terms","Outline, Smooth, Direct or reduced motion."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.28"})
+    for i,data in ipairs({{"A quieter black layout","Sidebar brand and compact controls."},{"Images & live avatar preview","Open Image & Viewport to rotate your avatar."},{"Branded opening reveal","Short transition; ten accent presets."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3185,7 +3203,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.27",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.28",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3293,11 +3311,103 @@ do
 
 end
 
+-- Media components use actual game/player content, without continuous rendering callbacks.
+do
+    local media=app:AddPage({Id="Media",Title="Image & Viewport",Icon="inventory",Group="System",Order=10})
+    local imageSection=Section.new(media,deps,{Title="Image",Description="Current experience artwork with a readable fallback."})
+    local image=Instance.new("ImageLabel");image.Size=UDim2.new(1,0,0,150)
+    image.BackgroundColor3=Tokens.Color.PanelSoft;image.ScaleType=Enum.ScaleType.Crop
+    image.Image="rbxthumb://type=GameIcon&id="..game.GameId.."&w=512&h=512";image.Parent=imageSection.Body
+    local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,8);c.Parent=image
+    local fallback=Typography.Label(image,"Control",Tokens,"Experience artwork",UDim2.new(),UDim2.fromScale(1,1),Tokens.Color.TextMuted)
+    fallback.TextXAlignment=Enum.TextXAlignment.Center
+    runtime:TrackConnection(image:GetPropertyChangedSignal("IsLoaded"):Connect(function() fallback.Visible=not image.IsLoaded end))
+    fallback.Visible=not image.IsLoaded
+    local section=Section.new(media,deps,{Title="Viewport",Description="Your avatar · drag to rotate"})
+    local viewport=Instance.new("ViewportFrame");viewport.Size=UDim2.new(1,0,0,245)
+    viewport.BackgroundColor3=Tokens.Color.PanelSoft;viewport.BorderSizePixel=0;viewport.Active=true
+    viewport.Ambient=Color3.fromRGB(190,190,200);viewport.LightColor=Color3.fromRGB(255,255,255)
+    viewport.Parent=section.Body
+    local world=Instance.new("WorldModel");world.Parent=viewport
+    local camera=Instance.new("Camera");camera.Parent=viewport;viewport.CurrentCamera=camera
+    local model,basePivot,yaw
+    local player=game:GetService("Players").LocalPlayer
+    local function refreshAvatar(character)
+        if model then model:Destroy();model=nil end
+        if not character or runtime.Destroyed then return end
+        local archivable=character.Archivable;character.Archivable=true
+        local ok,clone=pcall(function() return character:Clone() end)
+        character.Archivable=archivable
+        if not ok or not clone then return end
+        for _,object in ipairs(clone:GetDescendants()) do
+            if object:IsA("BaseScript") then object:Destroy()
+            elseif object:IsA("BasePart") then object.Anchored=true end
+        end
+        model=clone;clone.Parent=world;basePivot=clone:GetPivot();yaw=0
+        local bounds,size=clone:GetBoundingBox()
+        local distance=math.max(size.X,size.Y,size.Z)*1.35
+        camera.CFrame=CFrame.lookAt(bounds.Position+Vector3.new(0,size.Y*0.08,distance),bounds.Position)
+    end
+    refreshAvatar(player.Character)
+    runtime:TrackConnection(player.CharacterAdded:Connect(function(character)
+        task.defer(function() if not runtime.Destroyed then refreshAvatar(character) end end)
+    end))
+    local dragging,lastX,inputOwner
+    runtime:TrackConnection(viewport.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=true;lastX=input.Position.X;inputOwner=input;media.ScrollingEnabled=false
+        end
+    end))
+    runtime:TrackConnection(UserInputService.InputChanged:Connect(function(input)
+        if not dragging or not model then return end
+        if inputOwner.UserInputType==Enum.UserInputType.Touch and input~=inputOwner then return end
+        if input.UserInputType~=Enum.UserInputType.Touch and input.UserInputType~=Enum.UserInputType.MouseMovement then return end
+        yaw=yaw+(input.Position.X-lastX)*0.012;lastX=input.Position.X
+        model:PivotTo(basePivot*CFrame.Angles(0,yaw,0))
+    end))
+    local function release() dragging=false;inputOwner=nil;media.ScrollingEnabled=true end
+    runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input)
+        if input==inputOwner then release() end
+    end))
+    runtime:TrackConnection(UserInputService.WindowFocusReleased:Connect(release))
+    runtime:TrackConnection(media:GetPropertyChangedSignal("Visible"):Connect(function() if not media.Visible then release() end end))
+    runtime:TrackConnection(app.Holder:GetPropertyChangedSignal("Visible"):Connect(function() if not app.Holder.Visible then release() end end))
+    runtime:TrackCleanup(release)
+end
+
+-- Brief branded reveal; the temporary compositing group is removed afterwards.
+do
+    local group=Instance.new("CanvasGroup");group.Name="SerenityOpening"
+    group.BackgroundTransparency=1;group.Size=UDim2.fromScale(1,1);group.GroupTransparency=1
+    group.ZIndex=2;group.Parent=app.Holder;app.Shell.Parent=group
+    local intro=Instance.new("TextLabel");intro.AnchorPoint=Vector2.new(0.5,0.5)
+    intro.Position=UDim2.fromScale(0.5,0.5);intro.Size=UDim2.fromOffset(230,65)
+    intro.Text="SERENITY HUB";intro.Font=Enum.Font.GothamBold;intro.TextSize=18
+    intro.TextColor3=Tokens.Color.Text;intro.BackgroundColor3=Tokens.Color.Panel;intro.ZIndex=90
+    intro.Parent=app.Holder
+    local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,12);corner.Parent=intro
+    local finished=false
+    local function finish()
+        if finished then return end;finished=true
+        if app.Shell.Parent==group then app.Shell.Parent=app.Holder end
+        group:Destroy();intro:Destroy()
+    end
+    local tween,timer
+    timer=task.delay(0.25,function()
+        if runtime.Destroyed then return end
+        intro:Destroy()
+        tween=Motion:Tween(group,0.3,{GroupTransparency=0})
+        runtime:TrackConnection(tween.Completed:Connect(finish))
+        if Motion.Reduced then finish() end
+    end)
+    runtime:TrackCleanup(function() if timer then pcall(task.cancel,timer) end;if tween then tween:Cancel() end;finish() end)
+end
+
 app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.27 PRESETS & DRAG TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.28 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
