@@ -846,6 +846,39 @@ function Section.new(parent, deps, props)
     )
     title.TextTransparency = 0.16
 
+    -- Opt-in feature groups preserve legacy section sizing and presentation.
+    if props.Description then
+        title.Text = props.Title or "Section"
+        title.TextColor3 = tokens.Color.Text
+        title.TextTransparency = 0
+        local accent = Instance.new("Frame")
+        accent.Size = UDim2.fromOffset(3, 14)
+        accent.Position = UDim2.fromOffset(0, 5)
+        accent.BorderSizePixel = 0
+        accent.BackgroundColor3 = props.Accent or tokens.Color.Accent
+        accent.Parent = header
+        title.Position = UDim2.fromOffset(11, 0)
+        title.Size = UDim2.new(1, -45, 1, 0)
+        local description = deps.Typography.Label(frame, "Description", tokens, props.Description,
+            UDim2.fromOffset(2, 0), UDim2.new(1, -8, 0, 30), tokens.Color.TextMuted)
+        description.TextWrapped = true
+        description.LayoutOrder = 2
+    end
+    if props.Tooltip and deps.Help then
+        local help = Instance.new("TextButton")
+        help.Name = "SectionHelp"
+        help.AnchorPoint = Vector2.new(1, 0.5)
+        help.Position = UDim2.new(1, props.Collapsible and -20 or -2, 0.5, 0)
+        help.Size = UDim2.fromOffset(24, 24)
+        help.Text = "?"
+        help.TextSize = 13
+        help.Font = Enum.Font.GothamBold
+        help.TextColor3 = tokens.Color.Accent
+        help.BackgroundTransparency = 1
+        help.Parent = header
+        deps.Help(help, props.Tooltip)
+    end
+
     local status
     if props.Status then
         status = deps.Typography.Label(
@@ -872,7 +905,7 @@ function Section.new(parent, deps, props)
     body.Size = UDim2.new(1, 0, 0, 0)
     body.AutomaticSize = Enum.AutomaticSize.Y
     body.Visible = props.Open ~= false
-    body.LayoutOrder = 2
+    body.LayoutOrder = props.Description and 3 or 2
     body.Parent = frame
     deps.Material.Section(body, tokens)
 
@@ -897,11 +930,11 @@ function Section.new(parent, deps, props)
         Deps = deps,
     }, Section)
 
-    header.MouseButton1Click:Connect(function()
+    deps.Runtime:TrackConnection(header.MouseButton1Click:Connect(function()
         if self.Collapsible then
             self:SetOpen(not self.Open)
         end
-    end)
+    end))
 
     return self
 end
@@ -2281,6 +2314,166 @@ local app = Desktop.Mount(deps, {
 })
 
 -- TEST ONLY: do not migrate production or legacy dashboards without explicit release approval.
+-- Shared interaction layer: event-driven help and one confirmation at a time.
+do
+    local guiService = game:GetService("GuiService")
+    local tweens = {}
+    local activeDialog, activeTip
+    local function animate(object, properties)
+        if tweens[object] then tweens[object]:Cancel() end
+        tweens[object] = Motion:Tween(object, "Modal", properties)
+    end
+    local function rounded(object, radius)
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, radius or 10)
+        corner.Parent = object
+    end
+    local function hideTip()
+        if activeTip then activeTip.Card:Destroy(); activeTip = nil end
+    end
+    local function showTip(target, message)
+        hideTip()
+        if runtime.Destroyed or not app.Holder.Visible or not target:IsDescendantOf(app.ScreenGui) then return end
+        local scale = math.max(deps.UIScale.Scale, 0.01)
+        local width = math.min(260, Tokens.Size.Window.X - 24)
+        local textService = game:GetService("TextService")
+        local bounds = textService:GetTextSize(message, 12, Enum.Font.Gotham, Vector2.new(width - 24, 1000))
+        local height = bounds.Y + 24
+        local card = Instance.new("Frame")
+        card.Name = "SerenityHelp"
+        card.Size = UDim2.fromOffset(width, height)
+        card.BackgroundColor3 = Color3.fromRGB(15, 33, 51)
+        card.ZIndex = 110
+        card.Parent = app.Holder
+        rounded(card)
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Tokens.Color.Accent; stroke.Transparency = 0.5; stroke.Parent = card
+        local label = Instance.new("TextLabel")
+        label.BackgroundTransparency = 1; label.Text = message
+        label.Font = Enum.Font.Gotham; label.TextSize = 12
+        label.TextColor3 = Tokens.Color.Text; label.TextWrapped = true
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Position = UDim2.fromOffset(12, 10)
+        label.Size = UDim2.new(1, -24, 1, -20); label.Parent = card
+        local x = (target.AbsolutePosition.X - app.Holder.AbsolutePosition.X) / scale
+        local y = (target.AbsolutePosition.Y - app.Holder.AbsolutePosition.Y) / scale
+        local below = y + target.AbsoluteSize.Y / scale + 7
+        if below + height > Tokens.Size.Window.Y - 10 then below = y - height - 7 end
+        card.Position = UDim2.fromOffset(math.clamp(x, 12, Tokens.Size.Window.X - width - 12),
+            math.clamp(below, 8, math.max(8, Tokens.Size.Window.Y - height - 8)))
+        activeTip = {Card = card, Target = target}
+    end
+    function app:Tooltip(target, message, tapToOpen)
+        assert(type(message) == "string" and message ~= "", "Tooltip needs text")
+        runtime:TrackConnection(target.MouseEnter:Connect(function()
+            if not UserInputService.TouchEnabled then showTip(target, message) end
+        end))
+        runtime:TrackConnection(target.MouseLeave:Connect(hideTip))
+        runtime:TrackConnection(target.SelectionGained:Connect(function() showTip(target, message) end))
+        runtime:TrackConnection(target.SelectionLost:Connect(hideTip))
+        if tapToOpen then
+            runtime:TrackConnection(target.Activated:Connect(function()
+                if activeTip and activeTip.Target == target then hideTip() else showTip(target, message) end
+            end))
+        end
+    end
+    deps.Help = function(target, message) app:Tooltip(target, message, true) end
+    runtime:TrackConnection(UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch and activeTip then
+            local p, s = activeTip.Target.AbsolutePosition, activeTip.Target.AbsoluteSize
+            if input.Position.X < p.X or input.Position.X > p.X + s.X or
+                input.Position.Y < p.Y or input.Position.Y > p.Y + s.Y then hideTip() end
+        end
+        if input.KeyCode == Enum.KeyCode.Escape and activeDialog then activeDialog(false) end
+    end))
+    runtime:TrackConnection(app.Holder:GetPropertyChangedSignal("Visible"):Connect(function()
+        if not app.Holder.Visible then hideTip(); if activeDialog then activeDialog(false) end end
+    end))
+    runtime:TrackConnection(app.Holder:GetPropertyChangedSignal("Position"):Connect(hideTip))
+    runtime:TrackConnection(deps.UIScale:GetPropertyChangedSignal("Scale"):Connect(hideTip))
+    local selectPage = app.SelectPage
+    function app:SelectPage(id)
+        hideTip()
+        if activeDialog then activeDialog(false) end
+        return selectPage(self, id)
+    end
+    function app:Confirm(options)
+        options = options or {}
+        if runtime.Destroyed then return end
+        if activeDialog then activeDialog(false) end
+        hideTip()
+        deps.PopupManager:Close()
+        local overlay = Instance.new("TextButton")
+        overlay.Name = "SerenityConfirmation"
+        overlay.Text = ""; overlay.AutoButtonColor = false
+        overlay.Size = UDim2.fromScale(1, 1)
+        overlay.BackgroundColor3 = Color3.fromRGB(5, 12, 24)
+        overlay.BackgroundTransparency = 1; overlay.ZIndex = 100
+        overlay.Parent = app.Holder; rounded(overlay, Tokens.Size.RadiusShell)
+        local card = Instance.new("CanvasGroup")
+        card.AnchorPoint = Vector2.new(0.5, 0.5)
+        card.Position = UDim2.new(0.5, 0, 0.5, 12)
+        card.Size = UDim2.fromOffset(math.min(380, Tokens.Size.Window.X - 32), 226)
+        card.BackgroundColor3 = Color3.fromRGB(16, 34, 53)
+        card.GroupTransparency = 1; card.Parent = overlay; rounded(card, 14)
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Tokens.Color.Accent; stroke.Transparency = 0.35; stroke.Parent = card
+        local eyebrow = Typography.Label(card, "Description", Tokens, "SERENITY HUB",
+            UDim2.fromOffset(20, 17), UDim2.new(1, -40, 0, 18), Tokens.Color.Accent)
+        local title = Typography.Label(card, "Control", Tokens, options.Title or "Confirm action",
+            UDim2.fromOffset(20, 43), UDim2.new(1, -40, 0, 48), Tokens.Color.Text)
+        title.TextSize = 19; title.Font = Enum.Font.GothamBold; title.TextWrapped = true
+        local message = Typography.Label(card, "Control", Tokens, options.Message or "Continue with this action?",
+            UDim2.fromOffset(20, 96), UDim2.new(1, -40, 0, 54), Tokens.Color.TextMuted)
+        message.TextSize = 12; message.TextWrapped = true; message.TextYAlignment = Enum.TextYAlignment.Top
+        local function action(text, primary, x)
+            local b = Instance.new("TextButton")
+            b.Size = UDim2.new(0.5, -24, 0, 38)
+            b.Position = UDim2.new(x, x == 0 and 20 or 4, 1, -58)
+            b.Text = text; b.TextSize = 12; b.Font = Enum.Font.GothamBold
+            b.AutoButtonColor = false
+            b.BackgroundColor3 = primary and Tokens.Color.Accent or Color3.fromRGB(24, 45, 65)
+            b.TextColor3 = primary and Color3.fromRGB(8, 24, 38) or Tokens.Color.Text
+            b.Parent = card; rounded(b, 8)
+            return b
+        end
+        local cancel = action(options.CancelText or "Cancel", false, 0)
+        local accept = action(options.ConfirmText or "Confirm", true, 0.5)
+        local previousFocus = guiService.SelectedObject
+        local settled = false
+        local function resolve(confirmed)
+            if settled then return end
+            settled = true
+            if activeDialog == resolve then activeDialog = nil end
+            if guiService.SelectedObject == cancel or guiService.SelectedObject == accept then
+                guiService.SelectedObject = previousFocus and previousFocus.Parent and previousFocus or nil
+            end
+            animate(card, {GroupTransparency = 1, Position = UDim2.new(0.5, 0, 0.5, 12)})
+            animate(overlay, {BackgroundTransparency = 1})
+            task.delay(Motion.Reduced and 0 or 0.21, function()
+                for _,object in ipairs({card, overlay}) do
+                    if tweens[object] then tweens[object]:Cancel(); tweens[object] = nil end
+                end
+                overlay:Destroy()
+            end)
+            if not runtime.Destroyed and options.Callback then options.Callback(confirmed) end
+        end
+        activeDialog = resolve
+        cancel.Activated:Connect(function() resolve(false) end)
+        accept.Activated:Connect(function() resolve(true) end)
+        overlay.Activated:Connect(function() resolve(false) end)
+        if previousFocus then guiService.SelectedObject = cancel end
+        animate(overlay, {BackgroundTransparency = 0.25})
+        animate(card, {GroupTransparency = 0, Position = UDim2.fromScale(0.5, 0.5)})
+        return function() resolve(false) end
+    end
+    runtime:TrackCleanup(function()
+        hideTip()
+        if activeDialog then activeDialog(false) end
+        for object,tween in pairs(tweens) do tween:Cancel(); tweens[object] = nil end
+    end)
+end
+
 -- What's new · 2026-10-07: bottom-right notifications, queue, slide animation, reduced-motion fade.
 do
     local tweenService=game:GetService("TweenService")
@@ -2778,7 +2971,8 @@ do
     runtime:TrackConnection(welcome:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeWelcome))
     arrangeWelcome()
     local cols = ColumnLayout.new(dashboard,deps,{LayoutOrder=4,Gap=10})
-    local quick = Section.new(cols.Left,deps,{Title="Quick settings"})
+    local quick = Section.new(cols.Left,deps,{Title="Quick settings",
+        Tooltip="Reduced motion removes animated transitions. Glass material controls the appearance of this test window."})
     for _,l in ipairs(quick.Header:GetChildren()) do if l:IsA("TextLabel") then l.Text="Quick settings"; l.TextSize=15; l.Font=Enum.Font.GothamBold; l.TextColor3=Tokens.Color.Text end end
     Toggle.new(quick.Body,deps,{Title="Reduced motion",Default=false,Callback=function(v) Motion.Reduced=v end})
     glassSelector(quick.Body,"Glass material")
@@ -2798,7 +2992,7 @@ do
         if child:IsA("UIStroke") or child:IsA("UIGradient") then child:Destroy() end
     end
     for _,l in ipairs(news.Header:GetChildren()) do if l:IsA("TextLabel") then l.Text="What's new"; l.TextSize=15; l.Font=Enum.Font.GothamBold; l.TextColor3=Tokens.Color.Text end end
-    for i,item in ipairs({{"Glass, with balance","Distinct surfaces. Softer reflections."},{"Your own appearance","Saved colors and glass settings."},{"Responsive navigation","Glass icons and subtle transitions."}}) do
+    for i,item in ipairs({{"Help where you need it","Hover or tap ? for control guidance."},{"Clearer feature groups","Described sections in the Playground."},{"Review before acting","Animated confirmation with Cancel and Escape."}}) do
         local row=Instance.new("Frame")
         row.Size=UDim2.new(1,0,0,64)
         row.BackgroundTransparency=1
@@ -2887,18 +3081,25 @@ do
     local status=Section.new(columns.Left,deps,{Title="Interaction result"})
     local result=text(status.Body,"Ready — try a control.",48)
     local function report(value) result.Text=tostring(value) end
-    local actions=Section.new(columns.Left,deps,{Title="Buttons & toggles",Collapsible=true})
+    local actions=Section.new(columns.Left,deps,{Title="Buttons & toggles",Collapsible=true,
+        Description="Simple actions with immediate feedback.",
+        Tooltip="These controls only update this playground. Tap the ? on touch, or hover with a mouse."})
     local count=0
-    button(actions.Body,"Click counter",function() count=count+1;report("Button clicks: "..count) end)
+    local counterButton=button(actions.Body,"Click counter",function() count=count+1;report("Button clicks: "..count) end)
+    app:Tooltip(counterButton,"Counts your clicks for this test session.")
     local disabled=button(actions.Body,"Disabled button",function() end)
     disabled.Active=false;disabled.AutoButtonColor=false;disabled.TextTransparency=0.6
     Toggle.new(actions.Body,deps,{Title="Enabled toggle",Default=true,Callback=function(v) report("Toggle: "..tostring(v)) end})
     Toggle.new(actions.Body,deps,{Title="Disabled toggle",Enabled=false,Default=false})
-    local numbers=Section.new(columns.Left,deps,{Title="Drag / type / wheel"})
+    local numbers=Section.new(columns.Left,deps,{Title="Values & precision",
+        Description="Drag a slider or type an exact value.",Accent=Tokens.Color.Lavender,
+        Tooltip="Drag the track to adjust a value. The value field accepts typed input; steps keep values consistent."})
     Slider.new(numbers.Body,deps,{Title="Amount (1–100)",Min=1,Max=100,Step=1,Default=5,Callback=report})
     Slider.new(numbers.Body,deps,{Title="Delay (0–2 seconds)",Min=0,Max=2,Step=0.1,Default=0.5,Suffix="s",Callback=report})
     Slider.new(numbers.Body,deps,{Title="Signed (-50–50)",Min=-50,Max=50,Step=5,Default=0,Callback=report})
-    local choices=Section.new(columns.Right,deps,{Title="Dropdown & multi-select",Collapsible=true})
+    local choices=Section.new(columns.Right,deps,{Title="Choices & filters",Collapsible=true,
+        Description="Long option lists and independent selections.",
+        Tooltip="Dropdown options scroll inside their popup. Rare, Epic and Legendary can be selected together."})
     local options={};for i=1,30 do options[i]="Option "..i end
     Select.new(choices.Body,deps,{Title="Scrollable options",Options=options,Default=options[1],Callback=report})
     local selected={}
@@ -2932,14 +3133,18 @@ do
         for _,row in ipairs(rows) do row.Visible=string.find(string.lower(row.Text),string.lower(search.Text),1,true)~=nil end
         scroller.CanvasPosition=Vector2.new()
     end)
-    local confirm=Section.new(columns.Left,deps,{Title="Confirmation"})
-    local armed=false
-    local confirmButton
-    confirmButton=button(confirm.Body,"Test confirmation",function()
-        if armed then armed=false;confirmButton.Text="Test confirmation";report("Confirmed — no external action performed.")
-        else armed=true;confirmButton.Text="Click again to confirm";report("Awaiting confirmation") end
+    local confirm=Section.new(columns.Left,deps,{Title="Safe actions",
+        Description="Review an action before continuing.",Accent=Tokens.Color.Lavender,
+        Tooltip="Cancel, tap outside the card, or press Escape to dismiss. Confirm runs the callback once."})
+    button(confirm.Body,"Preview confirmation",function()
+        report("Awaiting confirmation")
+        app:Confirm({Title="Reset the click counter?",
+            Message="This clears only your playground counter. Your game and saved appearance stay unchanged.",
+            ConfirmText="Reset counter",Callback=function(confirmed)
+                if confirmed then count=0;report("Counter reset to 0");app:Notify("Counter reset","Your playground counter is ready.",4,"Success")
+                else report("Cancelled — counter kept at "..count) end
+            end})
     end)
-    button(confirm.Body,"Cancel",function() armed=false;confirmButton.Text="Test confirmation";report("Cancelled") end)
     local notifications=Section.new(columns.Left,deps,{Title="Notifications · 2026-10-07"})
     text(notifications.Body,"Test only: bottom-right slide-in, queue, timer, close button. Dashboard unchanged.",48)
     button(notifications.Body,"Show success notification",function() app:Notify("Saved","Your test notification is outside the main window.",5,"Success") end)
@@ -2952,7 +3157,8 @@ app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.24 ORIGINAL DASHBOARD POLISH | VISUAL TEST ONLY | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.25 INTERACTION TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+
 
 
 
