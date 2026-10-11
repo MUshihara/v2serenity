@@ -93,7 +93,7 @@ local scaleProbe = make("Frame", {
 }, viewport)
 local panel = make("CanvasGroup", {
     Name = "KeyWindow", AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(552, 358),
+    Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(552, 380),
     BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 1,
     GroupColor3 = Color3.fromRGB(255, 255, 255),
     BorderSizePixel = 0, GroupTransparency = 1, ClipsDescendants = true,
@@ -153,7 +153,7 @@ for i = 0, 11 do
         end
     end
 end
-text(header, "SERENITY", 20, UDim2.fromOffset(69, 0), UDim2.fromOffset(220, 56), colors.text, true)
+text(header, "SERENITY HUB", 20, UDim2.fromOffset(69, 0), UDim2.fromOffset(280, 56), colors.text, true)
 local close = make("TextButton", {
     Name = "Close", BackgroundColor3 = colors.glass, BackgroundTransparency = 0.6, Text = "×",
     TextColor3 = colors.muted, TextSize = 30, Font = Enum.Font.Gotham,
@@ -166,7 +166,7 @@ stroke(close, colors.muted, 0.75)
 local body = make("CanvasGroup", {
     Name = "Body", BackgroundTransparency = 1, BorderSizePixel = 0,
     GroupTransparency = 0, GroupColor3 = Color3.fromRGB(255, 255, 255),
-    Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -98),
+    Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -120),
     ClipsDescendants = false,
 }, panel)
 local title = text(body, "Welcome to Serenity", 26, UDim2.fromOffset(24, 12), UDim2.new(1, -48, 0, 32), colors.text, true)
@@ -183,7 +183,7 @@ round(inputShell, 9)
 local inputEdge = stroke(inputShell, colors.muted, 0.52)
 local input = make("TextBox", {
     Name = "LicenseKey", BackgroundTransparency = 1,
-    Position = UDim2.fromOffset(15, 0), Size = UDim2.new(1, -64, 1, 0),
+    Position = UDim2.fromOffset(15, 0), Size = UDim2.new(1, -100, 1, 0),
     Text = "", PlaceholderText = "Paste your key here",
     TextColor3 = colors.text, PlaceholderColor3 = colors.muted,
     Font = Enum.Font.Gotham, TextSize = 17,
@@ -191,19 +191,13 @@ local input = make("TextBox", {
     ClearTextOnFocus = false, MultiLine = false,
 }, inputShell)
 local paste = make("TextButton", {
-    Name = "Paste", BackgroundTransparency = 1, Text = "",
-    Position = UDim2.new(1, -47, 0, 2), Size = UDim2.fromOffset(44, 44),
+    Name = "Paste", BackgroundColor3 = colors.glass, BackgroundTransparency = 0.12,
+    Text = "Paste", TextColor3 = colors.cyan, Font = Enum.Font.GothamBold,
+    TextSize = 13, BorderSizePixel = 0,
+    Position = UDim2.new(1, -79, 0, 4), Size = UDim2.fromOffset(75, 40),
     AutoButtonColor = false,
 }, inputShell)
-for _, offset in ipairs({{17, 11}, {13, 15}}) do
-    local sheet = make("Frame", {
-        BackgroundColor3 = colors.glass, BorderSizePixel = 0,
-        Position = UDim2.fromOffset(offset[1], offset[2]), Size = UDim2.fromOffset(13, 17),
-        Active = false,
-    }, paste)
-    round(sheet, 2)
-    stroke(sheet, colors.muted, 0.1, 1.2)
-end
+round(paste, 7)
 local function button(name, caption, y, primary)
     local object = make("TextButton", {
         Name = name, BackgroundColor3 = primary and Color3.fromRGB(255, 255, 255) or colors.navy,
@@ -237,17 +231,18 @@ statusLabel.TextWrapped = true
 
 local footer = make("Frame", {
     Name = "Footer", BackgroundTransparency = 1,
-    Position = UDim2.new(0, 0, 1, -42), Size = UDim2.new(1, 0, 0, 42),
+    Position = UDim2.new(0, 0, 1, -64), Size = UDim2.new(1, 0, 0, 64),
 }, panel)
 make("Frame", {
     BackgroundColor3 = colors.muted, BackgroundTransparency = 0.85,
     Position = UDim2.fromOffset(24, 0), Size = UDim2.new(1, -48, 0, 1), BorderSizePixel = 0,
 }, footer)
-text(footer, "Need help?", 13, UDim2.fromOffset(28, 1), UDim2.fromOffset(80, 40), colors.muted)
+text(footer, "Do you need help?", 14, UDim2.fromOffset(28, 8), UDim2.new(1, -190, 0, 22), colors.text, true)
+text(footer, "Keys, updates & premium support.", 12, UDim2.fromOffset(28, 31), UDim2.new(1, -190, 0, 22), colors.muted)
 local discord = make("TextButton", {
-    Name = "Discord", BackgroundTransparency = 1, Text = "Join Discord",
+    Name = "Discord", BackgroundTransparency = 1, Text = "Join Discord  →",
     TextColor3 = colors.cyan, TextSize = 13, Font = Enum.Font.Gotham,
-    Position = UDim2.fromOffset(106, 1), Size = UDim2.fromOffset(100, 40),
+    Position = UDim2.new(1, -152, 0, 10), Size = UDim2.fromOffset(124, 44),
     TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
 }, footer)
 
@@ -266,7 +261,7 @@ function controller:Resize()
     if dimensions.X <= 0 or dimensions.Y <= 0 then return end
     -- Mobile devices can report keyboard support even without a physical one.
     local mobile = UserInputService.TouchEnabled
-    local naturalHeight = 358
+    local naturalHeight = 380
     local availableWidth = math.max(1, dimensions.X - 32)
     local availableHeight = math.max(1, dimensions.Y - 32)
     local targetWidth = 460
@@ -281,7 +276,57 @@ function controller:Resize()
     local fittedScale = math.min(targetWidth / 552, availableWidth / 552, availableHeight / naturalHeight)
     panel.Size = UDim2.fromOffset(552, naturalHeight)
     scaling.Scale = fittedScale / inheritedScale
+    self:ClampPosition()
 end
+-- The header moves the complete window with mouse or a single touch.
+-- Normalized positions account for inherited scaling and keep the close button reachable.
+function controller:ClampPosition()
+    if destroyed then return end
+    local dimensions = viewport.AbsoluteSize
+    if dimensions.X <= 0 or dimensions.Y <= 0 then return end
+    local inheritedScale = math.max(0.001, scaleProbe.AbsoluteSize.X / 100)
+    local width = panel.Size.X.Offset * scaling.Scale * inheritedScale
+    local height = panel.Size.Y.Offset * scaling.Scale * inheritedScale
+    local x = panel.Position.X.Scale * dimensions.X + panel.Position.X.Offset * inheritedScale
+    local y = panel.Position.Y.Scale * dimensions.Y + panel.Position.Y.Offset * inheritedScale
+    local lowX, highX = width / 2 + 12, dimensions.X - width / 2 - 12
+    local lowY, highY = height / 2 + 12, dimensions.Y - height / 2 - 12
+    x = lowX <= highX and math.max(lowX, math.min(highX, x)) or dimensions.X / 2
+    y = lowY <= highY and math.max(lowY, math.min(highY, y)) or dimensions.Y / 2
+    panel.Position = UDim2.fromScale(x / dimensions.X, y / dimensions.Y)
+end
+local dragHandle = make("TextButton", {
+    Name = "DragHandle", BackgroundTransparency = 1, Text = "",
+    Size = UDim2.new(1, -64, 1, 0), Active = true,
+    AutoButtonColor = false, ZIndex = 3,
+}, header)
+close.ZIndex = 4
+local drag = nil
+bind(dragHandle.InputBegan, function(event)
+    if closing or destroyed then return end
+    local kind = event.UserInputType
+    if kind ~= Enum.UserInputType.MouseButton1 and kind ~= Enum.UserInputType.Touch then return end
+    drag = {
+        Input = event, Kind = kind, X = event.Position.X, Y = event.Position.Y,
+        Position = panel.Position,
+    }
+end)
+bind(UserInputService.InputChanged, function(event)
+    if not drag or closing or destroyed then return end
+    local movement = drag.Kind == Enum.UserInputType.Touch and event == drag.Input
+        or drag.Kind == Enum.UserInputType.MouseButton1 and event.UserInputType == Enum.UserInputType.MouseMovement
+    if not movement then return end
+    local dimensions = viewport.AbsoluteSize
+    if dimensions.X <= 0 or dimensions.Y <= 0 then return end
+    panel.Position = UDim2.fromScale(
+        drag.Position.X.Scale + (event.Position.X - drag.X) / dimensions.X,
+        drag.Position.Y.Scale + (event.Position.Y - drag.Y) / dimensions.Y
+    )
+    controller:ClampPosition()
+end)
+bind(UserInputService.InputEnded, function(event)
+    if drag and (event == drag.Input or event.UserInputType == drag.Kind) then drag = nil end
+end)
 function controller:Destroy()
     if destroyed then return end
     destroyed = true
@@ -323,7 +368,7 @@ end)
 local providers = make("CanvasGroup", {
     Name = "Providers", BackgroundTransparency = 1, BorderSizePixel = 0,
     GroupTransparency = 1, GroupColor3 = Color3.fromRGB(255, 255, 255),
-    Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -98),
+    Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -120),
     Visible = false, ClipsDescendants = false,
 }, panel)
 local back = make("TextButton", {
