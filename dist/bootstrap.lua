@@ -1,5 +1,5 @@
--- Serenity key-window UI test. Authentication is intentionally not connected.
--- This file contains the entire window; it does not load the dashboard or games.
+-- Serenity test key window. FlowAuth protected payload must call CompleteAuthentication.
+-- Test repository only; no production games are loaded.
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -18,6 +18,8 @@ end
 local connections, tweens = {}, {}
 local destroyed, closing = false, false
 local controller = {}
+local verifying, authenticated, attempt = false, false, 0
+local authLoader = "https://flowauth.net/v1/loaders/1648c904082188891affedeaf4cf550d.lua"
 local colors = {
     navy = Color3.fromRGB(13, 28, 49),
     glass = Color3.fromRGB(26, 47, 76),
@@ -345,16 +347,65 @@ function controller:Destroy()
     gui:Destroy()
     if environment.__SerenityKeyWindowTest == self then environment.__SerenityKeyWindowTest = nil end
 end
+local function setVerifying(value)
+    verifying = value
+    verify.Text = value and "Verifying..." or "Verify key  →"
+    verify.Active = not value
+    input.TextEditable = not value
+end
+function controller:CompleteAuthentication()
+    -- Called by the protected FlowAuth payload, never by loader return values.
+    if destroyed or closing or not verifying or authenticated then return false end
+    authenticated = true
+    closing = true
+    input.Text = ""
+    self:SetStatus("Key verified. Opening Serenity...", "info")
+    input:ReleaseFocus()
+    animate(panel, 0.16, {GroupTransparency = 1})
+    task.delay(0.18, function() self:Destroy() end)
+    return true
+end
 local function submit()
-    if destroyed or closing then return end
+    if destroyed or closing or verifying or authenticated then return end
     local key = input.Text:match("^%s*(.-)%s*$") or ""
     if key == "" then
         controller:SetStatus("Enter a key first.", "error")
         input:CaptureFocus()
         return
     end
-    -- No key is logged, saved, sent, or accepted by this visual-only build.
-    controller:SetStatus("UI test only. Authentication is not connected yet.", "info")
+    attempt = attempt + 1
+    local currentAttempt = attempt
+    setVerifying(true)
+    controller:SetStatus("Checking your key...", "info")
+    task.spawn(function()
+        local previousKey = environment.script_key
+        environment.script_key = key
+        local ok, failure = pcall(function()
+            local source = game:HttpGet(authLoader)
+            local run, compileError = loadstring(source, "Serenity FlowAuth test")
+            if not run then error(compileError or "Loader unavailable", 0) end
+            run()
+        end)
+        -- Restore the caller's key; never log or persist the submitted key.
+        environment.script_key = previousKey
+        key = nil
+        if destroyed or authenticated or currentAttempt ~= attempt then return end
+        setVerifying(false)
+        local message = "Authentication did not complete. Check your key and try again."
+        if not ok then
+            local detail = tostring(failure):lower()
+            if detail:find("premium_required", 1, true) then
+                message = "This key needs access to the Serenity test project."
+            elseif detail:find("expired", 1, true) then
+                message = "Your key has expired. Get a new key."
+            elseif detail:find("hwid", 1, true) then
+                message = "Key device mismatch. Contact support."
+            elseif detail:find("http", 1, true) or detail:find("connect", 1, true) then
+                message = "Connection failed. Please try again."
+            end
+        end
+        controller:SetStatus(message, "error")
+    end)
 end
 bind(verify.Activated, submit)
 bind(input.FocusLost, function(enterPressed) if enterPressed then submit() end end)
@@ -671,7 +722,8 @@ bind(viewport:GetPropertyChangedSignal("AbsoluteSize"), function() controller:Re
 bind(scaleProbe:GetPropertyChangedSignal("AbsoluteSize"), function() controller:Resize() end)
 controller.Gui = gui
 controller.Input = input
-controller.IsPreview = true
+controller.IsPreview = false
+controller.AuthenticationConnected = true
 controller.FlowAuthLoader = "https://flowauth.net/v1/loaders/1648c904082188891affedeaf4cf550d.lua"
 environment.__SerenityKeyWindowTest = controller
 controller:Resize()
