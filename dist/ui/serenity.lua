@@ -57,16 +57,16 @@ local Tokens = {}
 
 -- Serenity M3: compact 1.4:1 desktop canvas inspired by professional utility panels.
 Tokens.Size = {
-    Window = Vector2.new(798, 546),
+    Window = Vector2.new(878, 600),
     Topbar = 56,
-    Sidebar = 200,
+    Sidebar = 210,
     SidebarBrand = 66,
     SidebarUser = 64,
     SidebarCollapsed = 62,
     Footer = 0,
 
     NavGroup = 24,
-    NavRow = 36,
+    NavRow = 40,
     NavIcon = 22,
     GameContext = 64,
     MetricPill = 26,
@@ -75,11 +75,11 @@ Tokens.Size = {
 
     SectionLabel = 36,
     SectionHeader = 50,
-    Control = 40,
-    ControlWithDescription = 56,
+    Control = 46,
+    ControlWithDescription = 64,
     Button = 46,
-    Slider = 55,
-    Select = 54,
+    Slider = 62,
+    Select = 62,
     Status = 46,
 
     RadiusShell = 14,
@@ -93,19 +93,19 @@ Tokens.Size = {
 
 Tokens.Type = {
     Brand = 15,
-    BrandSub = 9,
+    BrandSub = 10,
     TopSelect = 13,
     Page = 17,
     PageSub = 9,
     NavGroup = 9,
-    Nav = 13,
+    Nav = 14,
     Section = 10,
-    Control = 14,
-    Description = 9,
-    Value = 12,
+    Control = 16,
+    Description = 11,
+    Value = 14,
     Status = 9,
-    User = 12,
-    UserSub = 9,
+    User = 14,
+    UserSub = 10,
     Metric = 9,
     BannerTitle = 11,
     BannerBody = 9,
@@ -865,7 +865,7 @@ function Section.new(parent, deps, props)
     )
     title.TextTransparency = 0
     title.Text = props.Title or "Section"
-    title.TextSize = 14
+    title.TextSize = 15
     title.TextColor3 = tokens.Color.Text
     local underline = Instance.new("Frame")
     underline.Name = "SectionAccent"
@@ -2496,26 +2496,24 @@ do
         local card = Instance.new("CanvasGroup")
         card.AnchorPoint = Vector2.new(0.5, 0.5)
         card.Position = UDim2.new(0.5, 0, 0.5, 12)
-        card.Size = UDim2.fromOffset(math.min(380, Tokens.Size.Window.X - 32), 226)
-        card.BackgroundColor3 = Color3.fromRGB(16, 34, 53)
-        card.GroupTransparency = 1; card.Parent = overlay; rounded(card, 14)
+        card.Size = UDim2.fromOffset(math.min(330, Tokens.Size.Window.X - 32), 170)
+        card.BackgroundColor3 = Tokens.Color.Panel
+        card.GroupTransparency = 1; card.Parent = overlay; rounded(card, 9)
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Tokens.Color.Accent; stroke.Transparency = 0.35; stroke.Parent = card
-        local eyebrow = Typography.Label(card, "Description", Tokens, "SERENITY HUB",
-            UDim2.fromOffset(20, 17), UDim2.new(1, -40, 0, 18), Tokens.Color.Accent)
+        stroke.Color = Tokens.Color.Stroke; stroke.Transparency = 0.25; stroke.Parent = card
         local title = Typography.Label(card, "Control", Tokens, options.Title or "Confirm action",
-            UDim2.fromOffset(20, 43), UDim2.new(1, -40, 0, 48), Tokens.Color.Text)
-        title.TextSize = 19; title.Font = Enum.Font.GothamBold; title.TextWrapped = true
+            UDim2.fromOffset(16, 14), UDim2.new(1, -32, 0, 40), Tokens.Color.Text)
+        title.TextSize = 16; title.Font = Enum.Font.GothamBold; title.TextWrapped = true
         local message = Typography.Label(card, "Control", Tokens, options.Message or "Continue with this action?",
-            UDim2.fromOffset(20, 96), UDim2.new(1, -40, 0, 54), Tokens.Color.TextMuted)
+            UDim2.fromOffset(16, 59), UDim2.new(1, -32, 0, 50), Tokens.Color.TextMuted)
         message.TextSize = 12; message.TextWrapped = true; message.TextYAlignment = Enum.TextYAlignment.Top
         local function action(text, primary, x)
             local b = Instance.new("TextButton")
-            b.Size = UDim2.new(0.5, -24, 0, 38)
-            b.Position = UDim2.new(x, x == 0 and 20 or 4, 1, -58)
+            b.Size = UDim2.new(0.5, -20, 0, 34)
+            b.Position = UDim2.new(x, x == 0 and 16 or 4, 1, -48)
             b.Text = text; b.TextSize = 12; b.Font = Enum.Font.GothamBold
             b.AutoButtonColor = false
-            b.BackgroundColor3 = primary and Tokens.Color.Accent or Color3.fromRGB(24, 45, 65)
+            b.BackgroundColor3 = primary and Tokens.Color.Accent or Tokens.Color.Inset
             b.TextColor3 = primary and Color3.fromRGB(8, 24, 38) or Tokens.Color.Text
             b.Parent = card; rounded(b, 8)
             return b
@@ -2546,7 +2544,7 @@ do
         accept.Activated:Connect(function() resolve(true) end)
         overlay.Activated:Connect(function() resolve(false) end)
         if previousFocus then guiService.SelectedObject = cancel end
-        animate(overlay, {BackgroundTransparency = 0.25})
+        animate(overlay, {BackgroundTransparency = 0.55})
         animate(card, {GroupTransparency = 0, Position = UDim2.fromScale(0.5, 0.5)})
         return function() resolve(false) end
     end
@@ -3058,7 +3056,7 @@ for i,preset in ipairs(presets) do
     strip.Position=UDim2.fromOffset(10,11);strip.Size=UDim2.new(1,-20,0,5);strip.Parent=tile
     local round=Instance.new("UICorner");round.CornerRadius=UDim.new(1,0);round.Parent=strip
     local name=Typography.Label(tile,"Control",Tokens,preset.Name,UDim2.fromOffset(10,24),UDim2.new(1,-31,0,20),Tokens.Color.Text)
-    name.TextSize=11;name.TextTruncate=Enum.TextTruncate.AtEnd
+    name.TextSize=12;name.TextTruncate=Enum.TextTruncate.AtEnd
     local badge=Typography.Label(tile,"Control",Tokens,"",UDim2.new(1,-21,0,24),UDim2.fromOffset(16,20),preset.Color)
     badge:SetAttribute("FixedPresetColor",true)
     presetTiles[preset.Name]={Badge=badge,Stroke=stroke}
@@ -3104,7 +3102,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.30";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.31";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3216,8 +3214,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.30"})
-    for i,data in ipairs({{"Complete atmosphere presets","Surfaces, text and controls change together."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Gentler hover feedback","Soft highlights without bright color blocks."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.31"})
+    for i,data in ipairs({{"More comfortable reading","Larger labels, controls and window."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Simple confirmations","Compact dialogs without branding."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3251,7 +3249,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.30",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.31",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3457,7 +3455,7 @@ app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.30 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.31 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
