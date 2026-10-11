@@ -420,17 +420,26 @@ local function decodePng(encoded)
     end
     return table.concat(chunks)
 end
+controller.IconStatus = {}
 local function localProviderIcon(name)
     local custom = environment.getcustomasset or getcustomasset or environment.getsynasset or getsynasset
     local write = environment.writefile or writefile
     local exists = environment.isfile or isfile
-    if type(custom) ~= "function" or type(write) ~= "function" then return nil end
+    if type(custom) ~= "function" or type(write) ~= "function" then
+        controller.IconStatus[name] = "Local image support unavailable"
+        return nil
+    end
     local filename = "Serenity_KeyIcon_v1_" .. name:gsub("[^%w]", "") .. ".png"
     local ok, uri = pcall(function()
         if type(exists) ~= "function" or not exists(filename) then write(filename, decodePng(providerPng[name])) end
         return custom(filename)
     end)
-    return ok and type(uri) == "string" and uri ~= "" and uri or nil
+    if ok and type(uri) == "string" and uri ~= "" then
+        controller.IconStatus[name] = "Loading"
+        return uri
+    end
+    controller.IconStatus[name] = "Local image registration failed"
+    return nil
 end
 
 for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
@@ -455,15 +464,22 @@ for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
             Name = "ProviderLogo", BackgroundTransparency = 1,
             Image = iconUri, ImageColor3 = Color3.fromRGB(255, 255, 255),
             Position = UDim2.fromOffset(12, 8), Size = UDim2.fromOffset(32, 32),
-            ScaleType = Enum.ScaleType.Fit, Visible = false,
+            ScaleType = Enum.ScaleType.Fit, Visible = true, ZIndex = mark.ZIndex + 1,
         }, option)
         local function updateLogo()
             if destroyed then return end
-            logo.Visible = logo.IsLoaded
+            -- Keep the image renderable while loading; the badge stays underneath.
             mark.Visible = not logo.IsLoaded
+            if logo.IsLoaded then controller.IconStatus[name] = "Loaded" end
         end
         bind(logo:GetPropertyChangedSignal("IsLoaded"), updateLogo)
         updateLogo()
+        task.spawn(function()
+            pcall(function() game:GetService("ContentProvider"):PreloadAsync({logo}) end)
+            if destroyed then return end
+            updateLogo()
+            if not logo.IsLoaded then controller.IconStatus[name] = "Image could not load" end
+        end)
     end
     text(option, name, 17, UDim2.fromOffset(54, 0), UDim2.new(1, -102, 1, 0), colors.text, true)
     text(option, "→", 22, UDim2.new(1, -40, 0, 0), UDim2.fromOffset(28, 48), colors.muted)
@@ -501,7 +517,16 @@ local function switchView(show)
         switching = false
     end)
 end
-bind(getKey.Activated, function() providerFeedback.Text = ""; switchView(true) end)
+bind(getKey.Activated, function()
+    providerFeedback.Text = ""
+    for _, state in pairs(controller.IconStatus) do
+        if state ~= "Loaded" and state ~= "Loading" then
+            providerFeedback.Text = "Icons unavailable on this device; using letter badges."
+            break
+        end
+    end
+    switchView(true)
+end)
 bind(back.Activated, function() switchView(false) end)
 -- Modal stays inside the fitted window, so every action remains visible on mobile.
 local discordInvite = "https://discord.gg/pWPs7428wE"
