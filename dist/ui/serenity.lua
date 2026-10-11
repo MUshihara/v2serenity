@@ -3114,7 +3114,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.35";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.36";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3136,20 +3136,11 @@ do
     portrait.AnchorPoint=Vector2.new(1,0);portrait.Position=UDim2.new(1,-18,0,19)
     portrait.Size=UDim2.fromOffset(68,68);portrait.BackgroundTransparency=0.2
     portrait.BackgroundColor3=Tokens.Color.PanelSoft;portrait.ScaleType=Enum.ScaleType.Fit
-    portrait.ImageTransparency=1
+    portrait.ImageTransparency=0
     portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420";portrait.Parent=hero
     local curve=Instance.new("UICorner");curve.CornerRadius=UDim.new(1,0);curve.Parent=portrait
     local ring=Instance.new("UIStroke");ring.Color=Tokens.Color.Accent;ring.Transparency=0.5;ring.Parent=portrait
-    -- Fallback identity remains readable if the thumbnail is unavailable.
-    local initial=label(portrait,player.DisplayName:sub(1,1):upper(),0,0,0,68,24)
-    initial.TextXAlignment=Enum.TextXAlignment.Center
-    local function avatarLoaded()
-        if runtime.Destroyed then return end
-        local ready=portrait.IsLoaded
-        initial.Visible=not ready
-        portrait.ImageTransparency=ready and 0 or 1
-    end
-    runtime:TrackConnection(portrait:GetPropertyChangedSignal("IsLoaded"):Connect(avatarLoaded));avatarLoaded()
+    -- Show the thumbnail directly; executor load flags can remain false after rendering.
     local explore=button(hero,"Explore components  ›",function() app:SelectPage("Playground") end)
     explore.Position=UDim2.fromOffset(18,94);explore.Size=UDim2.fromOffset(166,34)
     local customize=button(hero,"Customize",function() app:SelectPage("Settings") end)
@@ -3232,8 +3223,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.35"})
-    for i,data in ipairs({{"Clean avatar fallback","Initial and avatar never overlap."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.36"})
+    for i,data in ipairs({{"Avatar display restored","Thumbnail shown without an initial overlay."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3267,7 +3258,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.35",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.36",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3474,7 +3465,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.35 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.36 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
