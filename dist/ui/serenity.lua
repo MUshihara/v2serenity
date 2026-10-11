@@ -890,8 +890,11 @@ function Section.new(parent, deps, props)
         title.Position = UDim2.fromOffset(11, 0)
         title.Size = UDim2.new(1, -45, 1, 0)
         local description = deps.Typography.Label(frame, "Description", tokens, props.Description,
-            UDim2.fromOffset(2, 0), UDim2.new(1, -8, 0, 30), tokens.Color.TextMuted)
+            UDim2.fromOffset(10, 0), UDim2.new(1, -20, 0, 34), tokens.Color.TextMuted)
+        description.TextSize = 12
+        description.TextColor3 = tokens.Color.TextMuted
         description.TextWrapped = true
+        description.TextYAlignment = Enum.TextYAlignment.Center
         description.LayoutOrder = 2
     end
     if props.Tooltip and deps.Help then
@@ -3111,7 +3114,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.33";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.34";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3223,8 +3226,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.33"})
-    for i,data in ipairs({{"Animated interaction feedback","Gentle transitions on choices and buttons."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.34"})
+    for i,data in ipairs({{"Readable section guides","Comfortable helper text beneath headings."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3258,7 +3261,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.33",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.34",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3465,7 +3468,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.33 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.34 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
