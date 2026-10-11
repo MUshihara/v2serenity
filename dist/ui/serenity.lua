@@ -352,14 +352,14 @@ function Material.Sidebar(frame, tokens)
 end
 
 -- Shared pointer and keyboard feedback for popup choices and filtered lists.
-function Material.OptionHover(button, tokens, selected)
+function Material.OptionHover(button, tokens, selected, motion)
     local pointer, focused = false, false
     local baseTransparency = button.BackgroundTransparency
     local function render()
         local active = pointer or focused
-        button.BackgroundColor3 = active and tokens.Color.InsetHover or (selected and tokens.Color.NavActive or tokens.Color.PanelSoft)
-        button.BackgroundTransparency = active and 0 or baseTransparency
-        if button.Text ~= "" then button.TextColor3 = active and tokens.Color.Text or (selected and tokens.Color.Text or tokens.Color.TextMuted) end
+        local properties={BackgroundColor3=active and tokens.Color.InsetHover or (selected and tokens.Color.NavActive or tokens.Color.PanelSoft),BackgroundTransparency=active and 0 or baseTransparency}
+        if button.Text ~= "" then properties.TextColor3=active and tokens.Color.Text or (selected and tokens.Color.Text or tokens.Color.TextMuted) end
+        if motion then motion:Tween(button,"Hover",properties) else for key,value in pairs(properties) do button[key]=value end end
     end
     button.MouseEnter:Connect(function() pointer=true;render() end)
     button.MouseLeave:Connect(function() pointer=false;render() end)
@@ -961,6 +961,10 @@ function Section.new(parent, deps, props)
         Deps = deps,
     }, Section)
 
+    if self.Collapsible then
+        header.MouseEnter:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover}) end)
+        header.MouseLeave:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.PanelSoft}) end)
+    end
     deps.Runtime:TrackConnection(header.MouseButton1Click:Connect(function()
         if self.Collapsible then
             self:SetOpen(not self.Open)
@@ -1432,7 +1436,7 @@ function Select.new(parent, deps, props)
                 local dc = Instance.new("UICorner") dc.CornerRadius = UDim.new(1, 0) dc.Parent = dot
             end
 
-            deps.Material.OptionHover(item, tokens, selected)
+            deps.Material.OptionHover(item, tokens, selected, deps.Motion)
             item.MouseButton1Click:Connect(function()
                 self:Set(option)
                 deps.PopupManager:Close()
@@ -2200,7 +2204,7 @@ function Desktop.Mount(deps, options)
                 subtitle.ZIndex=83
             end
             table.insert(rows,{Frame=row,Match=match,Search=string.lower(match.Title.." "..match.Entry.Title.." "..(match.Description or ""))})
-            deps.Material.OptionHover(row, tokens, categoriesOnly and match.Entry.Id==currentPage)
+            deps.Material.OptionHover(row, tokens, categoriesOnly and match.Entry.Id==currentPage, deps.Motion)
             row.Activated:Connect(function() jump(match) end)
         end
         local empty=deps.Typography.Label(listFrame,"Value",tokens,categoriesOnly and "No matching categories" or "No matching features",UDim2.new(),UDim2.new(1,-10,0,40),tokens.Color.TextMuted)
@@ -2257,7 +2261,7 @@ function Desktop.Mount(deps, options)
             item.ZIndex = 81
             item.Parent = popup
             corner(item, 6)
-            deps.Material.OptionHover(item, tokens, name == scopeText.Text)
+            deps.Material.OptionHover(item, tokens, name == scopeText.Text, deps.Motion)
             item.MouseButton1Click:Connect(function()
                 scopeText.Text = name
                 deps.PopupManager:Close()
@@ -2496,28 +2500,31 @@ do
         local card = Instance.new("CanvasGroup")
         card.AnchorPoint = Vector2.new(0.5, 0.5)
         card.Position = UDim2.new(0.5, 0, 0.5, 12)
-        card.Size = UDim2.fromOffset(math.min(380, Tokens.Size.Window.X - 32), 226)
-        card.BackgroundColor3 = Color3.fromRGB(16, 34, 53)
-        card.GroupTransparency = 1; card.Parent = overlay; rounded(card, 14)
+        card.Size = UDim2.fromOffset(math.min(330, Tokens.Size.Window.X - 32), 170)
+        card.BackgroundColor3 = Tokens.Color.Panel
+        card.GroupTransparency = 1; card.Parent = overlay; rounded(card, 9)
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Tokens.Color.Accent; stroke.Transparency = 0.35; stroke.Parent = card
-        local eyebrow = Typography.Label(card, "Description", Tokens, "SERENITY HUB",
-            UDim2.fromOffset(20, 17), UDim2.new(1, -40, 0, 18), Tokens.Color.Accent)
+        stroke.Color = Tokens.Color.Stroke; stroke.Transparency = 0.25; stroke.Parent = card
         local title = Typography.Label(card, "Control", Tokens, options.Title or "Confirm action",
-            UDim2.fromOffset(20, 43), UDim2.new(1, -40, 0, 48), Tokens.Color.Text)
-        title.TextSize = 19; title.Font = Enum.Font.GothamBold; title.TextWrapped = true
+            UDim2.fromOffset(16, 14), UDim2.new(1, -32, 0, 40), Tokens.Color.Text)
+        title.TextSize = 16; title.Font = Enum.Font.GothamBold; title.TextWrapped = true
         local message = Typography.Label(card, "Control", Tokens, options.Message or "Continue with this action?",
-            UDim2.fromOffset(20, 96), UDim2.new(1, -40, 0, 54), Tokens.Color.TextMuted)
+            UDim2.fromOffset(16, 59), UDim2.new(1, -32, 0, 50), Tokens.Color.TextMuted)
         message.TextSize = 12; message.TextWrapped = true; message.TextYAlignment = Enum.TextYAlignment.Top
         local function action(text, primary, x)
             local b = Instance.new("TextButton")
-            b.Size = UDim2.new(0.5, -24, 0, 38)
-            b.Position = UDim2.new(x, x == 0 and 20 or 4, 1, -58)
+            b.Size = UDim2.new(0.5, -20, 0, 34)
+            b.Position = UDim2.new(x, x == 0 and 16 or 4, 1, -48)
             b.Text = text; b.TextSize = 12; b.Font = Enum.Font.GothamBold
             b.AutoButtonColor = false
-            b.BackgroundColor3 = primary and Tokens.Color.Accent or Color3.fromRGB(24, 45, 65)
+            b.BackgroundColor3 = primary and Tokens.Color.Accent or Tokens.Color.Inset
             b.TextColor3 = primary and Color3.fromRGB(8, 24, 38) or Tokens.Color.Text
             b.Parent = card; rounded(b, 8)
+            local resting=b.BackgroundColor3
+            b.MouseEnter:Connect(function() animate(b,{BackgroundColor3=primary and Tokens.Color.AccentBright or Tokens.Color.InsetHover}) end)
+            b.MouseLeave:Connect(function() animate(b,{BackgroundColor3=resting}) end)
+            b.SelectionGained:Connect(function() animate(b,{BackgroundColor3=primary and Tokens.Color.AccentBright or Tokens.Color.InsetHover}) end)
+            b.SelectionLost:Connect(function() animate(b,{BackgroundColor3=resting}) end)
             return b
         end
         local cancel = action(options.CancelText or "Cancel", false, 0)
@@ -2546,7 +2553,7 @@ do
         accept.Activated:Connect(function() resolve(true) end)
         overlay.Activated:Connect(function() resolve(false) end)
         if previousFocus then guiService.SelectedObject = cancel end
-        animate(overlay, {BackgroundTransparency = 0.25})
+        animate(overlay, {BackgroundTransparency = 0.55})
         animate(card, {GroupTransparency = 0, Position = UDim2.fromScale(0.5, 0.5)})
         return function() resolve(false) end
     end
@@ -2883,7 +2890,7 @@ saveAppearance=function()
     task.delay(0.7,function()
         if revision~=saveRevision or type(writefile)~="function" then return end
         pcall(function()
-            writefile(appearancePath,HttpService:JSONEncode({Version=1,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,View=app:GetViewState()}))
+            writefile(appearancePath,HttpService:JSONEncode({Version=1,MotionVersion=1,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,View=app:GetViewState()}))
         end)
     end)
 end
@@ -3062,7 +3069,7 @@ for i,preset in ipairs(presets) do
     local badge=Typography.Label(tile,"Control",Tokens,"",UDim2.new(1,-21,0,24),UDim2.fromOffset(16,20),preset.Color)
     badge:SetAttribute("FixedPresetColor",true)
     presetTiles[preset.Name]={Badge=badge,Stroke=stroke}
-    Material.OptionHover(tile,Tokens,false)
+    Material.OptionHover(tile,Tokens,false,Motion)
     runtime:TrackConnection(tile.Activated:Connect(function() usePreset(preset.Name) end))
 end
 
@@ -3104,7 +3111,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.30";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.33";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3216,8 +3223,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.30"})
-    for i,data in ipairs({{"Complete atmosphere presets","Surfaces, text and controls change together."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Gentler hover feedback","Soft highlights without bright color blocks."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.33"})
+    for i,data in ipairs({{"Animated interaction feedback","Gentle transitions on choices and buttons."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3251,7 +3258,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.30",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.33",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3275,7 +3282,7 @@ do
         b.TextColor3=Tokens.Color.Text;b.Parent=parent
         Material.Inset(b,Tokens)
         b.AutoButtonColor=false
-        Material.OptionHover(b,Tokens,false)
+        Material.OptionHover(b,Tokens,false,Motion)
         b.Activated:Connect(callback)
         return b
     end
@@ -3454,10 +3461,11 @@ do
 end
 
 app:SelectPage("Dashboard")
+if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.DragStyle="Outline" end
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.30 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.33 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
