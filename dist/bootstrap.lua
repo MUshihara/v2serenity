@@ -240,11 +240,21 @@ make("Frame", {
 text(footer, "Do you need help?", 14, UDim2.fromOffset(28, 8), UDim2.new(1, -190, 0, 22), colors.text, true)
 text(footer, "Keys, updates & premium support.", 12, UDim2.fromOffset(28, 31), UDim2.new(1, -190, 0, 22), colors.muted)
 local discord = make("TextButton", {
-    Name = "Discord", BackgroundTransparency = 1, Text = "Join Discord  →",
+    Name = "Discord", BackgroundColor3 = colors.glass, BackgroundTransparency = 0.25, Text = "Join Discord  →",
     TextColor3 = colors.cyan, TextSize = 13, Font = Enum.Font.Gotham,
     Position = UDim2.new(1, -152, 0, 10), Size = UDim2.fromOffset(124, 44),
-    TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
+    TextXAlignment = Enum.TextXAlignment.Center, AutoButtonColor = false,
 }, footer)
+round(discord, 9)
+local discordOutline = stroke(discord, colors.cyan, 0.55)
+bind(discord.MouseEnter, function()
+    animate(discord, 0.14, {BackgroundTransparency = 0})
+    animate(discordOutline, 0.14, {Transparency = 0.15})
+end)
+bind(discord.MouseLeave, function()
+    animate(discord, 0.14, {BackgroundTransparency = 0.25})
+    animate(discordOutline, 0.14, {Transparency = 0.55})
+end)
 
 function controller:SetStatus(message, kind)
     if destroyed then return end
@@ -445,13 +455,87 @@ local function switchView(show)
 end
 bind(getKey.Activated, function() providerFeedback.Text = ""; switchView(true) end)
 bind(back.Activated, function() switchView(false) end)
-bind(discord.Activated, function()
-    local copy = environment.setclipboard or setclipboard or toclipboard
-    if type(copy) == "function" then
-        local ok = pcall(copy, "https://discord.gg/pWPs7428wE")
-        if ok then controller:SetStatus("Discord invite copied.", "info"); return end
+-- Modal stays inside the fitted window, so every action remains visible on mobile.
+local discordInvite = "https://discord.gg/pWPs7428wE"
+local discordModal = make("CanvasGroup", {
+    Name = "DiscordPopup", BackgroundTransparency = 1, GroupColor3 = Color3.fromRGB(255, 255, 255),
+    GroupTransparency = 1, Visible = false, Size = UDim2.fromScale(1, 1), ZIndex = 20,
+}, panel)
+local dismiss = make("TextButton", {
+    Name = "DiscordBackdrop", Text = "", AutoButtonColor = false,
+    BackgroundColor3 = colors.navy, BackgroundTransparency = 0.12,
+    Size = UDim2.fromScale(1, 1), ZIndex = 1,
+}, discordModal)
+local card = make("Frame", {
+    Name = "DiscordCard", AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(452, 264),
+    BackgroundColor3 = colors.glass, BorderSizePixel = 0, ZIndex = 2,
+}, discordModal)
+round(card, 14)
+stroke(card, colors.lavender, 0.35)
+local community = text(card, "SERENITY COMMUNITY", 12, UDim2.fromOffset(24, 16), UDim2.fromOffset(350, 22), colors.cyan, true)
+text(card, "Join Serenity Hub", 24, UDim2.fromOffset(24, 42), UDim2.fromOffset(380, 32), colors.text, true)
+text(card, "Help with keys, updates and premium.", 14, UDim2.fromOffset(24, 80), UDim2.fromOffset(400, 24), colors.muted)
+local popupClose = make("TextButton", {
+    Name = "DiscordClose", Text = "×", TextSize = 24, TextColor3 = colors.muted,
+    Font = Enum.Font.Gotham, BackgroundTransparency = 1, AutoButtonColor = false,
+    Position = UDim2.new(1, -48, 0, 8), Size = UDim2.fromOffset(40, 40),
+}, card)
+local inviteField = make("TextBox", {
+    Name = "DiscordInvite", Text = discordInvite, TextEditable = false, ClearTextOnFocus = false,
+    TextColor3 = colors.text, TextSize = 16, Font = Enum.Font.Gotham,
+    BackgroundColor3 = colors.navy, BackgroundTransparency = 0.2,
+    Position = UDim2.fromOffset(24, 116), Size = UDim2.fromOffset(404, 44),
+}, card)
+round(inviteField, 8)
+stroke(inviteField, colors.muted, 0.65)
+local copyInvite = make("TextButton", {
+    Name = "CopyDiscordInvite", Text = "Copy invite  →", TextSize = 16,
+    Font = Enum.Font.GothamBold, TextColor3 = colors.navy,
+    BackgroundColor3 = colors.cyan, AutoButtonColor = false,
+    Position = UDim2.fromOffset(24, 174), Size = UDim2.fromOffset(404, 44),
+}, card)
+round(copyInvite, 8)
+local inviteFeedback = text(card, "Copy the invite, then open it in your browser.", 12,
+    UDim2.fromOffset(24, 228), UDim2.fromOffset(404, 22), colors.muted)
+inviteFeedback.Name = "DiscordFeedback"
+local popupOpen, popupGeneration = false, 0
+local function setDiscordPopup(open)
+    if destroyed or closing or popupOpen == open then return end
+    popupOpen = open
+    popupGeneration = popupGeneration + 1
+    local generation = popupGeneration
+    input:ReleaseFocus()
+    inviteField:ReleaseFocus()
+    if open then
+        copyInvite.Text = "Copy invite  →"
+        inviteFeedback.Text = "Copy the invite, then open it in your browser."
+        discordModal.Visible = true
+        discordModal.GroupTransparency = 1
+        card.Position = UDim2.new(0.5, 0, 0.5, 18)
+        animate(discordModal, 0.20, {GroupTransparency = 0})
+        animate(card, 0.24, {Position = UDim2.fromScale(0.5, 0.5)})
+    else
+        animate(discordModal, 0.16, {GroupTransparency = 1})
+        animate(card, 0.16, {Position = UDim2.new(0.5, 0, 0.5, 12)})
+        task.delay(0.17, function()
+            if not destroyed and popupGeneration == generation and not popupOpen then discordModal.Visible = false end
+        end)
     end
-    controller:SetStatus("Discord: discord.gg/pWPs7428wE", "info")
+end
+bind(discord.Activated, function() setDiscordPopup(true) end)
+bind(popupClose.Activated, function() setDiscordPopup(false) end)
+bind(dismiss.Activated, function() setDiscordPopup(false) end)
+bind(copyInvite.MouseEnter, function() animate(copyInvite, 0.12, {BackgroundTransparency = 0.18}) end)
+bind(copyInvite.MouseLeave, function() animate(copyInvite, 0.12, {BackgroundTransparency = 0}) end)
+bind(copyInvite.Activated, function()
+    if destroyed or closing or not popupOpen then return end
+    local copy = environment.setclipboard or setclipboard or toclipboard
+    local ok = type(copy) == "function" and pcall(copy, discordInvite)
+    copyInvite.Text = ok and "Invite copied  ✓" or "Select invite above"
+    inviteFeedback.Text = ok and "You're ready! Paste the invite in your browser." or "Hold or select the invite above to copy it manually."
+    if not ok then inviteField:CaptureFocus() end
+    animate(copyInvite, 0.12, {BackgroundTransparency = 0})
 end)
 bind(close.Activated, function()
     if closing then return end
