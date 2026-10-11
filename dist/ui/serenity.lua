@@ -845,7 +845,7 @@ function Section.new(parent, deps, props)
     stack.Parent = frame
 
     local header = Instance.new("TextButton")
-    header.BackgroundTransparency = 1
+    header.BackgroundTransparency = 0
     header.BackgroundColor3 = tokens.Color.PanelSoft
     local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,6);headerCorner.Parent=header
     header.Text = ""
@@ -873,7 +873,7 @@ function Section.new(parent, deps, props)
     underline.Position = UDim2.new(0, 12, 1, -3)
     underline.BorderSizePixel = 0
     underline.BackgroundColor3 = props.Accent or tokens.Color.Accent
-    underline.BackgroundTransparency = 0.65
+    underline.BackgroundTransparency = 0.35
     underline.Parent = header
 
     -- Opt-in feature groups preserve legacy section sizing and presentation.
@@ -2496,24 +2496,26 @@ do
         local card = Instance.new("CanvasGroup")
         card.AnchorPoint = Vector2.new(0.5, 0.5)
         card.Position = UDim2.new(0.5, 0, 0.5, 12)
-        card.Size = UDim2.fromOffset(math.min(330, Tokens.Size.Window.X - 32), 170)
-        card.BackgroundColor3 = Tokens.Color.Panel
-        card.GroupTransparency = 1; card.Parent = overlay; rounded(card, 9)
+        card.Size = UDim2.fromOffset(math.min(380, Tokens.Size.Window.X - 32), 226)
+        card.BackgroundColor3 = Color3.fromRGB(16, 34, 53)
+        card.GroupTransparency = 1; card.Parent = overlay; rounded(card, 14)
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Tokens.Color.Stroke; stroke.Transparency = 0.25; stroke.Parent = card
+        stroke.Color = Tokens.Color.Accent; stroke.Transparency = 0.35; stroke.Parent = card
+        local eyebrow = Typography.Label(card, "Description", Tokens, "SERENITY HUB",
+            UDim2.fromOffset(20, 17), UDim2.new(1, -40, 0, 18), Tokens.Color.Accent)
         local title = Typography.Label(card, "Control", Tokens, options.Title or "Confirm action",
-            UDim2.fromOffset(16, 14), UDim2.new(1, -32, 0, 40), Tokens.Color.Text)
-        title.TextSize = 16; title.Font = Enum.Font.GothamBold; title.TextWrapped = true
+            UDim2.fromOffset(20, 43), UDim2.new(1, -40, 0, 48), Tokens.Color.Text)
+        title.TextSize = 19; title.Font = Enum.Font.GothamBold; title.TextWrapped = true
         local message = Typography.Label(card, "Control", Tokens, options.Message or "Continue with this action?",
-            UDim2.fromOffset(16, 59), UDim2.new(1, -32, 0, 50), Tokens.Color.TextMuted)
+            UDim2.fromOffset(20, 96), UDim2.new(1, -40, 0, 54), Tokens.Color.TextMuted)
         message.TextSize = 12; message.TextWrapped = true; message.TextYAlignment = Enum.TextYAlignment.Top
         local function action(text, primary, x)
             local b = Instance.new("TextButton")
-            b.Size = UDim2.new(0.5, -20, 0, 34)
-            b.Position = UDim2.new(x, x == 0 and 16 or 4, 1, -48)
+            b.Size = UDim2.new(0.5, -24, 0, 38)
+            b.Position = UDim2.new(x, x == 0 and 20 or 4, 1, -58)
             b.Text = text; b.TextSize = 12; b.Font = Enum.Font.GothamBold
             b.AutoButtonColor = false
-            b.BackgroundColor3 = primary and Tokens.Color.Accent or Tokens.Color.Inset
+            b.BackgroundColor3 = primary and Tokens.Color.Accent or Color3.fromRGB(24, 45, 65)
             b.TextColor3 = primary and Color3.fromRGB(8, 24, 38) or Tokens.Color.Text
             b.Parent = card; rounded(b, 8)
             return b
@@ -2544,7 +2546,7 @@ do
         accept.Activated:Connect(function() resolve(true) end)
         overlay.Activated:Connect(function() resolve(false) end)
         if previousFocus then guiService.SelectedObject = cancel end
-        animate(overlay, {BackgroundTransparency = 0.55})
+        animate(overlay, {BackgroundTransparency = 0.25})
         animate(card, {GroupTransparency = 0, Position = UDim2.fromScale(0.5, 0.5)})
         return function() resolve(false) end
     end
@@ -3102,7 +3104,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.32";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.30";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3214,8 +3216,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.32"})
-    for i,data in ipairs({{"Softer section styling","Lighter headings with less visual clutter."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Simple confirmations","Compact dialogs without branding."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.30"})
+    for i,data in ipairs({{"Complete atmosphere presets","Surfaces, text and controls change together."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Gentler hover feedback","Soft highlights without bright color blocks."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3249,7 +3251,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.32",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.30",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3455,7 +3457,7 @@ app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.32 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.30 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
