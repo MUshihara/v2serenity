@@ -1549,35 +1549,66 @@ local function corner(parent, radius)
     return c
 end
 
-local function makeDraggable(runtime, frame, handle)
-    local dragging = false
-    local dragStart
-    local startPos
-
-    runtime:TrackConnection(handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-        end
+local function makeDraggable(runtime, frame, handles)
+    local UIS = game:GetService("UserInputService")
+    local TweenService = game:GetService("TweenService")
+    local dragging, press, start, pointer, ghost, target, glide
+    runtime.DragStyle = "Outline"
+    local function stopTween()
+        if glide then glide:Cancel(); glide=nil end
+    end
+    local function destroyGhost()
+        if ghost then ghost:Destroy();ghost=nil end
+    end
+    local function begin(input)
+        if dragging or not frame.Visible then return end
+        if input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch then return end
+        stopTween();destroyGhost()
+        dragging=true;pointer=input;press=input.Position;start=frame.Position;target=start
+    end
+    for _,handle in ipairs(handles) do runtime:TrackConnection(handle.InputBegan:Connect(begin)) end
+    runtime:TrackConnection(UIS.InputChanged:Connect(function(input)
+        if not dragging then return end
+        if pointer.UserInputType==Enum.UserInputType.Touch then
+            if input~=pointer then return end
+        elseif input.UserInputType~=Enum.UserInputType.MouseMovement then return end
+        local delta=input.Position-press
+        if delta.Magnitude<4 then return end
+        local parentSize,size=frame.Parent.AbsoluteSize,frame.AbsoluteSize
+        local x=start.X.Scale*parentSize.X+start.X.Offset+delta.X
+        local y=start.Y.Scale*parentSize.Y+start.Y.Offset+delta.Y
+        target=UDim2.fromOffset(math.clamp(x,size.X/2,math.max(size.X/2,parentSize.X-size.X/2)),
+            math.clamp(y,size.Y/2,math.max(size.Y/2,parentSize.Y-size.Y/2)))
+        local style=runtime.ReducedMotion and "Direct" or runtime.DragStyle
+        if style=="Outline" then
+            if not ghost then
+                ghost=Instance.new("Frame");ghost.Name="SerenityDragPreview"
+                ghost.AnchorPoint=Vector2.new(0.5,0.5);ghost.Size=UDim2.fromOffset(size.X,size.Y)
+                ghost.BackgroundColor3=Color3.fromRGB(32,100,140);ghost.BackgroundTransparency=0.93
+                ghost.ZIndex=200;ghost.Parent=frame.Parent;ghost.Active=false
+                local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,14);c.Parent=ghost
+                local stroke=Instance.new("UIStroke");stroke.Color=Color3.fromRGB(93,190,243)
+                stroke.Transparency=0.18;stroke.Thickness=1.5;stroke.Parent=ghost
+            end
+            ghost.Position=target
+        elseif style=="Smooth" then
+            stopTween();glide=TweenService:Create(frame,TweenInfo.new(0.09,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Position=target});glide:Play()
+        else stopTween();frame.Position=target end
     end))
-
-    runtime:TrackConnection(UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            local parentSize = frame.Parent.AbsoluteSize
-            local size = frame.AbsoluteSize
-            local x = startPos.X.Scale * parentSize.X + startPos.X.Offset + delta.X
-            local y = startPos.Y.Scale * parentSize.Y + startPos.Y.Offset + delta.Y
-            frame.Position = UDim2.fromOffset(math.clamp(x, size.X / 2, math.max(size.X / 2, parentSize.X - size.X / 2)), math.clamp(y, size.Y / 2, math.max(size.Y / 2, parentSize.Y - size.Y / 2)))
+    local function finish()
+        if not dragging then return end
+        dragging=false;pointer=nil;destroyGhost();stopTween()
+        if target and not runtime.Destroyed then
+            if runtime.ReducedMotion or runtime.DragStyle=="Direct" then frame.Position=target
+            else glide=TweenService:Create(frame,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Position=target});glide:Play() end
         end
+    end
+    runtime:TrackConnection(UIS.InputEnded:Connect(function(input)
+        if dragging and (input==pointer or pointer.UserInputType==Enum.UserInputType.MouseButton1 and input.UserInputType==Enum.UserInputType.MouseButton1) then finish() end
     end))
-
-    runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end))
+    runtime:TrackConnection(UIS.WindowFocusReleased:Connect(finish))
+    runtime:TrackConnection(frame:GetPropertyChangedSignal("Visible"):Connect(function() if not frame.Visible then finish() end end))
+    runtime:TrackCleanup(function() dragging=false;destroyGhost();stopTween() end)
 end
 
 function Desktop.Mount(deps, options)
@@ -1882,8 +1913,7 @@ function Desktop.Mount(deps, options)
     })
     edgeFade.Parent=edge
 
-    makeDraggable(runtime, holder, topbar)
-    makeDraggable(runtime, holder, heading)
+    makeDraggable(runtime, holder, {topbar, heading})
 
     local pages = {}
     local navItems = {}
@@ -2712,12 +2742,35 @@ local settingsCols = ColumnLayout.new(settings, deps, {})
 local themeBindings=setmetatable({}, {__mode="k"})
 local refreshMaterials
 local saveAppearance=function() end
+local motionControls={}
+local function reducedMotionToggle(parent)
+    local control=Toggle.new(parent,deps,{Title="Reduced motion",Default=false,Callback=function(v)
+        Motion.Reduced=v;runtime.ReducedMotion=v
+        for _,other in ipairs(motionControls) do other:Set(v,true) end
+        saveAppearance()
+    end})
+    table.insert(motionControls,control)
+    return control
+end
 local selectedTheme="Ocean"
+local selectedPreset="Custom"
+local presetControl
+local dragControl
+local presetNames={"Custom","Serenity Night","Aurora","Deep Ocean","Moonstone","Violet","Rose Quartz","Jade","Ember","Frost","Graphite"}
+local restoringAppearance=false
+local themeNames={"Ocean","Lavender","Rose","Emerald","Slate","Amber","Crimson","Arctic","Amethyst","Midnight"}
+local function markCustom()
+    if restoringAppearance then return end
+    selectedPreset="Custom"
+    if presetControl then presetControl:Set("Custom",true) end
+    if app.RefreshPresetGallery then app.RefreshPresetGallery() end
+end
 local originalColors={}
 for key,color in pairs(Tokens.Color) do originalColors[key]=color end
 local function applyTheme(name)
+    markCustom()
     selectedTheme=name
-    local hue=({Ocean=0.57,Lavender=0.72,Rose=0.94,Emerald=0.43,Slate=0.60})[name] or 0.57
+    local hue=({Ocean=0.57,Lavender=0.72,Rose=0.94,Emerald=0.43,Slate=0.60,Amber=0.09,Crimson=0.99,Arctic=0.52,Amethyst=0.78,Midnight=0.65})[name] or 0.57
     for key,original in pairs(originalColors) do
         local _,sat,val=original:ToHSV()
         local semantic=key=="Mint" or key=="Red" or key=="Amber"
@@ -2762,7 +2815,7 @@ saveAppearance=function()
     task.delay(0.7,function()
         if revision~=saveRevision or type(writefile)~="function" then return end
         pcall(function()
-            writefile(appearancePath,HttpService:JSONEncode({Version=1,Theme=selectedTheme,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,View=app:GetViewState()}))
+            writefile(appearancePath,HttpService:JSONEncode({Version=1,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,View=app:GetViewState()}))
         end)
     end)
 end
@@ -2832,6 +2885,7 @@ refreshMaterials=function()
     end
 end
 function app:SetGlassQuality(value)
+    markCustom()
     materialState.Mode=value
     if self.Acrylic then self.Acrylic:SetQuality(value) end
     for _,control in ipairs(glassSelectors) do control:Set(value,true) end
@@ -2844,14 +2898,19 @@ local function glassSelector(parent,title)
     return control
 end
 local appearance = Section.new(settingsCols.Left, deps, {Title="Appearance"})
-local themeControl=Select.new(appearance.Body,deps,{Title="Color theme",Options={"Ocean","Lavender","Rose","Emerald","Slate"},Default="Ocean",Callback=applyTheme})
+local themeControl=Select.new(appearance.Body,deps,{Title="Color theme",Options=themeNames,Default="Ocean",Callback=applyTheme})
 glassSelector(appearance.Body,"Glass material")
-local paletteControl=Select.new(appearance.Body,deps,{Title="Border colors",Options={"Aurora","Ice","Sunset","Match theme"},Default="Aurora",Callback=function(v) materialState.Palette=v;refreshMaterials();saveAppearance() end})
-local edgeControl=Slider.new(appearance.Body,deps,{Title="Border intensity",Min=0,Max=100,Step=1,Default=54,Suffix="%",Callback=function(v) materialState.Edge=v;refreshMaterials();saveAppearance() end})
-local opacityControl=Slider.new(appearance.Body,deps,{Title="Material opacity",Min=50,Max=100,Step=1,Default=85,Suffix="%",Callback=function(v) materialState.Opacity=v;refreshMaterials();saveAppearance() end})
-local blurControl=Slider.new(appearance.Body, deps, {Title="Blur Amount", Min=0, Max=8, Step=1, Default=3, Callback=function(v) materialState.Blur=v;if app.Acrylic then app.Acrylic:SetAmount(v) end;saveAppearance() end})
+local paletteControl=Select.new(appearance.Body,deps,{Title="Border colors",Options={"Aurora","Ice","Sunset","Match theme"},Default="Aurora",Callback=function(v) markCustom();materialState.Palette=v;refreshMaterials();saveAppearance() end})
+local edgeControl=Slider.new(appearance.Body,deps,{Title="Border intensity",Min=0,Max=100,Step=1,Default=54,Suffix="%",Callback=function(v) markCustom();materialState.Edge=v;refreshMaterials();saveAppearance() end})
+local opacityControl=Slider.new(appearance.Body,deps,{Title="Material opacity",Min=50,Max=100,Step=1,Default=85,Suffix="%",Callback=function(v) markCustom();materialState.Opacity=v;refreshMaterials();saveAppearance() end})
+local blurControl=Slider.new(appearance.Body, deps, {Title="Blur Amount", Min=0, Max=8, Step=1, Default=3, Callback=function(v) markCustom();materialState.Blur=v;if app.Acrylic then app.Acrylic:SetAmount(v) end;saveAppearance() end})
 local function restoreAppearance(data)
     data=data or {}
+    restoringAppearance=true
+    if data.ReducedMotion~=nil then
+        Motion.Reduced=data.ReducedMotion==true;runtime.ReducedMotion=Motion.Reduced
+        for _,control in ipairs(motionControls) do control:Set(Motion.Reduced,true) end
+    end
     local function choice(value,options,fallback)
         for _,v in ipairs(options) do if value==v then return value end end
         return fallback
@@ -2865,23 +2924,85 @@ local function restoreAppearance(data)
     materialState.Edge=number(data.Edge,0,100,54)
     materialState.Opacity=number(data.Opacity,50,100,85)
     materialState.Blur=number(data.Blur,0,8,3)
-    local theme=choice(data.Theme,{"Ocean","Lavender","Rose","Emerald","Slate"},"Ocean")
+    local theme=choice(data.Theme,themeNames,"Ocean")
     themeControl:Set(theme,true);paletteControl:Set(materialState.Palette,true)
     edgeControl:Set(materialState.Edge,true);opacityControl:Set(materialState.Opacity,true);blurControl:Set(materialState.Blur,true)
     applyTheme(theme)
     if app.Acrylic then app.Acrylic:SetAmount(materialState.Blur) end
     app:SetGlassQuality(materialState.Mode)
+    runtime.DragStyle=choice(data.DragStyle,{"Outline","Smooth","Direct"},"Outline")
+    selectedPreset=choice(data.Preset,presetNames,"Custom")
+    if dragControl then dragControl:Set(runtime.DragStyle,true) end
+    if presetControl then presetControl:Set(selectedPreset,true) end
+    restoringAppearance=false
+    if app.RefreshPresetGallery then app.RefreshPresetGallery() end
 end
 local reset=Instance.new("TextButton")
 reset.Size=UDim2.new(1,0,0,36);reset.Text="Restore preferred appearance"
 reset.Font=Enum.Font.GothamMedium;reset.TextSize=12;reset.TextColor3=Tokens.Color.Text
 reset.Parent=appearance.Body;Material.Inset(reset,Tokens)
 reset.Activated:Connect(function() restoreAppearance(nil) end)
-local controls = Section.new(settingsCols.Right, deps, {Title="Component Test"})
-Toggle.new(controls.Body, deps, {Title="Enabled Toggle", Default=true})
-Toggle.new(controls.Body, deps, {Title="Disabled Toggle", Default=false, Enabled=false})
-Slider.new(controls.Body, deps, {Title="Slider", Min=0, Max=100, Step=1, Default=50, Suffix="%"})
-Select.new(controls.Body, deps, {Title="Dropdown", Options={"Option A","Option B","Option C"}, Default="Option A"})
+local presets={
+    {Name="Serenity Night",Theme="Midnight",Mode="Enhanced",Palette="Aurora",Opacity=95,Edge=55,Blur=3,Color=Color3.fromRGB(99,155,240)},
+    {Name="Aurora",Theme="Ocean",Mode="Enhanced",Palette="Aurora",Opacity=92,Edge=72,Blur=4,Color=Color3.fromRGB(77,193,215)},
+    {Name="Deep Ocean",Theme="Ocean",Mode="Basic",Palette="Ice",Opacity=98,Edge=38,Blur=2,Color=Color3.fromRGB(65,153,227)},
+    {Name="Moonstone",Theme="Lavender",Mode="Enhanced",Palette="Match theme",Opacity=94,Edge=45,Blur=3,Color=Color3.fromRGB(154,158,230)},
+    {Name="Violet",Theme="Amethyst",Mode="Enhanced",Palette="Match theme",Opacity=96,Edge=65,Blur=3,Color=Color3.fromRGB(186,117,240)},
+    {Name="Rose Quartz",Theme="Rose",Mode="Enhanced",Palette="Match theme",Opacity=94,Edge=56,Blur=3,Color=Color3.fromRGB(229,122,182)},
+    {Name="Jade",Theme="Emerald",Mode="Basic",Palette="Match theme",Opacity=97,Edge=46,Blur=2,Color=Color3.fromRGB(70,201,143)},
+    {Name="Ember",Theme="Amber",Mode="Enhanced",Palette="Sunset",Opacity=97,Edge=58,Blur=2,Color=Color3.fromRGB(237,174,83)},
+    {Name="Frost",Theme="Arctic",Mode="Enhanced",Palette="Ice",Opacity=93,Edge=65,Blur=4,Color=Color3.fromRGB(100,209,222)},
+    {Name="Graphite",Theme="Slate",Mode="Off",Palette="Match theme",Opacity=100,Edge=30,Blur=0,Color=Color3.fromRGB(151,166,184)},
+}
+local presetTiles={}
+local function highlightPreset()
+    for name,tile in pairs(presetTiles) do
+        tile.Badge.Text=selectedPreset==name and "✓" or ""
+        tile.Stroke.Transparency=selectedPreset==name and 0.12 or 0.72
+    end
+end
+local function usePreset(name)
+    for _,preset in ipairs(presets) do
+        if preset.Name==name then
+            local data={};for k,v in pairs(preset) do data[k]=v end
+            data.Preset=name;data.DragStyle=runtime.DragStyle
+            restoreAppearance(data)
+            highlightPreset();saveAppearance()
+            return
+        end
+    end
+end
+local presetSection=Section.new(settingsCols.Left,deps,{Title="Style presets",Description="Ten coordinated looks. Your settings save automatically."})
+presetSection.Frame.LayoutOrder=-1
+presetControl=Select.new(presetSection.Body,deps,{Title="Choose a preset",Options=presetNames,Default="Custom",Callback=function(v)
+    if v=="Custom" then selectedPreset=v;highlightPreset();saveAppearance() else usePreset(v) end
+end})
+runtime:TrackConnection(presetControl.Frame:GetPropertyChangedSignal("Visible"):Connect(highlightPreset))
+local dragSection=Section.new(settingsCols.Left,deps,{Title="Window movement",Tooltip="Outline shows the destination before moving. Smooth follows the pointer softly. Direct follows immediately. Reduced motion always uses Direct."})
+dragControl=Select.new(dragSection.Body,deps,{Title="Drag style",Options={"Outline","Smooth","Direct"},Default="Outline",Callback=function(v) runtime.DragStyle=v;saveAppearance() end})
+reducedMotionToggle(dragSection.Body)
+local gallery=Section.new(settingsCols.Right,deps,{Title="Preset gallery",Description="Click a swatch to apply the complete look."})
+local grid=Instance.new("Frame");grid.Size=UDim2.new(1,0,0,365);grid.BackgroundTransparency=1;grid.Parent=gallery.Body
+local layout=Instance.new("UIGridLayout");layout.CellSize=UDim2.new(0.5,-5,0,65);layout.CellPadding=UDim2.fromOffset(10,8)
+layout.SortOrder=Enum.SortOrder.LayoutOrder;layout.FillDirectionMaxCells=2;layout.Parent=grid
+for i,preset in ipairs(presets) do
+    local tile=Instance.new("TextButton");tile.Name=preset.Name;tile.Text="";tile.AutoButtonColor=false
+    tile.BackgroundColor3=Color3.fromRGB(16,29,44);tile.BackgroundTransparency=0.05;tile.LayoutOrder=i;tile.Parent=grid
+    local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,8);corner.Parent=tile
+    local stroke=Instance.new("UIStroke");stroke.Color=preset.Color;stroke.Transparency=0.72;stroke.Parent=tile
+    local strip=Instance.new("Frame");strip.BorderSizePixel=0;strip.BackgroundColor3=preset.Color
+    strip.Position=UDim2.fromOffset(10,11);strip.Size=UDim2.new(1,-20,0,5);strip.Parent=tile
+    local round=Instance.new("UICorner");round.CornerRadius=UDim.new(1,0);round.Parent=strip
+    local name=Typography.Label(tile,"Control",Tokens,preset.Name,UDim2.fromOffset(10,24),UDim2.new(1,-31,0,20),Tokens.Color.Text)
+    name.TextSize=11;name.TextTruncate=Enum.TextTruncate.AtEnd
+    local badge=Typography.Label(tile,"Control",Tokens,"",UDim2.new(1,-21,0,24),UDim2.fromOffset(16,20),preset.Color)
+    presetTiles[preset.Name]={Badge=badge,Stroke=stroke}
+    runtime:TrackConnection(tile.Activated:Connect(function() usePreset(preset.Name) end))
+end
+
+-- Selection changes are reflected through the stored preset value, including custom edits.
+app.RefreshPresetGallery=highlightPreset
+
 
 -- Dashboard: local preview with real player/session context; services stay disconnected.
 do
@@ -2917,7 +3038,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.26";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.27";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3025,12 +3146,12 @@ do
 
     local cols=ColumnLayout.new(dashboard,deps,{LayoutOrder=5,Gap=10})
     local quick=Section.new(cols.Left,deps,{Title="Make it yours",Tooltip="These preferences change the UI. Game rendering and FPS controls belong in Misc."})
-    Toggle.new(quick.Body,deps,{Title="Reduced motion",Default=false,Callback=function(v) Motion.Reduced=v end})
+    reducedMotionToggle(quick.Body)
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.26"})
-    for i,data in ipairs({{"A clearer home","Profile, session and useful shortcuts."},{"Helpful interactions","Tap ? or try the confirmation dialog."},{"Designed to stay readable","Stronger cards and adaptive layouts."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.27"})
+    for i,data in ipairs({{"Ten complete looks","Try the preset gallery in Settings."},{"Outline window movement","Preview the destination, then glide."},{"Motion on your terms","Outline, Smooth, Direct or reduced motion."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3064,7 +3185,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.26",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.27",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3176,7 +3297,7 @@ app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.26 DASHBOARD TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.27 PRESETS & DRAG TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
