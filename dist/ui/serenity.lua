@@ -357,8 +357,8 @@ function Material.OptionHover(button, tokens, selected)
     local baseTransparency = button.BackgroundTransparency
     local function render()
         local active = pointer or focused
-        button.BackgroundColor3 = active and tokens.Color.Accent or (selected and tokens.Color.NavActive or tokens.Color.PanelSoft)
-        button.BackgroundTransparency = active and 0.25 or baseTransparency
+        button.BackgroundColor3 = active and tokens.Color.InsetHover or (selected and tokens.Color.NavActive or tokens.Color.PanelSoft)
+        button.BackgroundTransparency = active and 0 or baseTransparency
         if button.Text ~= "" then button.TextColor3 = active and tokens.Color.Text or (selected and tokens.Color.Text or tokens.Color.TextMuted) end
     end
     button.MouseEnter:Connect(function() pointer=true;render() end)
@@ -2792,18 +2792,47 @@ local function reducedMotionToggle(parent)
     table.insert(motionControls,control)
     return control
 end
-local selectedTheme="Ocean"
-local selectedPreset="Custom"
+local selectedTheme="Midnight"
+local selectedPreset="Serenity Grimoire"
 local presetControl
 local dragControl
-local presetNames={"Custom","Serenity Night","Aurora","Deep Ocean","Moonstone","Violet","Rose Quartz","Jade","Ember","Frost","Graphite"}
+local presetNames={"Custom","Serenity Grimoire","Aurora","Deep Ocean","Moonstone","Violet","Rose Quartz","Jade","Ember","Frost","Graphite"}
 local restoringAppearance=false
-local themeNames={"Ocean","Lavender","Rose","Emerald","Slate","Amber","Crimson","Arctic","Amethyst","Midnight"}
+local themeNames={"Aurora","Ocean","Lavender","Rose","Emerald","Slate","Amber","Crimson","Arctic","Amethyst","Midnight"}
 local function markCustom()
     if restoringAppearance then return end
     selectedPreset="Custom"
     if presetControl then presetControl:Set("Custom",true) end
     if app.RefreshPresetGallery then app.RefreshPresetGallery() end
+end
+-- Complete low-saturation palettes: surfaces, typography, states and accents.
+local themeSpecs={
+    Aurora={{21,30,35},{223,234,229},{115,172,164},{150,144,177}},
+    Midnight={{17,28,43},{232,223,203},{112,151,186},{171,149,104}},
+    Ocean={{15,29,37},{220,233,234},{92,166,177},{108,148,157}},
+    Lavender={{29,29,39},{229,226,237},{157,151,192},{132,127,159}},
+    Rose={{34,26,31},{237,224,226},{183,137,154},{147,117,128}},
+    Emerald={{19,31,28},{223,233,224},{114,166,141},{112,141,119}},
+    Slate={{24,26,30},{226,229,232},{155,167,183},{115,123,135}},
+    Amber={{33,27,23},{239,228,208},{192,157,108},{155,128,90}},
+    Crimson={{33,23,27},{237,222,223},{189,121,132},{151,106,113}},
+    Arctic={{22,31,38},{224,235,238},{135,180,193},{124,151,163}},
+    Amethyst={{29,24,38},{231,223,236},{166,139,192},{139,117,158}},
+}
+local function completePalette(name)
+    local spec=themeSpecs[name] or themeSpecs.Midnight
+    local base,text,accent,trim=spec[1],spec[2],spec[3],spec[4]
+    local function rgb(v,offset)
+        return Color3.fromRGB(math.clamp(v[1]+(offset or 0),0,255),math.clamp(v[2]+(offset or 0),0,255),math.clamp(v[3]+(offset or 0),0,255))
+    end
+    return {
+        Shell=rgb(base),Topbar=rgb(base),ShellDeep=rgb(base,-5),ShellSoft=rgb(base,3),Sidebar=rgb(base,1),
+        Panel=rgb(base,7),PanelSoft=rgb(base,14),Surface=rgb(base,2),SurfaceSoft=rgb(base,5),Control=rgb(base,5),
+        ControlHover=rgb(base,20),RowHover=rgb(base,20),Inset=rgb(base,12),InsetHover=rgb(base,23),Popup=rgb(base,4),
+        NavActive=rgb(base,26),NavHover=rgb(base,17),Text=rgb(text),TextMuted=rgb(text,-49),TextDim=rgb(text,-68),
+        Divider=rgb(base,27),Stroke=rgb(base,43),StrokeBright=rgb(trim),Disabled=rgb(base,43),
+        Accent=rgb(accent),Blue=rgb(accent),AccentBright=rgb(accent,15),Cyan=rgb(accent,8),Lavender=rgb(trim),
+    }
 end
 local originalColors={}
 for key,color in pairs(Tokens.Color) do originalColors[key]=color end
@@ -2812,13 +2841,8 @@ local function applyTheme(name)
     selectedTheme=name
     local previousColors={}
     for key,color in pairs(Tokens.Color) do previousColors[key]=color end
-    local hue=({Ocean=0.57,Lavender=0.72,Rose=0.94,Emerald=0.43,Slate=0.60,Amber=0.09,Crimson=0.99,Arctic=0.52,Amethyst=0.78,Midnight=0.65})[name] or 0.57
-    for key,original in pairs(originalColors) do
-        local _,sat,val=original:ToHSV()
-        local semantic=key=="Mint" or key=="Red" or key=="Amber"
-        local accentKey=key=="Accent" or key=="AccentBright" or key=="Blue" or key=="Cyan" or key=="Lavender"
-        Tokens.Color[key]=(semantic or not accentKey) and original or Color3.fromHSV(hue,name=="Slate" and sat*0.18 or sat,val)
-    end
+    local palette=completePalette(name)
+    for key,original in pairs(originalColors) do Tokens.Color[key]=palette[key] or original end
     for _,object in ipairs(app.ScreenGui:GetDescendants()) do
         local props={}
         if object:GetAttribute("FixedPresetColor") then
@@ -2840,9 +2864,7 @@ local function applyTheme(name)
                 themeBindings[object][prop]=binding
             end
             if type(binding)=="string" then object[prop]=Tokens.Color[binding]
-            elseif object.Name~="" and object.Parent and object.Parent.Name~="SerenityStar" then
-                local _,sat,val=binding:ToHSV()
-                if sat>0.25 and val<0.65 then object[prop]=Color3.fromHSV(hue,0.06,val) end
+
             end
         end
     end
@@ -2852,7 +2874,7 @@ end
 
 -- Event-driven materials: no heartbeat, textures or animated full-screen layers.
 local materialState={Mode="Basic",Opacity=100,Edge=30,Palette="Match theme",Blur=0}
-local appearancePath="Serenity_UI_Test_Appearance_v2.json"
+local appearancePath="Serenity_UI_Test_Appearance_v3.json"
 local HttpService=game:GetService("HttpService")
 local saveRevision=0
 saveAppearance=function()
@@ -2940,7 +2962,7 @@ local function glassSelector(parent,title)
     return control
 end
 local appearance = Section.new(settingsCols.Left, deps, {Title="Appearance"})
-local themeControl=Select.new(appearance.Body,deps,{Title="Color theme",Options=themeNames,Default="Ocean",Callback=applyTheme})
+local themeControl=Select.new(appearance.Body,deps,{Title="Color theme",Options=themeNames,Default="Midnight",Callback=applyTheme})
 glassSelector(appearance.Body,"Glass material")
 local paletteControl=Select.new(appearance.Body,deps,{Title="Border colors",Options={"Aurora","Ice","Sunset","Match theme"},Default="Aurora",Callback=function(v) markCustom();materialState.Palette=v;refreshMaterials();saveAppearance() end})
 local edgeControl=Slider.new(appearance.Body,deps,{Title="Border intensity",Min=0,Max=100,Step=1,Default=54,Suffix="%",Callback=function(v) markCustom();materialState.Edge=v;refreshMaterials();saveAppearance() end})
@@ -2966,14 +2988,14 @@ local function restoreAppearance(data)
     materialState.Edge=number(data.Edge,0,100,54)
     materialState.Opacity=number(data.Opacity,50,100,100)
     materialState.Blur=number(data.Blur,0,8,0)
-    local theme=choice(data.Theme,themeNames,"Ocean")
+    local theme=choice(data.Theme,themeNames,"Midnight")
     themeControl:Set(theme,true);paletteControl:Set(materialState.Palette,true)
     edgeControl:Set(materialState.Edge,true);opacityControl:Set(materialState.Opacity,true);blurControl:Set(materialState.Blur,true)
     applyTheme(theme)
     if app.Acrylic then app.Acrylic:SetAmount(materialState.Blur) end
     app:SetGlassQuality(materialState.Mode)
     runtime.DragStyle=choice(data.DragStyle,{"Outline","Smooth","Direct"},"Outline")
-    selectedPreset=choice(data.Preset,presetNames,"Custom")
+    selectedPreset=choice(data.Preset,presetNames,data.Theme and "Custom" or "Serenity Grimoire")
     if dragControl then dragControl:Set(runtime.DragStyle,true) end
     if presetControl then presetControl:Set(selectedPreset,true) end
     restoringAppearance=false
@@ -2985,8 +3007,8 @@ reset.Font=Enum.Font.GothamMedium;reset.TextSize=12;reset.TextColor3=Tokens.Colo
 reset.Parent=appearance.Body;Material.Inset(reset,Tokens)
 reset.Activated:Connect(function() restoreAppearance(nil) end)
 local presets={
-    {Name="Serenity Night",Theme="Midnight",Mode="Enhanced",Palette="Aurora",Opacity=95,Edge=55,Blur=3,Color=Color3.fromRGB(99,155,240)},
-    {Name="Aurora",Theme="Ocean",Mode="Enhanced",Palette="Aurora",Opacity=92,Edge=72,Blur=4,Color=Color3.fromRGB(77,193,215)},
+    {Name="Serenity Grimoire",Theme="Midnight",Mode="Basic",Palette="Match theme",Opacity=100,Edge=45,Blur=0,Color=Color3.fromRGB(171,149,104)},
+    {Name="Aurora",Theme="Aurora",Mode="Enhanced",Palette="Aurora",Opacity=92,Edge=72,Blur=4,Color=Color3.fromRGB(77,193,215)},
     {Name="Deep Ocean",Theme="Ocean",Mode="Basic",Palette="Ice",Opacity=98,Edge=38,Blur=2,Color=Color3.fromRGB(65,153,227)},
     {Name="Moonstone",Theme="Lavender",Mode="Enhanced",Palette="Match theme",Opacity=94,Edge=45,Blur=3,Color=Color3.fromRGB(154,158,230)},
     {Name="Violet",Theme="Amethyst",Mode="Enhanced",Palette="Match theme",Opacity=96,Edge=65,Blur=3,Color=Color3.fromRGB(186,117,240)},
@@ -3029,7 +3051,7 @@ local layout=Instance.new("UIGridLayout");layout.CellSize=UDim2.new(0.5,-5,0,65)
 layout.SortOrder=Enum.SortOrder.LayoutOrder;layout.FillDirectionMaxCells=2;layout.Parent=grid
 for i,preset in ipairs(presets) do
     local tile=Instance.new("TextButton");tile.Name=preset.Name;tile.Text="";tile.AutoButtonColor=false
-    tile.BackgroundColor3=Color3.fromRGB(16,29,44);tile.BackgroundTransparency=0.05;tile.LayoutOrder=i;tile.Parent=grid
+    tile.BackgroundColor3=Tokens.Color.PanelSoft;tile.BackgroundTransparency=0.05;tile.LayoutOrder=i;tile.Parent=grid
     local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,8);corner.Parent=tile
     local stroke=Instance.new("UIStroke");stroke.Color=preset.Color;stroke.Transparency=0.72;stroke:SetAttribute("FixedPresetColor",true);stroke.Parent=tile
     local strip=Instance.new("Frame");strip.BorderSizePixel=0;strip.BackgroundColor3=preset.Color;strip:SetAttribute("FixedPresetColor",true)
@@ -3082,7 +3104,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.29";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.30";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3194,8 +3216,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.29"})
-    for i,data in ipairs({{"Clearer choices","Hover and keyboard highlights in lists."},{"Coordinated preset colors","Accent colors follow your selected theme."},{"Readable section headings","Larger titles with comfortable spacing."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.30"})
+    for i,data in ipairs({{"Complete atmosphere presets","Surfaces, text and controls change together."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Gentler hover feedback","Soft highlights without bright color blocks."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3229,7 +3251,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.29",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.30",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3435,7 +3457,7 @@ app:SelectPage("Dashboard")
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.29 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.30 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
