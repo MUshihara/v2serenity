@@ -2871,9 +2871,9 @@ local selectedTheme="Midnight"
 local selectedPreset="Serenity Grimoire"
 local presetControl
 local dragControl
-local presetNames={"Custom","Serenity Grimoire","Aurora","Deep Ocean","Moonstone","Violet","Rose Quartz","Jade","Ember","Frost","Graphite"}
+local presetNames={"Custom","Serenity Grimoire","Aurora","Deep Ocean","Moonstone","Violet","Rose Quartz","Jade","Ember","Frost","Graphite","Garnet","Antique Gold","Petrol","Dusk","Espresso"}
 local restoringAppearance=false
-local themeNames={"Aurora","Ocean","Lavender","Rose","Emerald","Slate","Amber","Crimson","Arctic","Amethyst","Midnight"}
+local themeNames={"Aurora","Ocean","Lavender","Rose","Emerald","Slate","Amber","Crimson","Arctic","Amethyst","Midnight","Garnet","AntiqueGold","Petrol","Dusk","Espresso"}
 local function markCustom()
     if restoringAppearance then return end
     selectedPreset="Custom"
@@ -2882,6 +2882,11 @@ local function markCustom()
 end
 -- Complete low-saturation palettes: surfaces, typography, states and accents.
 local themeSpecs={
+    Garnet={{30,18,22},{241,225,220},{210,100,107},{158,119,110}},
+    AntiqueGold={{23,23,21},{239,232,212},{192,168,107},{143,139,112}},
+    Petrol={{14,29,31},{216,235,228},{78,179,168},{151,170,132}},
+    Dusk={{25,24,35},{233,227,241},{147,137,207},{189,146,134}},
+    Espresso={{30,24,20},{242,228,211},{193,145,108},{163,150,126}},
     Aurora={{21,30,35},{223,234,229},{115,172,164},{150,144,177}},
     Midnight={{17,28,43},{232,223,203},{112,151,186},{171,149,104}},
     Ocean={{15,29,37},{220,233,234},{92,166,177},{108,148,157}},
@@ -3096,6 +3101,11 @@ local presets={
     {Name="Ember",Theme="Amber",Mode="Enhanced",Palette="Sunset",Opacity=97,Edge=58,Blur=2,Color=Color3.fromRGB(237,174,83)},
     {Name="Frost",Theme="Arctic",Mode="Enhanced",Palette="Ice",Opacity=93,Edge=65,Blur=4,Color=Color3.fromRGB(100,209,222)},
     {Name="Graphite",Theme="Slate",Mode="Off",Palette="Match theme",Opacity=100,Edge=30,Blur=0,Color=Color3.fromRGB(151,166,184)},
+    {Name="Garnet",Theme="Garnet",Mode="Basic",Palette="Match theme",Opacity=100,Edge=40,Blur=0,Color=Color3.fromRGB(210,100,107)},
+    {Name="Antique Gold",Theme="AntiqueGold",Mode="Basic",Palette="Match theme",Opacity=100,Edge=38,Blur=0,Color=Color3.fromRGB(192,168,107)},
+    {Name="Petrol",Theme="Petrol",Mode="Basic",Palette="Match theme",Opacity=100,Edge=42,Blur=0,Color=Color3.fromRGB(78,179,168)},
+    {Name="Dusk",Theme="Dusk",Mode="Basic",Palette="Match theme",Opacity=100,Edge=38,Blur=0,Color=Color3.fromRGB(147,137,207)},
+    {Name="Espresso",Theme="Espresso",Mode="Basic",Palette="Match theme",Opacity=100,Edge=36,Blur=0,Color=Color3.fromRGB(193,145,108)},
 }
 local presetTiles={}
 local function highlightPreset()
@@ -3115,7 +3125,7 @@ local function usePreset(name)
         end
     end
 end
-local presetSection=Section.new(settingsCols.Left,deps,{Title="Style presets",Description="Ten coordinated looks. Your settings save automatically."})
+local presetSection=Section.new(settingsCols.Left,deps,{Title="Style presets",Description="Fifteen coordinated looks. Your settings save automatically."})
 presetSection.Frame.LayoutOrder=-1
 presetControl=Select.new(presetSection.Body,deps,{Title="Choose a preset",Options=presetNames,Default="Custom",Callback=function(v)
     if v=="Custom" then selectedPreset=v;highlightPreset();saveAppearance() else usePreset(v) end
@@ -3125,7 +3135,7 @@ local dragSection=Section.new(settingsCols.Left,deps,{Title="Window movement",To
 dragControl=Select.new(dragSection.Body,deps,{Title="Drag style",Options={"Outline","Smooth","Direct"},Default="Outline",Callback=function(v) runtime.DragStyle=v;saveAppearance() end})
 reducedMotionToggle(dragSection.Body)
 local gallery=Section.new(settingsCols.Right,deps,{Title="Preset gallery",Description="Click a swatch to apply the complete look."})
-local grid=Instance.new("Frame");grid.Size=UDim2.new(1,0,0,365);grid.BackgroundTransparency=1;grid.Parent=gallery.Body
+local grid=Instance.new("Frame");grid.Size=UDim2.new(1,0,0,math.ceil(#presets/2)*73-8);grid.BackgroundTransparency=1;grid.Parent=gallery.Body
 local layout=Instance.new("UIGridLayout");layout.CellSize=UDim2.new(0.5,-5,0,65);layout.CellPadding=UDim2.fromOffset(10,8)
 layout.SortOrder=Enum.SortOrder.LayoutOrder;layout.FillDirectionMaxCells=2;layout.Parent=grid
 for i,preset in ipairs(presets) do
@@ -3183,7 +3193,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.40";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.41";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3302,8 +3312,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.40"})
-    for i,data in ipairs({{"Responsive mobile canvas","Phone rotation and wider tablet layouts."},{"Complete notification themes","Toasts follow your selected appearance."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.41"})
+    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Complete notification themes","Toasts follow your selected appearance."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3337,7 +3347,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.40",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.41",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3552,7 +3562,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.40 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.41 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
