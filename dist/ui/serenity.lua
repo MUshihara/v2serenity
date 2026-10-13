@@ -2321,7 +2321,7 @@ function Desktop.Mount(deps, options)
     star.Parent=sidebar;star.Position=UDim2.fromOffset(16,17);star.Size=UDim2.fromOffset(26,26)
     brandSub.Parent=sidebar;brandSub.Position=UDim2.fromOffset(54,37);brandSub.Text="Interface preview"
     brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,16)
-    pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(190,40)
+    pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(deps.Mobile and 160 or 190,40)
     pageButton.BackgroundTransparency=1;pageText.TextSize=17;pageText.TextColor3=tokens.Color.Text
     navHolder.Position=UDim2.fromOffset(10,66)
     navHolder.Size=UDim2.new(1,-20,1,-(66+tokens.Size.SidebarUser+8))
@@ -2393,11 +2393,14 @@ local camera=workspace.CurrentCamera
 local viewport=camera and camera.ViewportSize or Vector2.new(1280,720)
 deps.Mobile=UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or viewport.Y<600)
 if deps.Mobile then
-    Tokens.Size.Window=Vector2.new(viewport.X<viewport.Y and 380 or 600,380)
+    Tokens.Size.Window=Vector2.new(viewport.X<viewport.Y and 430 or 700,420)
     Tokens.Size.Topbar=48
-    Tokens.Size.Control=46
-    Tokens.Size.Slider=66
-    Tokens.Size.Select=72
+    Tokens.Size.Sidebar=156
+    Tokens.Size.NavRow=34
+    Tokens.Size.NavGroup=20
+    Tokens.Size.Control=40
+    Tokens.Size.Slider=55
+    Tokens.Size.Select=54
 end
 
 local app = Desktop.Mount(deps, {
@@ -2587,18 +2590,23 @@ do
         thread=task.delay(seconds,function() timers[thread]=nil;if not runtime.Destroyed then callback() end end)
         timers[thread]=true;return thread
     end
-    local function capacity() return math.clamp(math.floor((root.AbsoluteSize.Y-32)/104),1,3) end
+    local function toastScale()
+        return deps.Mobile and math.clamp(deps.UIScale.Scale*0.9,0.55,1) or 1
+    end
+    local function capacity() return deps.Mobile and 2 or math.clamp(math.floor((root.AbsoluteSize.Y-32)/104),1,3) end
     local function animate(entry,properties,duration)
         if entry.Tween then entry.Tween:Cancel() end
         entry.Tween=tweenService:Create(entry.Frame,TweenInfo.new(duration,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),properties)
         entry.Tween:Play()
     end
     arrange=function()
-        local width=math.max(100,math.min(320,root.AbsoluteSize.X-32))
+        local scale=toastScale()
+        local width=math.max(100,math.min(deps.Mobile and 290 or 320,(root.AbsoluteSize.X-32)/scale))
         for i,entry in ipairs(active) do
+            entry.Scale.Scale=scale
             entry.Frame.Size=UDim2.fromOffset(width,94)
             if not entry.Closing then
-                animate(entry,{Position=UDim2.new(1,-16,1,-16-(i-1)*104),GroupTransparency=0},Motion.Reduced and 0.12 or 0.28)
+                animate(entry,{Position=UDim2.new(1,-16,1,-16-(i-1)*104*scale),GroupTransparency=0},Motion.Reduced and 0.12 or 0.28)
             end
         end
     end
@@ -2639,8 +2647,9 @@ do
             local track=Instance.new("Frame");track.Size=UDim2.new(1,-32,0,2);track.Position=UDim2.new(0,16,1,-9)
             track.BorderSizePixel=0;track.BackgroundTransparency=0.75;track.BackgroundColor3=color;track.Parent=card
             local fill=Instance.new("Frame");fill.Size=UDim2.fromScale(1,1);fill.BorderSizePixel=0;fill.BackgroundColor3=color;fill.Parent=track
-            local entry={Frame=card};table.insert(active,entry)
-            if Motion.Reduced then card.Position=UDim2.new(1,-16,1,-16-(#active-1)*104) end
+            local cardScale=Instance.new("UIScale");cardScale.Scale=toastScale();cardScale.Parent=card
+            local entry={Frame=card,Scale=cardScale};table.insert(active,entry)
+            if Motion.Reduced then card.Position=UDim2.new(1,-16,1,-16-(#active-1)*104*toastScale()) end
             entry.Connection=dismiss.Activated:Connect(function() close(entry) end)
             entry.Progress=tweenService:Create(fill,TweenInfo.new(data.Duration,Enum.EasingStyle.Linear),{Size=UDim2.fromScale(0,1)})
             entry.Progress:Play();entry.Timer=later(data.Duration,function() entry.Timer=nil;close(entry) end)
@@ -3129,7 +3138,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.38";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.39";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3248,7 +3257,7 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.38"})
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.39"})
     for i,data in ipairs({{"Profile privacy","Hide your name, avatar and profile details."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
@@ -3283,7 +3292,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.38",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.39",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3490,7 +3499,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.38 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.39 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
