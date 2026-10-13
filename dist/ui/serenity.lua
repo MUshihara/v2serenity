@@ -2308,7 +2308,7 @@ function Desktop.Mount(deps, options)
         -- Use the existing vertical categories and profile on mobile too.
         content.Position=UDim2.fromOffset(tokens.Size.Sidebar+14,tokens.Size.Topbar+8)
         content.Size=UDim2.new(1,-(tokens.Size.Sidebar+28),1,-(tokens.Size.Topbar+18))
-        heading.Text="SERENITY";heading.TextSize=16
+        heading.Text="SERENITY HUB";heading.TextSize=16
         heading.Position=UDim2.fromOffset(47,0);heading.Size=UDim2.fromOffset(115,48)
         star.Position=UDim2.fromOffset(13,10);star.Size=UDim2.fromOffset(30,30)
         pageButton.Position=UDim2.fromOffset(165,5);pageButton.Size=UDim2.fromOffset(110,38)
@@ -2316,8 +2316,8 @@ function Desktop.Mount(deps, options)
     sidebar.Position=UDim2.new();sidebar.Size=UDim2.new(0,tokens.Size.Sidebar,1,0)
     topbar.Position=UDim2.fromOffset(tokens.Size.Sidebar,0)
     topbar.Size=UDim2.new(1,-tokens.Size.Sidebar,0,tokens.Size.Topbar)
-    heading.Parent=sidebar;heading.TextSize=13;heading.Position=UDim2.fromOffset(54,15)
-    heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,22)
+    heading.Parent=sidebar;heading.TextSize=deps.Mobile and 11 or 13;heading.Position=UDim2.fromOffset(deps.Mobile and 44 or 54,15)
+    heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-(deps.Mobile and 50 or 64),22)
     star.Parent=sidebar;star.Position=UDim2.fromOffset(16,17);star.Size=UDim2.fromOffset(26,26)
     brandSub.Parent=sidebar;brandSub.Position=UDim2.fromOffset(54,37);brandSub.Text="Interface preview"
     brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,16)
