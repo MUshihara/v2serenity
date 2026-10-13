@@ -1117,6 +1117,18 @@ function Toggle:SetEnabled(value)
     self:_render(false)
 end
 
+function Toggle:Get()
+    return self.Value
+end
+
+function Toggle:SetVisible(value)
+    self.Frame.Visible = not not value
+end
+
+function Toggle:IsVisible()
+    return self.Frame.Visible
+end
+
 return Toggle
 
 end)()
@@ -1299,6 +1311,18 @@ function Slider:SetEnabled(value)
     self:_render()
 end
 
+function Slider:Get()
+    return self.Value
+end
+
+function Slider:SetVisible(value)
+    self.Frame.Visible = not not value
+end
+
+function Slider:IsVisible()
+    return self.Frame.Visible
+end
+
 return Slider
 
 end)()
@@ -1464,7 +1488,7 @@ function Select:Set(value, silent)
     if self.Callback and not silent then self.Callback(self.Value) end
 end
 
-function Select:Refresh(options, preserve)
+function Select:Refresh(options, preserve, silent)
     local previous = self.Value
     self.Options = options or {}
     if preserve then
@@ -1472,12 +1496,24 @@ function Select:Refresh(options, preserve)
             if option == previous then self:Set(previous, true) return end
         end
     end
-    self:Set(self.Options[1], true)
+    self:Set(self.Options[1], silent ~= false)
 end
 
 function Select:SetEnabled(value)
     self.Enabled = not not value
     self:_render()
+end
+
+function Select:Get()
+    return self.Value
+end
+
+function Select:SetVisible(value)
+    self.Frame.Visible = not not value
+end
+
+function Select:IsVisible()
+    return self.Frame.Visible
 end
 
 return Select
@@ -1535,7 +1571,7 @@ function ColumnLayout.new(parent, deps, props)
 
     local function refresh()
         local scale = deps.UIScale and deps.UIScale.Scale or 1
-        local narrow = deps.Mobile or frame.AbsoluteSize.X / scale < 550
+        local narrow = frame.AbsoluteSize.X / scale < 550
         left.Size = UDim2.new(narrow and 1 or 0.5, narrow and 0 or -(gap / 2), 0, 0)
         right.Size = left.Size
         local leftH = leftList.AbsoluteContentSize.Y / scale
@@ -1684,7 +1720,11 @@ function Desktop.Mount(deps, options)
             local availableW=math.max(1,viewport.X-32)
             local availableH=math.max(1,viewport.Y-inset.Y-32)
             local scale=math.min(1.35,availableW*0.94/tokens.Size.Window.X,availableH*0.94/tokens.Size.Window.Y)
-            holder.Size=UDim2.fromOffset(tokens.Size.Window.X,tokens.Size.Window.Y)
+            local tablet=math.min(viewport.X,viewport.Y)>=600
+            local width=tablet and 798 or (viewport.X<viewport.Y and 430 or 700)
+            local height=tablet and 546 or 420
+            scale=math.min(1.35,availableW*0.94/width,availableH*0.94/height)
+            holder.Size=UDim2.fromOffset(width,height)
             uiScale.Scale=scale
         else
             uiScale.Scale = 1
@@ -2578,6 +2618,7 @@ do
     local tweenService=game:GetService("TweenService")
     local screen=runtime:TrackInstance(Instance.new("ScreenGui"))
     screen.Name="Serenity_Test_Notifications"
+    app.NotificationScreenGui=screen
     screen.ResetOnSpawn=false;screen.IgnoreGuiInset=false
     screen.DisplayOrder=app.ScreenGui.DisplayOrder+20;screen.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
     screen.Parent=app.ScreenGui.Parent
@@ -2628,7 +2669,7 @@ do
             local data=table.remove(queue,1)
             local card=Instance.new("CanvasGroup");card.AnchorPoint=Vector2.new(1,1)
             card.Size=UDim2.fromOffset(320,94);card.Position=UDim2.new(1,340,1,-16)
-            card.GroupTransparency=1;card.BackgroundColor3=Color3.fromRGB(14,32,49)
+            card.GroupTransparency=1;card.BackgroundColor3=Tokens.Color.PanelSoft
             card.BackgroundTransparency=0.04;card.BorderSizePixel=0;card.Parent=root
             local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,12);corner.Parent=card
             local color=({Success=Tokens.Color.Mint,Warning=Tokens.Color.Amber,Error=Tokens.Color.Red})[data.Kind] or Tokens.Color.Accent
@@ -2877,7 +2918,11 @@ local function applyTheme(name)
     for key,color in pairs(Tokens.Color) do previousColors[key]=color end
     local palette=completePalette(name)
     for key,original in pairs(originalColors) do Tokens.Color[key]=palette[key] or original end
-    for _,object in ipairs(app.ScreenGui:GetDescendants()) do
+    local themedObjects=app.ScreenGui:GetDescendants()
+    if app.NotificationScreenGui then
+        for _,object in ipairs(app.NotificationScreenGui:GetDescendants()) do table.insert(themedObjects,object) end
+    end
+    for _,object in ipairs(themedObjects) do
         local props={}
         if object:GetAttribute("FixedPresetColor") then
             -- Gallery swatches preview their own preset, independent of the active theme.
@@ -3138,7 +3183,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.39";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.40";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3257,8 +3302,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.39"})
-    for i,data in ipairs({{"Profile privacy","Hide your name, avatar and profile details."},{"Serenity Grimoire default","Ink blue, warm ivory and antique gold."},{"Outline movement & plain dialogs","Drag preview and compact confirmations."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.40"})
+    for i,data in ipairs({{"Responsive mobile canvas","Phone rotation and wider tablet layouts."},{"Complete notification themes","Toasts follow your selected appearance."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3292,7 +3337,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.39",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.40",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3338,7 +3383,8 @@ do
     app:Tooltip(counterButton,"Counts your clicks for this test session.")
     local disabled=button(actions.Body,"Disabled button",function() end)
     disabled.Active=false;disabled.AutoButtonColor=false;disabled.TextTransparency=0.6
-    Toggle.new(actions.Body,deps,{Title="Enabled toggle",Default=true,Callback=function(v) report("Toggle: "..tostring(v)) end})
+    local apiToggle=Toggle.new(actions.Body,deps,{Title="Enabled toggle",Default=true,Callback=function(v) report("Toggle: "..tostring(v)) end})
+    button(actions.Body,"Show / hide test toggle",function() apiToggle:SetVisible(not apiToggle:IsVisible());report("Toggle visible: "..tostring(apiToggle:IsVisible()).." · value: "..tostring(apiToggle:Get())) end)
     Toggle.new(actions.Body,deps,{Title="Disabled toggle",Enabled=false,Default=false})
     local numbers=Section.new(columns.Left,deps,{Title="Values & precision",
         Description="Drag a slider or type an exact value.",Accent=Tokens.Color.Lavender,
@@ -3350,7 +3396,14 @@ do
         Description="Long option lists and independent selections.",
         Tooltip="Dropdown options scroll inside their popup. Rare, Epic and Legendary can be selected together."})
     local options={};for i=1,30 do options[i]="Option "..i end
-    Select.new(choices.Body,deps,{Title="Scrollable options",Options=options,Default=options[1],Callback=report})
+    local apiSelect=Select.new(choices.Body,deps,{Title="Scrollable options",Options=options,Default=options[1],Callback=report})
+    local expanded=true
+    button(choices.Body,"Refresh options (preserve selection)",function()
+        expanded=not expanded
+        local updated={};for i=1,(expanded and 30 or 10) do updated[i]="Option "..i end
+        apiSelect:Refresh(updated,true)
+        report("Options: "..#updated.." · selected: "..tostring(apiSelect:Get()))
+    end)
     local selected={}
     for _,name in ipairs({"Rare","Epic","Legendary"}) do
         Toggle.new(choices.Body,deps,{Title=name,Default=false,Callback=function(v)
@@ -3499,7 +3552,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.39 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.40 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
