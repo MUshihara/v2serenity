@@ -1,3 +1,16 @@
+-- Test UI opens keyless while design work continues.
+do
+    local environment = type(getgenv) == "function" and getgenv() or _G
+    local previous = environment.__SerenityKeyWindowTest
+    if type(previous) == "table" and type(previous.Destroy) == "function" then
+        pcall(function() previous:Destroy() end)
+    end
+    local source = game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/052b732ab2ee97bcbcf8e7a94ba0edfc1d60080a/dist/ui/serenity.lua")
+    local chunk, err = loadstring(source)
+    if not chunk then error(err) end
+    return chunk()
+end
+
 -- Serenity test key window. FlowAuth protected payload must call CompleteAuthentication.
 -- Test repository only; no production games are loaded.
 local Players = game:GetService("Players")
