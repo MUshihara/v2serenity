@@ -2139,14 +2139,40 @@ function Desktop.Mount(deps, options)
     minimize.ZIndex = 5
     minimize.Parent = topbar
     local restore = Instance.new("TextButton")
-    restore.Size = UDim2.fromOffset(44, 32)
-    restore.Position = UDim2.new(0, 12, 0.5, -16)
-    restore.Text = "SH"
-    restore.TextColor3 = tokens.Color.Text
+    restore.Name = "SerenityRestore"
+    restore.Size = UDim2.fromOffset(44, 44)
+    restore.Position = UDim2.new(0, 12, 0.5, -22)
+    restore.Text = ""
+    restore.AutoButtonColor = false
+    restore.BorderSizePixel = 0
     restore.BackgroundColor3 = tokens.Color.Inset
     restore.Visible = false
     restore.Parent = screen
-    corner(restore, 8)
+    corner(restore, 14)
+    local restoreEdge=Instance.new("UIStroke");restoreEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+    restoreEdge.Color=tokens.Color.Lavender;restoreEdge.Transparency=0.5;restoreEdge.Thickness=1;restoreEdge.Parent=restore
+    local ring=Instance.new("Frame");ring.BackgroundTransparency=1;ring.BorderSizePixel=0
+    ring.Position=UDim2.fromOffset(7,7);ring.Size=UDim2.fromOffset(30,30);ring.Parent=restore
+    corner(ring,15)
+    local ringEdge=Instance.new("UIStroke");ringEdge.Color=tokens.Color.Accent
+    ringEdge.Transparency=0.78;ringEdge.Thickness=1;ringEdge.Parent=ring
+    deps.Material.Star(restore,UDim2.fromOffset(9,9),26,tokens.Color.Text,2)
+    local function restoreFeedback(active)
+        deps.Motion:Tween(restore,"Hover",{BackgroundColor3=active and tokens.Color.InsetHover or tokens.Color.Inset})
+        deps.Motion:Tween(restoreEdge,"Hover",{Transparency=active and 0.15 or 0.5})
+    end
+    runtime:TrackConnection(restore.MouseEnter:Connect(function() restoreFeedback(true) end))
+    runtime:TrackConnection(restore.MouseLeave:Connect(function() restoreFeedback(false) end))
+    runtime:TrackConnection(restore.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
+            restoreFeedback(true)
+        end
+    end))
+    runtime:TrackConnection(restore.InputEnded:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
+            restoreFeedback(false)
+        end
+    end))
     minimize.Activated:Connect(function() app:SetVisible(false) restore.Visible = true end)
     restore.Activated:Connect(function() app:SetVisible(true) restore.Visible = false end)
 
@@ -3195,7 +3221,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.42";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.43";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3314,7 +3340,7 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.42"})
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.43"})
     for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Refined section headers","Clear accents, soft borders and stronger titles."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
@@ -3349,7 +3375,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.42",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.43",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3564,7 +3590,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.42 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.43 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
