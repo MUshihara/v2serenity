@@ -410,7 +410,7 @@ function Material.Section(frame, tokens)
     frame.BackgroundColor3 = tokens.Color.Panel
     frame.BackgroundTransparency = tokens.Material.PanelTransparency
     frame.BorderSizePixel = 0
-    corner(frame, 5, "PanelCorner")
+    corner(frame, 3, "PanelCorner")
     stroke(frame, tokens.Color.Stroke, 0.56, 1, "PanelStroke")
     local sheen=Instance.new("UIGradient")
     sheen.Name="GlassSheen"
@@ -449,7 +449,7 @@ function Material.Popup(frame, tokens)
     frame.BackgroundColor3 = tokens.Color.Popup
     frame.BackgroundTransparency = tokens.Material.PopupTransparency
     frame.BorderSizePixel = 0
-    corner(frame, tokens.Size.RadiusPopup, "PopupCorner")
+    corner(frame, 3, "PopupCorner")
     stroke(frame, tokens.Color.Stroke, 0.52, 1, "PopupStroke")
 
     return frame
@@ -486,7 +486,7 @@ function Material.Inset(frame, tokens)
     frame.BackgroundColor3 = tokens.Color.Inset
     frame.BackgroundTransparency = 0.04
     frame.BorderSizePixel = 0
-    corner(frame, 6, "InsetCorner")
+    corner(frame, 2, "InsetCorner")
     stroke(frame, tokens.Color.Stroke, 0.88, 1, "InsetStroke")
     return frame
 end
@@ -888,14 +888,14 @@ function Section.new(parent, deps, props)
     frame.Parent = parent
 
     local stack = Instance.new("UIListLayout")
-    stack.Padding = UDim.new(0, 3)
+    stack.Padding = UDim.new(0, 6)
     stack.SortOrder = Enum.SortOrder.LayoutOrder
     stack.Parent = frame
 
     local header = Instance.new("TextButton")
     header.BackgroundTransparency = 0
     header.BackgroundColor3 = tokens.Color.PanelSoft
-    local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,4);headerCorner.Parent=header
+    local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,2);headerCorner.Parent=header
     local headerEdge=Instance.new("UIStroke");headerEdge.Name="SectionHeaderEdge"
     headerEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border;headerEdge.Thickness=1
     headerEdge.Color=tokens.Color.Stroke;headerEdge.Transparency=0.65;headerEdge.Parent=header
@@ -1444,7 +1444,8 @@ function Select.new(parent, deps, props)
         Frame = row,
         Button = button,
         Label = valueLabel,
-        Value = props.Default,
+        Value = props.Multi and (type(props.Default)=="table" and table.clone(props.Default) or {}) or props.Default,
+        Multi = props.Multi == true,
         Options = props.Options or {},
         Enabled = props.Enabled ~= false,
         Callback = props.Callback,
@@ -1452,7 +1453,12 @@ function Select.new(parent, deps, props)
     }, Select)
 
     function self:_render()
-        self.Label.Text = tostring(self.Value or "Select")
+        if self.Multi then
+            local names={};for _,value in ipairs(self.Value) do table.insert(names,tostring(value)) end
+            self.Label.Text=#names>0 and table.concat(names,", ") or "Select options"
+            self.Label.TextTruncate=Enum.TextTruncate.AtEnd
+        else self.Label.Text = tostring(self.Value or "Select") end
+        if self.RefreshOpenChoices then self.RefreshOpenChoices() end
         self.Frame.GroupTransparency = self.Enabled and 0 or 0.45
     end
 
@@ -1493,8 +1499,32 @@ function Select.new(parent, deps, props)
         list.Padding = UDim.new(0, 3)
         list.Parent = scroller
 
+        local entries={}
+        local hovered,focused
+        local function isSelected(option)
+            if self.Multi then return table.find(self.Value,option)~=nil end
+            return option==self.Value
+        end
+        local function refreshChoices()
+            if not popup.Parent then return end
+            local target=hovered or focused
+            for _,entry in ipairs(entries) do
+                local selected=isSelected(entry.Option)
+                local active=target==entry
+                local show=self.Multi and selected or (not self.Multi and (target and active or (not target and selected)))
+                -- Hide synchronously so a crossfade never leaves two single-select arrows.
+                for _,part in ipairs(entry.Pixels) do part.BackgroundTransparency=show and 0.15 or 1 end
+                entry.Button.BackgroundColor3=(active or selected) and tokens.Color.NavActive or tokens.Color.PanelSoft
+                deps.Motion:Tween(entry.Button,0.1,{BackgroundTransparency=active and 0 or (selected and 0.12 or 0.55)})
+                entry.Button.TextColor3=(active or selected) and tokens.Color.Text or tokens.Color.TextMuted
+            end
+        end
+        self.RefreshOpenChoices=refreshChoices
+        popup.Destroying:Connect(function()
+            if self.RefreshOpenChoices==refreshChoices then self.RefreshOpenChoices=nil end
+        end)
         for _, option in ipairs(self.Options) do
-            local selected = option == self.Value
+            local selected = isSelected(option)
             local item = Instance.new("TextButton")
             item.Size = UDim2.new(1, -2, 0, 31)
             item.BackgroundColor3 = selected and tokens.Color.NavActive or tokens.Color.PanelSoft
@@ -1511,28 +1541,30 @@ function Select.new(parent, deps, props)
             item.Parent = scroller
             local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,3);c.Parent=item
             local pixels={}
-            for _,segment in ipairs({{0,-5,2,10},{2,-3,2,6},{4,-1,2,2}}) do
+            for _,segment in ipairs(self.Multi and {{0,0,2,2},{2,2,2,2},{4,0,2,2},{6,-2,2,2}} or {{0,-5,2,10},{2,-3,2,6},{4,-1,2,2}}) do
                 local part=Instance.new("Frame");part.BorderSizePixel=0
                 part.Position=UDim2.new(0,-18+segment[1],0.5,segment[2])
                 part.Size=UDim2.fromOffset(segment[3],segment[4]);part.BackgroundColor3=tokens.Color.Accent
                 part.BackgroundTransparency=selected and 0.15 or 1;part.ZIndex=83;part.Parent=item
                 table.insert(pixels,part)
             end
-            local function markerFeedback(active)
-                for _,part in ipairs(pixels) do
-                    deps.Motion:Tween(part,0.12,{BackgroundTransparency=(active or selected) and 0.15 or 1})
-                end
-            end
-            item.MouseEnter:Connect(function() markerFeedback(true) end)
-            item.MouseLeave:Connect(function() markerFeedback(false) end)
-            item.SelectionGained:Connect(function() markerFeedback(true) end)
-            item.SelectionLost:Connect(function() markerFeedback(false) end)
-            deps.Material.OptionHover(item, tokens, selected, deps.Motion)
+            local entry={Button=item,Pixels=pixels,Option=option}
+            table.insert(entries,entry)
+            item.MouseEnter:Connect(function() hovered=entry;refreshChoices() end)
+            item.MouseLeave:Connect(function() if hovered==entry then hovered=nil end;refreshChoices() end)
+            item.SelectionGained:Connect(function() focused=entry;refreshChoices() end)
+            item.SelectionLost:Connect(function() if focused==entry then focused=nil end;refreshChoices() end)
             item.MouseButton1Click:Connect(function()
-                self:Set(option)
-                deps.PopupManager:Close()
+                if self.Multi then
+                    local values=table.clone(self.Value);local index=table.find(values,option)
+                    if index then table.remove(values,index) else table.insert(values,option) end
+                    self:Set(values)
+                else
+                    self:Set(option);deps.PopupManager:Close()
+                end
             end)
         end
+        refreshChoices()
 
         deps.PopupManager:Set(popup)
     end)
@@ -1542,25 +1574,34 @@ function Select.new(parent, deps, props)
 end
 
 function Select:Set(value, silent)
-    local found = false
-    for _, option in ipairs(self.Options) do
-        if option == value then found = true break end
+    if self.Multi then
+        if type(value)~="table" then return end
+        local filtered={}
+        for _,option in ipairs(self.Options) do
+            if table.find(value,option) and not table.find(filtered,option) then table.insert(filtered,option) end
+        end
+        self.Value=filtered
+    else
+        local found=false
+        for _,option in ipairs(self.Options) do if option==value then found=true break end end
+        if not found and #self.Options>0 then return end
+        self.Value=value
     end
-    if not found and #self.Options > 0 then return end
-    self.Value = value
     self:_render()
-    if self.Callback and not silent then self.Callback(self.Value) end
+    if self.Callback and not silent then self.Callback(self:Get()) end
 end
 
 function Select:Refresh(options, preserve, silent)
-    local previous = self.Value
-    self.Options = options or {}
+    local previous=self:Get()
+    self.Deps.PopupManager:Close()
+    self.Options=options or {}
+    if self.Multi then self:Set(preserve and previous or {},silent~=false);return end
     if preserve then
-        for _, option in ipairs(self.Options) do
-            if option == previous then self:Set(previous, true) return end
+        for _,option in ipairs(self.Options) do
+            if option==previous then self:Set(previous,true);return end
         end
     end
-    self:Set(self.Options[1], silent ~= false)
+    self:Set(self.Options[1],silent~=false)
 end
 
 function Select:SetEnabled(value)
@@ -1569,7 +1610,7 @@ function Select:SetEnabled(value)
 end
 
 function Select:Get()
-    return self.Value
+    return self.Multi and table.clone(self.Value) or self.Value
 end
 
 function Select:SetVisible(value)
@@ -3378,7 +3419,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.50";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.51";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3494,8 +3535,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.50"})
-    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Modern pixel grimoire","Pixel lists, glowing star and brief icon feedback."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.51"})
+    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Modern pixel grimoire","One hover arrow, multi-select checks and cleaner sections."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3529,7 +3570,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.50",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.51",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3589,6 +3630,7 @@ do
         Tooltip="Dropdown options scroll inside their popup. Rare, Epic and Legendary can be selected together."})
     local options={};for i=1,30 do options[i]="Option "..i end
     local apiSelect=Select.new(choices.Body,deps,{Title="Scrollable options",Options=options,Default=options[1],Callback=report})
+    Select.new(choices.Body,deps,{Title="Multiple choices",Multi=true,Options={"Rare","Epic","Legendary","Mythic"},Default={"Epic","Legendary"}})
     local expanded=true
     button(choices.Body,"Refresh options (preserve selection)",function()
         expanded=not expanded
@@ -3773,7 +3815,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.50 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.51 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
