@@ -2141,26 +2141,41 @@ function Desktop.Mount(deps, options)
     local restore = Instance.new("TextButton")
     restore.Name = "SerenityRestore"
     restore.Size = UDim2.fromOffset(44, 44)
-    restore.Position = UDim2.new(0, 12, 0.5, -22)
+    restore.Position = UDim2.new(0, 12, 0.5, -23.1)
     restore.Text = ""
     restore.AutoButtonColor = false
     restore.BorderSizePixel = 0
     restore.BackgroundColor3 = tokens.Color.Inset
-    restore.Visible = false
+    restore.Visible = true
+    restore.ZIndex = 90
     restore.Parent = screen
+    local restoreScale=Instance.new("UIScale");restoreScale.Scale=1.05;restoreScale.Parent=restore
     corner(restore, 12)
     local restoreEdge=Instance.new("UIStroke");restoreEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
     restoreEdge.Color=tokens.Color.Lavender;restoreEdge.Transparency=0.65;restoreEdge.Thickness=1;restoreEdge.Parent=restore
     local tileSheen=Instance.new("UIGradient");tileSheen.Rotation=65
     tileSheen.Color=ColorSequence.new(Color3.new(1,1,1),Color3.fromRGB(165,165,165));tileSheen.Parent=restore
     local emblem=Instance.new("Frame");emblem.Name="CelestialEmblem"
-    emblem.BackgroundTransparency=1;emblem.AnchorPoint=Vector2.new(0.5,0.5)
+    emblem.ZIndex=91;emblem.BackgroundTransparency=1;emblem.AnchorPoint=Vector2.new(0.5,0.5)
     emblem.Position=UDim2.fromScale(0.5,0.5);emblem.Size=UDim2.fromOffset(44,44);emblem.Parent=restore
     local emblemScale=Instance.new("UIScale");emblemScale.Parent=emblem
-    deps.Material.Star(emblem,UDim2.fromOffset(7,7),30,tokens.Color.Text,2)
+    local restoreStar=deps.Material.Star(emblem,UDim2.fromOffset(22,22),30,tokens.Color.Text,92)
+    restoreStar.AnchorPoint=Vector2.new(0.5,0.5)
+    local idleScale=Instance.new("UIScale");idleScale.Parent=restoreStar
+    local idleTween
+    function app:RefreshIconMotion()
+        if idleTween then idleTween:Cancel();idleTween=nil end
+        idleScale.Scale=1
+        if not deps.Motion.Reduced and not runtime.Destroyed then
+            idleTween=game:GetService("TweenService"):Create(idleScale,TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Scale=1.045})
+            idleTween:Play()
+        end
+    end
+    runtime:TrackCleanup(function() if idleTween then idleTween:Cancel();idleTween=nil end end)
+    app:RefreshIconMotion()
     local glint=Instance.new("Frame");glint.Name="TileHighlight"
     glint.Size=UDim2.new(1,-22,0,1);glint.Position=UDim2.fromOffset(11,2)
-    glint.BackgroundColor3=tokens.Color.Text;glint.BackgroundTransparency=0.82;glint.BorderSizePixel=0;glint.Parent=restore
+    glint.ZIndex=91;glint.BackgroundColor3=tokens.Color.Text;glint.BackgroundTransparency=0.82;glint.BorderSizePixel=0;glint.Parent=restore
     local function restoreFeedback(active)
         deps.Motion:Tween(restore,"Hover",{BackgroundColor3=active and tokens.Color.InsetHover or tokens.Color.Inset})
         deps.Motion:Tween(restoreEdge,"Hover",{Transparency=active and 0.25 or 0.65})
@@ -2186,7 +2201,7 @@ function Desktop.Mount(deps, options)
         deps.Motion:Tween(emblemScale,0.24,{Scale=1})
         deps.Motion:Tween(emblem,0.24,{Rotation=0})
     end)
-    restore.Activated:Connect(function() app:SetVisible(true) restore.Visible = false end)
+    restore.Activated:Connect(function() app:SetVisible(not holder.Visible) end)
 
     local function createSearchPopup(categoriesOnly)
         if not holder.Visible then return end
@@ -2879,7 +2894,7 @@ Toggle.new(alerts.Body, deps, {Title="Milestones", Default=false})
 -- UI SETTINGS: only connected behavior is exposed.
 local miscCols = ColumnLayout.new(misc, deps, {})
 local utility = Section.new(miscCols.Left, deps, {Title="Interaction"})
-Toggle.new(utility.Body, deps, {Title="Reduced Motion", Default=false, Callback=function(v) Motion.Reduced = v end})
+Toggle.new(utility.Body, deps, {Title="Reduced Motion", Default=false, Callback=function(v) Motion.Reduced = v;app:RefreshIconMotion() end})
 local settingsCols = ColumnLayout.new(settings, deps, {})
 
 local themeBindings=setmetatable({}, {__mode="k"})
@@ -2889,6 +2904,7 @@ local motionControls={}
 local function reducedMotionToggle(parent)
     local control=Toggle.new(parent,deps,{Title="Reduced motion",Default=false,Callback=function(v)
         Motion.Reduced=v;runtime.ReducedMotion=v
+        app:RefreshIconMotion()
         for _,other in ipairs(motionControls) do other:Set(v,true) end
         saveAppearance()
     end})
@@ -3097,6 +3113,7 @@ local function restoreAppearance(data)
     restoringAppearance=true
     if data.ReducedMotion~=nil then
         Motion.Reduced=data.ReducedMotion==true;runtime.ReducedMotion=Motion.Reduced
+        app:RefreshIconMotion()
         for _,control in ipairs(motionControls) do control:Set(Motion.Reduced,true) end
     end
     local function choice(value,options,fallback)
@@ -3233,7 +3250,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.45";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.46";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3352,7 +3369,7 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.45"})
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.46"})
     for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Refined section headers","Clear accents, soft borders and stronger titles."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
@@ -3387,7 +3404,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.45",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.46",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3602,7 +3619,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.45 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.46 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
