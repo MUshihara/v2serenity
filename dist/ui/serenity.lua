@@ -405,6 +405,42 @@ function Material.PixelCorners(parent,tokens,inset)
     return root,parts
 end
 
+-- Five non-overlapping strips form a genuine stepped silhouette without corner masks.
+-- Only use on fixed control surfaces, never on containers managed by UIListLayout.
+function Material.PixelSurface(frame,step)
+    step=step or 2
+    local opacity=frame.BackgroundTransparency
+    frame.BackgroundTransparency=1
+    for _,child in ipairs(frame:GetChildren()) do
+        if child:IsA("UICorner") then child:Destroy() end
+        if child:IsA("UIStroke") then child.Enabled=false end
+    end
+    local strips={}
+    local specs={
+        {step*2,0,1,-step*4,0,step},
+        {step,step,1,-step*2,0,step},
+        {0,step*2,1,0,1,-step*4},
+        {step,-step*2,1,-step*2,0,step},
+        {step*2,-step,1,-step*4,0,step},
+    }
+    for index,spec in ipairs(specs) do
+        local strip=Instance.new("Frame");strip.Name="PixelSurfaceStrip"
+        strip.BorderSizePixel=0;strip.Active=false
+        strip.Position=UDim2.new(0,spec[1],index>=4 and 1 or 0,spec[2])
+        strip.Size=UDim2.new(spec[3],spec[4],spec[5],spec[6])
+        strip.BackgroundColor3=frame.BackgroundColor3;strip.BackgroundTransparency=opacity
+        strip.ZIndex=frame.ZIndex;strip.Parent=frame;table.insert(strips,strip)
+    end
+    -- Propagate hover, on/off and theme colors only when they change.
+    frame:GetPropertyChangedSignal("BackgroundColor3"):Connect(function()
+        for _,strip in ipairs(strips) do strip.BackgroundColor3=frame.BackgroundColor3 end
+    end)
+    frame:GetPropertyChangedSignal("ZIndex"):Connect(function()
+        for _,strip in ipairs(strips) do strip.ZIndex=frame.ZIndex end
+    end)
+    return frame
+end
+
 function Material.Section(frame, tokens)
     frame:SetAttribute("GlassRole", "Section")
     frame.BackgroundColor3 = tokens.Color.Panel
@@ -904,6 +940,7 @@ function Section.new(parent, deps, props)
     header.Size = UDim2.new(1, 0, 0, tokens.Size.SectionLabel)
     header.LayoutOrder = 1
     header.Parent = frame
+    deps.Material.PixelSurface(header,2)
 
     local title = deps.Typography.Label(
         header,
@@ -1110,6 +1147,7 @@ function Toggle.new(parent, deps, props)
     local switchCorner = Instance.new("UICorner")
     switchCorner.CornerRadius = UDim.new(1, 0)
     switchCorner.Parent = switch
+    deps.Material.PixelSurface(switch,2)
 
     local knob = Instance.new("Frame")
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1120,6 +1158,7 @@ function Toggle.new(parent, deps, props)
     local knobCorner = Instance.new("UICorner")
     knobCorner.CornerRadius = UDim.new(1, 0)
     knobCorner.Parent = knob
+    deps.Material.PixelSurface(knob,1)
 
     local hit = Instance.new("TextButton")
     hit.BackgroundTransparency = 1
@@ -1236,6 +1275,7 @@ function Slider.new(parent, deps, props)
     valueBox.Size = UDim2.fromOffset(48, 26)
     valueBox.Parent = row
     deps.Material.Inset(valueBox, tokens)
+    deps.Material.PixelSurface(valueBox,2)
 
     local valueLabel = Instance.new("TextBox")
     valueLabel.Size=UDim2.fromScale(1,1)
@@ -1254,7 +1294,7 @@ function Slider.new(parent, deps, props)
     bar.BorderSizePixel = 0
     bar.Parent = row
     local barCorner = Instance.new("UICorner")
-    barCorner.CornerRadius = UDim.new(1, 0)
+    barCorner.CornerRadius = UDim.new(0, 0)
     barCorner.Parent = bar
 
     local fill = Instance.new("Frame")
@@ -1262,7 +1302,7 @@ function Slider.new(parent, deps, props)
     fill.BorderSizePixel = 0
     fill.Parent = bar
     local fillCorner = Instance.new("UICorner")
-    fillCorner.CornerRadius = UDim.new(1, 0)
+    fillCorner.CornerRadius = UDim.new(0, 0)
     fillCorner.Parent = fill
 
     local knob = Instance.new("Frame")
@@ -1274,6 +1314,7 @@ function Slider.new(parent, deps, props)
     local knobCorner = Instance.new("UICorner")
     knobCorner.CornerRadius = UDim.new(1, 0)
     knobCorner.Parent = knob
+    deps.Material.PixelSurface(knob,1)
 
     local hit = Instance.new("TextButton")
     hit.BackgroundTransparency = 1
@@ -1434,6 +1475,7 @@ function Select.new(parent, deps, props)
     button.AutoButtonColor = false
     button.Parent = row
     deps.Material.Inset(button, tokens)
+    deps.Material.PixelSurface(button,2)
 
     local valueLabel = deps.Typography.Label(button, "Value", tokens, tostring(props.Default or "Select"), UDim2.fromOffset(10, 0), UDim2.new(1, -34, 1, 0), tokens.Color.TextMuted)
     local chevron = deps.Icons.Create(button, "chevron_down", 13, tokens.Color.TextDim)
@@ -3419,7 +3461,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.51";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.52";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3535,8 +3577,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.51"})
-    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Modern pixel grimoire","One hover arrow, multi-select checks and cleaner sections."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.52"})
+    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3570,7 +3612,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.51",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.52",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3815,7 +3857,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.51 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.52 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
