@@ -923,19 +923,24 @@ function Section.new(parent, deps, props)
     title.TextColor3 = tokens.Color.Text
     local underline = Instance.new("Frame")
     underline.Name = "SectionAccent"
-    underline.Size = UDim2.fromOffset(2, 12)
-    underline.AnchorPoint = Vector2.new(0,0.5)
-    underline.Position = UDim2.new(0, 10, 0.5, 0)
-    underline.BorderSizePixel = 0
-    underline.BackgroundColor3 = props.Accent or tokens.Color.Accent
-    underline.BackgroundTransparency = 0.12
-    underline.Parent = header
-    for _,offset in ipairs({-3,12}) do
-        local tip=Instance.new("Frame");tip.BorderSizePixel=0
-        tip.Size=UDim2.fromOffset(4,2);tip.Position=UDim2.fromOffset(-1,offset)
-        tip.BackgroundColor3=props.Accent or tokens.Color.Accent
-        tip.BackgroundTransparency=0.35;tip.Parent=underline
+    underline.Size = UDim2.fromOffset(2, 10)
+    underline.AnchorPoint=Vector2.new(0,0.5);underline.Position=UDim2.new(0,10,0.5,0)
+    underline.BorderSizePixel=0;underline.BackgroundColor3=props.Accent or tokens.Color.Accent
+    underline.BackgroundTransparency=0.32;underline.Parent=header
+    local wings={}
+    for _,x in ipairs({-2,2}) do
+        local wing=Instance.new("Frame");wing.BorderSizePixel=0
+        wing.Size=UDim2.fromOffset(2,4);wing.Position=UDim2.fromOffset(x,3)
+        wing.BackgroundColor3=props.Accent or tokens.Color.Accent;wing.BackgroundTransparency=0.45;wing.Parent=underline
+        table.insert(wings,wing)
     end
+    local function runeFeedback(active)
+        deps.Motion:Tween(underline,0.14,{BackgroundTransparency=active and 0 or 0.32})
+        for _,wing in ipairs(wings) do deps.Motion:Tween(wing,0.14,{BackgroundTransparency=active and 0.1 or 0.45}) end
+        deps.Motion:Tween(headerEdge,0.14,{Transparency=active and 0.35 or 0.65})
+    end
+    deps.Runtime:TrackConnection(header.MouseEnter:Connect(function() runeFeedback(true) end))
+    deps.Runtime:TrackConnection(header.MouseLeave:Connect(function() runeFeedback(false) end))
 
     -- Opt-in feature groups preserve legacy section sizing and presentation.
     if props.Description then
@@ -1496,28 +1501,32 @@ function Select.new(parent, deps, props)
             item.BackgroundTransparency = selected and 0.08 or 0.55
             item.BorderSizePixel = 0
             item.Text = tostring(option)
+            item.TextXAlignment=Enum.TextXAlignment.Left
+            local padding=Instance.new("UIPadding");padding.PaddingLeft=UDim.new(0,26);padding.PaddingRight=UDim.new(0,10);padding.Parent=item
             item.TextColor3 = selected and tokens.Color.Text or tokens.Color.TextMuted
             item.TextSize = tokens.Type.Value
             item.Font = selected and deps.Typography.Font.Semibold or deps.Typography.Font.Medium
             item.AutoButtonColor = false
             item.ZIndex = 82
             item.Parent = scroller
-            local c = Instance.new("UICorner")
-            c.CornerRadius = UDim.new(0, 6)
-            c.Parent = item
-
-            if selected then
-                local dot = Instance.new("Frame")
-                dot.AnchorPoint = Vector2.new(0, 0.5)
-                dot.Position = UDim2.new(0, 8, 0.5, 0)
-                dot.Size = UDim2.fromOffset(4, 4)
-                dot.BackgroundColor3 = tokens.Color.Accent
-                dot.BorderSizePixel = 0
-                dot.ZIndex = 83
-                dot.Parent = item
-                local dc = Instance.new("UICorner") dc.CornerRadius = UDim.new(1, 0) dc.Parent = dot
+            local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,3);c.Parent=item
+            local pixels={}
+            for _,segment in ipairs({{0,-5,2,10},{2,-3,2,6},{4,-1,2,2}}) do
+                local part=Instance.new("Frame");part.BorderSizePixel=0
+                part.Position=UDim2.new(0,-18+segment[1],0.5,segment[2])
+                part.Size=UDim2.fromOffset(segment[3],segment[4]);part.BackgroundColor3=tokens.Color.Accent
+                part.BackgroundTransparency=selected and 0.15 or 1;part.ZIndex=83;part.Parent=item
+                table.insert(pixels,part)
             end
-
+            local function markerFeedback(active)
+                for _,part in ipairs(pixels) do
+                    deps.Motion:Tween(part,0.12,{BackgroundTransparency=(active or selected) and 0.15 or 1})
+                end
+            end
+            item.MouseEnter:Connect(function() markerFeedback(true) end)
+            item.MouseLeave:Connect(function() markerFeedback(false) end)
+            item.SelectionGained:Connect(function() markerFeedback(true) end)
+            item.SelectionLost:Connect(function() markerFeedback(false) end)
             deps.Material.OptionHover(item, tokens, selected, deps.Motion)
             item.MouseButton1Click:Connect(function()
                 self:Set(option)
@@ -2484,6 +2493,11 @@ function Desktop.Mount(deps, options)
     -- Small branded motion, suspended with the window and cleaned up on reload.
     star.AnchorPoint=Vector2.new(0.5,0.5)
     star.Position=UDim2.fromOffset(29,30);star.Size=UDim2.fromOffset(30,30)
+    local glow=Instance.new("Frame");glow.Name="StarGlow";glow.BorderSizePixel=0
+    glow.AnchorPoint=Vector2.new(0.5,0.5);glow.Position=UDim2.fromScale(0.5,0.5)
+    glow.Size=UDim2.fromOffset(18,18);glow.BackgroundColor3=Color3.fromRGB(166,145,103)
+    glow.BackgroundTransparency=0.94;glow.ZIndex=star.ZIndex-1;glow:SetAttribute("FixedPresetColor",true);glow.Parent=star
+    local glowCorner=Instance.new("UICorner");glowCorner.CornerRadius=UDim.new(0,6);glowCorner.Parent=glow
     local brandScale=Instance.new("UIScale");brandScale.Parent=star
     local echoA=heading:Clone();echoA.Name="BrandEchoA";echoA.Visible=false;echoA.Parent=sidebar
     local echoB=heading:Clone();echoB.Name="BrandEchoB";echoB.Visible=false;echoB.Parent=sidebar
@@ -2496,10 +2510,12 @@ function Desktop.Mount(deps, options)
         if glitchThread then pcall(task.cancel,glitchThread);glitchThread=nil end
         echoA.Visible=false;echoB.Visible=false;star.Rotation=0;brandScale.Scale=1
         for _,pixel in ipairs(star:GetChildren()) do
-            if pixel:IsA("Frame") then pixel.BackgroundTransparency=0 end
+            if pixel:IsA("Frame") then pixel.BackgroundTransparency=pixel==glow and 0.94 or 0 end
         end
         if runtime.Destroyed or deps.Motion.Reduced or not holder.Visible then return end
         local service=game:GetService("TweenService")
+        local halo=service:Create(glow,TweenInfo.new(2.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{BackgroundTransparency=0.86})
+        table.insert(brandTweens,halo);halo:Play()
         -- Keep pixel edges still; twinkle the small highlights instead of scaling the emblem.
         for _,pixel in ipairs(star:GetChildren()) do
             if pixel:IsA("Frame") and pixel.Name=="StarHighlight" then
@@ -3362,7 +3378,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.49";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.50";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3373,9 +3389,6 @@ do
     runtime:TrackConnection(heading:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHeading));arrangeHeading()
 
     local hero=card(dashboard,142,2);hero.Name="DashboardHero";hero.ClipsDescendants=true
-    local accent=Instance.new("Frame");accent.BorderSizePixel=0
-    accent.Size=UDim2.new(0,3,1,-32);accent.Position=UDim2.fromOffset(0,16)
-    accent.BackgroundColor3=Tokens.Color.Accent;accent.Parent=hero
     hideDashboardName=savedAppearance and savedAppearance.HideDashboardName==true or false
     local greeting=label(hero,hideDashboardName and "Welcome back" or "Welcome back, "..player.DisplayName,18,15,-125,28,20)
     registerIdentity(greeting,"Text","Welcome back, "..player.DisplayName,"Welcome back")
@@ -3481,8 +3494,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.49"})
-    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Modern pixel grimoire","Stepped frames, reactive corners and pixel navigation."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.50"})
+    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Modern pixel grimoire","Pixel lists, glowing star and brief icon feedback."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3516,7 +3529,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.49",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.50",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3731,7 +3744,36 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.49 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+-- One pair of input handlers per button; no heartbeat or idle work for ordinary icons.
+do
+    local groups={}
+    for _,icon in ipairs(app.ScreenGui:GetDescendants()) do
+        if icon:IsA("ImageLabel") and icon.Name:sub(1,5)=="Icon_" then
+            local target=icon.Parent
+            while target and target~=app.ScreenGui and not target:IsA("GuiButton") do target=target.Parent end
+            if target and target:IsA("GuiButton") then
+                groups[target]=groups[target] or {};table.insert(groups[target],icon)
+            end
+        end
+    end
+    local pending={}
+    for target,icons in pairs(groups) do
+        local function feedback(active)
+            for _,icon in ipairs(icons) do
+                if pending[icon] then pending[icon]:Cancel() end
+                pending[icon]=Motion:Tween(icon,0.12,{Rotation=(active and not Motion.Reduced) and 3 or 0})
+            end
+        end
+        runtime:TrackConnection(target.MouseEnter:Connect(function() feedback(true) end))
+        runtime:TrackConnection(target.MouseLeave:Connect(function() feedback(false) end))
+        runtime:TrackConnection(target.SelectionGained:Connect(function() feedback(true) end))
+        runtime:TrackConnection(target.SelectionLost:Connect(function() feedback(false) end))
+        runtime:TrackConnection(target.Activated:Connect(function() feedback(false) end))
+    end
+    runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
+end
+
+print("SERENITY M4.50 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
