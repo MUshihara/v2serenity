@@ -520,6 +520,28 @@ function Material.Emblem(parent,position,size,color,kind)
     return root
 end
 
+-- Compact stepped ornament; individual opaque pixels avoid overlapping bright rays.
+function Material.PixelStar(parent, position, z)
+    local root=Instance.new("Frame")
+    root.Name="GrimoireStar";root.BackgroundTransparency=1
+    root.Position=position;root.Size=UDim2.fromOffset(30,30);root.ZIndex=z or 5;root.Parent=parent
+    local pattern={".......s.......",".......g.......",".......g.......","......sgs......","......gig......",".....sgigs.....","...sggiIiggs...","sgggiIIIiggggs","...sggiIiggs...",".....sgigs.....","......gig......","......sgs......",".......g.......",".......g.......",".......s......."}
+    local palette={s=Color3.fromRGB(100,91,70),g=Color3.fromRGB(166,145,103),i=Color3.fromRGB(197,181,143),I=Color3.fromRGB(216,204,174)}
+    for y,row in ipairs(pattern) do
+        for x=1,#row do
+            local tone=row:sub(x,x)
+            if palette[tone] then
+                local pixel=Instance.new("Frame");pixel.Name=tone=="I" and "StarHighlight" or "StarPixel"
+                pixel.BorderSizePixel=0;pixel.Size=UDim2.fromOffset(2,2)
+                pixel.Position=UDim2.fromOffset((x-1)*2,(y-1)*2)
+                pixel.BackgroundColor3=palette[tone];pixel:SetAttribute("FixedPresetColor",true)
+                pixel.ZIndex=root.ZIndex;pixel.Parent=root
+            end
+        end
+    end
+    return root
+end
+
 function Material.Star(parent, position, size, color, z)
     local root=Instance.new("Frame")
     root.Name="SerenityStar"
@@ -1898,7 +1920,7 @@ function Desktop.Mount(deps, options)
 
     saveTile.Visible = false
     local pageButton, pageText = createTopSelect(252, 112, "Dashboard")
-    local star = deps.Material.Star(topbar, UDim2.fromOffset(20, 16), 30, Color3.fromRGB(249,233,198), 5)
+    local star = deps.Material.PixelStar(topbar, UDim2.fromOffset(20, 16), 5)
     local heading = deps.Typography.Label(topbar, "Brand", tokens, "SERENITY HUB", UDim2.fromOffset(62, 0), UDim2.fromOffset(182, tokens.Size.Topbar), tokens.Color.Text)
     heading.Font = Enum.Font.GothamBold
     heading.TextSize = 19
@@ -2442,19 +2464,26 @@ function Desktop.Mount(deps, options)
         table.clear(brandTweens)
         if glitchThread then pcall(task.cancel,glitchThread);glitchThread=nil end
         echoA.Visible=false;echoB.Visible=false;star.Rotation=0;brandScale.Scale=1
+        for _,pixel in ipairs(star:GetChildren()) do
+            if pixel:IsA("Frame") then pixel.BackgroundTransparency=0 end
+        end
         if runtime.Destroyed or deps.Motion.Reduced or not holder.Visible then return end
         local service=game:GetService("TweenService")
-        local pulse=service:Create(brandScale,TweenInfo.new(2.2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Scale=1.055})
-        local tilt=service:Create(star,TweenInfo.new(3.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Rotation=3})
-        table.insert(brandTweens,pulse);table.insert(brandTweens,tilt);pulse:Play();tilt:Play()
+        -- Keep pixel edges still; twinkle the small highlights instead of scaling the emblem.
+        for _,pixel in ipairs(star:GetChildren()) do
+            if pixel:IsA("Frame") and pixel.Name=="StarHighlight" then
+                local twinkle=service:Create(pixel,TweenInfo.new(2.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{BackgroundTransparency=0.32})
+                table.insert(brandTweens,twinkle);twinkle:Play()
+            end
+        end
         glitchThread=task.spawn(function()
             while not runtime.Destroyed and holder.Visible and not deps.Motion.Reduced do
-                task.wait(6)
+                task.wait(9)
                 if runtime.Destroyed or not holder.Visible or deps.Motion.Reduced then break end
                 echoA.TextColor3=tokens.Color.Accent;echoB.TextColor3=tokens.Color.Lavender
                 echoA.Position=heading.Position+UDim2.fromOffset(1,0)
                 echoB.Position=heading.Position+UDim2.fromOffset(-1,1)
-                echoA.TextTransparency=0.65;echoB.TextTransparency=0.78
+                echoA.TextTransparency=0.88;echoB.TextTransparency=0.93
                 echoA.Visible=true;echoB.Visible=true
                 task.wait(0.06)
                 echoA.Position=heading.Position+UDim2.fromOffset(-1,0)
@@ -3291,10 +3320,10 @@ do
     local heading=Instance.new("Frame");heading.Size=UDim2.new(1,-4,0,48)
     heading.BackgroundTransparency=1;heading.LayoutOrder=1;heading.Parent=dashboard
     local dashboardTitle=label(heading,"Dashboard",0,0,-112,27,23)
-    local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
+    local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.47";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.48";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3305,6 +3334,19 @@ do
     runtime:TrackConnection(heading:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHeading));arrangeHeading()
 
     local hero=card(dashboard,142,2);hero.Name="DashboardHero";hero.ClipsDescendants=true
+    local ornament=Instance.new("Frame");ornament.Name="GrimoireCorners"
+    ornament.BackgroundTransparency=1;ornament.Size=UDim2.fromScale(1,1);ornament.Parent=hero
+    for _,right in ipairs({false,true}) do
+        for _,bottom in ipairs({false,true}) do
+            for step=0,2 do
+                local pixel=Instance.new("Frame");pixel.BorderSizePixel=0
+                pixel.Size=UDim2.fromOffset(2,2);pixel.BackgroundColor3=Tokens.Color.Lavender
+                pixel.BackgroundTransparency=0.55
+                pixel.Position=UDim2.new(right and 1 or 0,right and -(8+step*3) or (6+step*3),bottom and 1 or 0,bottom and -(8+(2-step)*3) or (6+(2-step)*3))
+                pixel.Parent=ornament
+            end
+        end
+    end
     local accent=Instance.new("Frame");accent.BorderSizePixel=0
     accent.Size=UDim2.new(0,3,1,-32);accent.Position=UDim2.fromOffset(0,16)
     accent.BackgroundColor3=Tokens.Color.Accent;accent.Parent=hero
@@ -3413,8 +3455,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.47"})
-    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Animated Serenity branding","Larger launcher, breathing star and subtle title glitch."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.48"})
+    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Pixel grimoire details","Muted gold star, quiet twinkles and stepped ornaments."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3448,7 +3490,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.47",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.48",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3663,7 +3705,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.47 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.48 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
