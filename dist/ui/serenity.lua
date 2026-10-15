@@ -2157,18 +2157,14 @@ function Desktop.Mount(deps, options)
     emblem.BackgroundTransparency=1;emblem.AnchorPoint=Vector2.new(0.5,0.5)
     emblem.Position=UDim2.fromScale(0.5,0.5);emblem.Size=UDim2.fromOffset(44,44);emblem.Parent=restore
     local emblemScale=Instance.new("UIScale");emblemScale.Parent=emblem
-    deps.Material.Star(emblem,UDim2.fromOffset(5,10),29,tokens.Color.Text,2)
-    local sparkle=Instance.new("Frame");sparkle.Name="CompanionStar"
-    sparkle.Size=UDim2.fromOffset(5,5);sparkle.Position=UDim2.fromOffset(32,8)
-    sparkle.Rotation=45;sparkle.BorderSizePixel=0;sparkle.BackgroundColor3=tokens.Color.Lavender
-    sparkle.ZIndex=2;sparkle.Parent=emblem
+    deps.Material.Star(emblem,UDim2.fromOffset(7,7),30,tokens.Color.Text,2)
     local glint=Instance.new("Frame");glint.Name="TileHighlight"
     glint.Size=UDim2.new(1,-22,0,1);glint.Position=UDim2.fromOffset(11,2)
     glint.BackgroundColor3=tokens.Color.Text;glint.BackgroundTransparency=0.82;glint.BorderSizePixel=0;glint.Parent=restore
     local function restoreFeedback(active)
         deps.Motion:Tween(restore,"Hover",{BackgroundColor3=active and tokens.Color.InsetHover or tokens.Color.Inset})
         deps.Motion:Tween(restoreEdge,"Hover",{Transparency=active and 0.25 or 0.65})
-        deps.Motion:Tween(emblemScale,"Hover",{Scale=active and 1.06 or 1})
+        deps.Motion:Tween(emblemScale,"Hover",{Scale=(active and not deps.Motion.Reduced) and 1.06 or 1})
     end
     runtime:TrackConnection(restore.MouseEnter:Connect(function() restoreFeedback(true) end))
     runtime:TrackConnection(restore.MouseLeave:Connect(function() restoreFeedback(false) end))
@@ -2182,7 +2178,14 @@ function Desktop.Mount(deps, options)
             restoreFeedback(false)
         end
     end))
-    minimize.Activated:Connect(function() app:SetVisible(false) restore.Visible = true end)
+    minimize.Activated:Connect(function()
+        app:SetVisible(false)
+        restore.Visible=true
+        emblemScale.Scale=deps.Motion.Reduced and 1 or 0.85
+        emblem.Rotation=deps.Motion.Reduced and 0 or -8
+        deps.Motion:Tween(emblemScale,0.24,{Scale=1})
+        deps.Motion:Tween(emblem,0.24,{Rotation=0})
+    end)
     restore.Activated:Connect(function() app:SetVisible(true) restore.Visible = false end)
 
     local function createSearchPopup(categoriesOnly)
@@ -3230,7 +3233,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.44";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.45";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3349,7 +3352,7 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.44"})
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.45"})
     for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Refined section headers","Clear accents, soft borders and stronger titles."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
@@ -3384,7 +3387,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.44",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.45",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3599,7 +3602,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.44 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.45 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
