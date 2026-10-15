@@ -384,12 +384,33 @@ function Material.Topbar(frame, tokens)
     return frame
 end
 
+-- Lightweight pixel brackets for surfaces without list-managed children.
+function Material.PixelCorners(parent,tokens,inset)
+    local root=Instance.new("Frame");root.Name="PixelCorners"
+    root.BackgroundTransparency=1;root.Size=UDim2.fromScale(1,1)
+    root.ZIndex=parent.ZIndex+1;root.Parent=parent
+    local parts={}
+    for _,right in ipairs({false,true}) do
+        for _,bottom in ipairs({false,true}) do
+            for _,segment in ipairs({{0,4,2,7},{2,2,2,2},{4,0,7,2}}) do
+                local x,y,w,h=table.unpack(segment)
+                local f=Instance.new("Frame");f.BorderSizePixel=0
+                f.Size=UDim2.fromOffset(w,h)
+                f.Position=UDim2.new(right and 1 or 0,right and -(inset+x+w) or inset+x,bottom and 1 or 0,bottom and -(inset+y+h) or inset+y)
+                f.BackgroundColor3=tokens.Color.Lavender;f.BackgroundTransparency=0.72
+                f.ZIndex=root.ZIndex;f.Parent=root;table.insert(parts,f)
+            end
+        end
+    end
+    return root,parts
+end
+
 function Material.Section(frame, tokens)
     frame:SetAttribute("GlassRole", "Section")
     frame.BackgroundColor3 = tokens.Color.Panel
     frame.BackgroundTransparency = tokens.Material.PanelTransparency
     frame.BorderSizePixel = 0
-    corner(frame, tokens.Size.RadiusPanel, "PanelCorner")
+    corner(frame, 5, "PanelCorner")
     stroke(frame, tokens.Color.Stroke, 0.56, 1, "PanelStroke")
     local sheen=Instance.new("UIGradient")
     sheen.Name="GlassSheen"
@@ -441,7 +462,7 @@ function Material.NavRow(frame, tokens, selected)
 
     local c = frame:FindFirstChild("NavCorner")
     if not c then
-        c = corner(frame, tokens.Size.RadiusNav, "NavCorner")
+        c = corner(frame, 4, "NavCorner")
     end
     return frame
 end
@@ -760,9 +781,12 @@ function NavItem.new(parent, deps, props)
     shine.Color=ColorSequence.new(Color3.new(1,1,1),Color3.fromRGB(139,167,204));shine.Parent=tile
     local scale=Instance.new("UIScale");scale.Parent=tile
     local marker=Instance.new("Frame");marker.Name="SelectionMarker";marker.BorderSizePixel=0
-    marker.Size=UDim2.fromOffset(2,16);marker.Position=UDim2.new(0,1,0.5,-8)
-    marker.BackgroundColor3=tokens.Color.Accent;marker.BackgroundTransparency=1;marker.Parent=row;marker.Visible=false
-    local curve=Instance.new("UICorner");curve.CornerRadius=UDim.new(1,0);curve.Parent=marker
+    marker.Size=UDim2.fromOffset(2,10);marker.Position=UDim2.new(0,3,0.5,-5)
+    marker.BackgroundColor3=tokens.Color.Accent;marker.BackgroundTransparency=1;marker.Parent=row;marker.Visible=true
+    local markerTip=Instance.new("Frame");markerTip.Name="PixelTip"
+    markerTip.Size=UDim2.fromOffset(2,4);markerTip.Position=UDim2.fromOffset(2,3)
+    markerTip.BorderSizePixel=0;markerTip.BackgroundColor3=tokens.Color.Accent
+    markerTip.BackgroundTransparency=1;markerTip.Parent=marker
     local icon = deps.Icons.Create(tile, props.Icon or "info", tokens.Size.NavIcon-2, tokens.Color.TextMuted)
     icon.AnchorPoint = Vector2.new(0.5, 0.5)
     icon.Position = UDim2.fromScale(0.5,0.5)
@@ -781,7 +805,7 @@ function NavItem.new(parent, deps, props)
         Row = row,
         Icon = icon,
         Label = label,
-        Tile=tile, Rim=rim, Marker=marker, Scale=scale,
+        Tile=tile, Rim=rim, Marker=marker, MarkerTip=markerTip, Scale=scale,
         Accent = props.Accent or tokens.Color.Accent,
         Selected = false,
         Callback = props.Callback,
@@ -832,7 +856,9 @@ function NavItem:SetSelected(selected)
     self.Deps.Motion:Tween(self.Row,"Select",{BackgroundTransparency=self.Selected and 0.18 or 1})
     self.Tile.BackgroundColor3=tokens.Color.PanelSoft
     self.Marker.BackgroundColor3=tokens.Color.Accent
-    self.Deps.Motion:Tween(self.Marker,"Select",{BackgroundTransparency=self.Selected and 0 or 1})
+    self.MarkerTip.BackgroundColor3=tokens.Color.Accent
+    self.Deps.Motion:Tween(self.Marker,"Select",{BackgroundTransparency=self.Selected and 0.15 or 1,Position=UDim2.new(0,self.Selected and 5 or 3,0.5,-5)})
+    self.Deps.Motion:Tween(self.MarkerTip,"Select",{BackgroundTransparency=self.Selected and 0.15 or 1})
     self.Deps.Motion:Tween(self.Tile,"Select",{BackgroundTransparency=1})
     self.Deps.Motion:Tween(self.Rim,"Select",{Transparency=self.Selected and 0.3 or 0.72})
     self.Icon.ImageColor3 = self.Selected and tokens.Color.Accent or tokens.Color.TextMuted
@@ -869,7 +895,7 @@ function Section.new(parent, deps, props)
     local header = Instance.new("TextButton")
     header.BackgroundTransparency = 0
     header.BackgroundColor3 = tokens.Color.PanelSoft
-    local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,8);headerCorner.Parent=header
+    local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,4);headerCorner.Parent=header
     local headerEdge=Instance.new("UIStroke");headerEdge.Name="SectionHeaderEdge"
     headerEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border;headerEdge.Thickness=1
     headerEdge.Color=tokens.Color.Stroke;headerEdge.Transparency=0.65;headerEdge.Parent=header
@@ -897,14 +923,19 @@ function Section.new(parent, deps, props)
     title.TextColor3 = tokens.Color.Text
     local underline = Instance.new("Frame")
     underline.Name = "SectionAccent"
-    underline.Size = UDim2.fromOffset(3, 16)
+    underline.Size = UDim2.fromOffset(2, 12)
     underline.AnchorPoint = Vector2.new(0,0.5)
     underline.Position = UDim2.new(0, 10, 0.5, 0)
     underline.BorderSizePixel = 0
     underline.BackgroundColor3 = props.Accent or tokens.Color.Accent
     underline.BackgroundTransparency = 0.12
     underline.Parent = header
-    local accentCorner=Instance.new("UICorner");accentCorner.CornerRadius=UDim.new(1,0);accentCorner.Parent=underline
+    for _,offset in ipairs({-3,12}) do
+        local tip=Instance.new("Frame");tip.BorderSizePixel=0
+        tip.Size=UDim2.fromOffset(4,2);tip.Position=UDim2.fromOffset(-1,offset)
+        tip.BackgroundColor3=props.Accent or tokens.Color.Accent
+        tip.BackgroundTransparency=0.35;tip.Parent=underline
+    end
 
     -- Opt-in feature groups preserve legacy section sizing and presentation.
     if props.Description then
@@ -3300,6 +3331,14 @@ do
         local f=Instance.new("Frame");f.Size=UDim2.new(1,-4,0,height)
         f.LayoutOrder=order or 1;f.Parent=parent;Material.Section(f,Tokens)
         f:SetAttribute("ReadingSurface",true)
+        local _,brackets=Material.PixelCorners(f,Tokens,5)
+        local function feedback(active)
+            for _,part in ipairs(brackets) do
+                Motion:Tween(part,"Hover",{BackgroundTransparency=active and 0.38 or 0.72})
+            end
+        end
+        runtime:TrackConnection(f.MouseEnter:Connect(function() feedback(true) end))
+        runtime:TrackConnection(f.MouseLeave:Connect(function() feedback(false) end))
         return f
     end
     local function label(parent,message,x,y,w,h,size,color)
@@ -3323,7 +3362,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.48";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.49";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3334,19 +3373,6 @@ do
     runtime:TrackConnection(heading:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHeading));arrangeHeading()
 
     local hero=card(dashboard,142,2);hero.Name="DashboardHero";hero.ClipsDescendants=true
-    local ornament=Instance.new("Frame");ornament.Name="GrimoireCorners"
-    ornament.BackgroundTransparency=1;ornament.Size=UDim2.fromScale(1,1);ornament.Parent=hero
-    for _,right in ipairs({false,true}) do
-        for _,bottom in ipairs({false,true}) do
-            for step=0,2 do
-                local pixel=Instance.new("Frame");pixel.BorderSizePixel=0
-                pixel.Size=UDim2.fromOffset(2,2);pixel.BackgroundColor3=Tokens.Color.Lavender
-                pixel.BackgroundTransparency=0.55
-                pixel.Position=UDim2.new(right and 1 or 0,right and -(8+step*3) or (6+step*3),bottom and 1 or 0,bottom and -(8+(2-step)*3) or (6+(2-step)*3))
-                pixel.Parent=ornament
-            end
-        end
-    end
     local accent=Instance.new("Frame");accent.BorderSizePixel=0
     accent.Size=UDim2.new(0,3,1,-32);accent.Position=UDim2.fromOffset(0,16)
     accent.BackgroundColor3=Tokens.Color.Accent;accent.Parent=hero
@@ -3455,8 +3481,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.48"})
-    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Pixel grimoire details","Muted gold star, quiet twinkles and stepped ornaments."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.49"})
+    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Modern pixel grimoire","Stepped frames, reactive corners and pixel navigation."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3490,7 +3516,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.48",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.49",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3705,7 +3731,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.48 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.49 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
