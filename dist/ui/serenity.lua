@@ -2141,7 +2141,7 @@ function Desktop.Mount(deps, options)
     local restore = Instance.new("TextButton")
     restore.Name = "SerenityRestore"
     restore.Size = UDim2.fromOffset(44, 44)
-    restore.Position = UDim2.new(0, 12, 0.5, -23.1)
+    restore.Position = UDim2.new(0, 12, 0.5, -25.41)
     restore.Text = ""
     restore.AutoButtonColor = false
     restore.BorderSizePixel = 0
@@ -2149,7 +2149,7 @@ function Desktop.Mount(deps, options)
     restore.Visible = true
     restore.ZIndex = 90
     restore.Parent = screen
-    local restoreScale=Instance.new("UIScale");restoreScale.Scale=1.05;restoreScale.Parent=restore
+    local restoreScale=Instance.new("UIScale");restoreScale.Scale=1.155;restoreScale.Parent=restore
     corner(restore, 12)
     local restoreEdge=Instance.new("UIStroke");restoreEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
     restoreEdge.Color=tokens.Color.Lavender;restoreEdge.Transparency=0.65;restoreEdge.Thickness=1;restoreEdge.Parent=restore
@@ -2164,6 +2164,7 @@ function Desktop.Mount(deps, options)
     local idleScale=Instance.new("UIScale");idleScale.Parent=restoreStar
     local idleTween
     function app:RefreshIconMotion()
+        if self.RefreshBrandMotion then self:RefreshBrandMotion() end
         if idleTween then idleTween:Cancel();idleTween=nil end
         idleScale.Scale=1
         if not deps.Motion.Reduced and not runtime.Destroyed then
@@ -2385,7 +2386,7 @@ function Desktop.Mount(deps, options)
             createSearchPopup()
         elseif input.KeyCode == Enum.KeyCode.RightControl then
             app:SetVisible(not holder.Visible)
-            restore.Visible = not holder.Visible
+            restore.Visible = true
         elseif input.KeyCode == Enum.KeyCode.Escape then
             deps.PopupManager:Close()
         end
@@ -2427,6 +2428,49 @@ function Desktop.Mount(deps, options)
     divider.Position=UDim2.fromOffset(tokens.Size.Sidebar,0);divider.Size=UDim2.new(0,1,1,0)
     divider.BackgroundColor3=tokens.Color.Divider;divider.Parent=shell
     edge.Transparency=0.7;edge.Thickness=1
+    -- Small branded motion, suspended with the window and cleaned up on reload.
+    star.AnchorPoint=Vector2.new(0.5,0.5)
+    star.Position=UDim2.fromOffset(29,30);star.Size=UDim2.fromOffset(30,30)
+    local brandScale=Instance.new("UIScale");brandScale.Parent=star
+    local echoA=heading:Clone();echoA.Name="BrandEchoA";echoA.Visible=false;echoA.Parent=sidebar
+    local echoB=heading:Clone();echoB.Name="BrandEchoB";echoB.Visible=false;echoB.Parent=sidebar
+    echoA.ZIndex=heading.ZIndex+1;echoB.ZIndex=heading.ZIndex+1
+    local brandTweens={}
+    local glitchThread
+    function app:RefreshBrandMotion()
+        for _,tween in ipairs(brandTweens) do tween:Cancel() end
+        table.clear(brandTweens)
+        if glitchThread then pcall(task.cancel,glitchThread);glitchThread=nil end
+        echoA.Visible=false;echoB.Visible=false;star.Rotation=0;brandScale.Scale=1
+        if runtime.Destroyed or deps.Motion.Reduced or not holder.Visible then return end
+        local service=game:GetService("TweenService")
+        local pulse=service:Create(brandScale,TweenInfo.new(2.2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Scale=1.055})
+        local tilt=service:Create(star,TweenInfo.new(3.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Rotation=3})
+        table.insert(brandTweens,pulse);table.insert(brandTweens,tilt);pulse:Play();tilt:Play()
+        glitchThread=task.spawn(function()
+            while not runtime.Destroyed and holder.Visible and not deps.Motion.Reduced do
+                task.wait(6)
+                if runtime.Destroyed or not holder.Visible or deps.Motion.Reduced then break end
+                echoA.TextColor3=tokens.Color.Accent;echoB.TextColor3=tokens.Color.Lavender
+                echoA.Position=heading.Position+UDim2.fromOffset(1,0)
+                echoB.Position=heading.Position+UDim2.fromOffset(-1,1)
+                echoA.TextTransparency=0.65;echoB.TextTransparency=0.78
+                echoA.Visible=true;echoB.Visible=true
+                task.wait(0.06)
+                echoA.Position=heading.Position+UDim2.fromOffset(-1,0)
+                echoB.Position=heading.Position+UDim2.fromOffset(1,0)
+                task.wait(0.06)
+                echoA.Visible=false;echoB.Visible=false
+            end
+        end)
+    end
+    runtime:TrackConnection(holder:GetPropertyChangedSignal("Visible"):Connect(function() app:RefreshBrandMotion() end))
+    runtime:TrackCleanup(function()
+        if glitchThread then pcall(task.cancel,glitchThread);glitchThread=nil end
+        for _,tween in ipairs(brandTweens) do tween:Cancel() end
+        table.clear(brandTweens)
+    end)
+    app:RefreshBrandMotion()
     return app
 end
 
@@ -3250,7 +3294,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity workspace",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.46";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.47";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3369,8 +3413,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.46"})
-    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Refined section headers","Clear accents, soft borders and stronger titles."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.47"})
+    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Animated Serenity branding","Larger launcher, breathing star and subtle title glitch."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3404,7 +3448,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.46",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.47",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3619,7 +3663,7 @@ if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.Dra
 restoreAppearance(savedAppearance)
 if savedAppearance then app:RestoreViewState(savedAppearance.View) end
 app.OnViewChanged=saveAppearance
-print("SERENITY M4.46 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.47 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
