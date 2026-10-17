@@ -880,6 +880,7 @@ function NavItem.new(parent, deps, props)
     end)
     row.Activated:Connect(function()
         if self.Callback then self.Callback() end
+        if deps.PlayUISound then deps.PlayUISound() end
     end)
 
     return self
@@ -1200,6 +1201,7 @@ function Toggle.new(parent, deps, props)
     hit.MouseButton1Click:Connect(function()
         if not self.Enabled then return end
         self:Set(not self.Value)
+        if deps.PlayUISound then deps.PlayUISound() end
     end)
 
     return self
@@ -1604,6 +1606,7 @@ function Select.new(parent, deps, props)
                 else
                     self:Set(option);deps.PopupManager:Close()
                 end
+                if deps.PlayUISound then deps.PlayUISound() end
             end)
         end
         refreshChoices()
@@ -3220,13 +3223,15 @@ local materialState={Mode="Basic",Opacity=100,Edge=30,Palette="Match theme",Blur
 local appearancePath="Serenity_UI_Test_Appearance_v3.json"
 local HttpService=game:GetService("HttpService")
 local saveRevision=0
+local uiSoundsEnabled=true
+local uiSoundVolume=20
 saveAppearance=function()
     saveRevision=saveRevision+1
     local revision=saveRevision
     task.delay(0.7,function()
         if revision~=saveRevision or type(writefile)~="function" then return end
         pcall(function()
-            writefile(appearancePath,HttpService:JSONEncode({Version=1,MotionVersion=1,HideDashboardName=hideDashboardName,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,View=app:GetViewState()}))
+            writefile(appearancePath,HttpService:JSONEncode({Version=1,MotionVersion=1,HideDashboardName=hideDashboardName,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,View=app:GetViewState()}))
         end)
     end)
 end
@@ -3234,6 +3239,28 @@ local savedAppearance
 if type(readfile)=="function" then
     local ok,data=pcall(function() return HttpService:JSONDecode(readfile(appearancePath)) end)
     if ok and type(data)=="table" and data.Version==1 then savedAppearance=data end
+end
+if savedAppearance then
+    uiSoundsEnabled=savedAppearance.UISoundsEnabled~=false
+    local volume=tonumber(savedAppearance.UISoundVolume)
+    if volume and volume==volume then uiSoundVolume=math.clamp(volume,0,100) end
+end
+-- A single local UI sound is reused; no sound instances or listeners are made per click.
+local uiClick=Instance.new("Sound")
+uiClick.Name="SerenitySelectionClick"
+uiClick.SoundId="rbxassetid://113397864512278"
+uiClick.Volume=0.18*uiSoundVolume/100
+uiClick.Parent=game:GetService("SoundService")
+runtime:TrackCleanup(function() uiClick:Destroy() end)
+local lastUIClick=-math.huge
+deps.PlayUISound=function()
+    if runtime.Destroyed or not uiSoundsEnabled or uiSoundVolume<=0 then return end
+    local now=os.clock()
+    if now-lastUIClick<0.11 then return end
+    lastUIClick=now
+    uiClick.Volume=0.18*uiSoundVolume/100
+    uiClick.TimePosition=0
+    uiClick:Play()
 end
 local glassSelectors={}
 local edgePalettes={
@@ -3394,6 +3421,9 @@ runtime:TrackConnection(presetControl.Frame:GetPropertyChangedSignal("Visible"):
 local dragSection=Section.new(settingsCols.Left,deps,{Title="Window movement",Tooltip="Outline shows the destination before moving. Smooth follows the pointer softly. Direct follows immediately. Reduced motion always uses Direct."})
 dragControl=Select.new(dragSection.Body,deps,{Title="Drag style",Options={"Outline","Smooth","Direct"},Default="Outline",Callback=function(v) runtime.DragStyle=v;saveAppearance() end})
 reducedMotionToggle(dragSection.Body)
+local soundSection=Section.new(settingsCols.Left,deps,{Title="Interface sounds",Description="A soft click when choosing pages, options or switches."})
+Toggle.new(soundSection.Body,deps,{Title="Selection sounds",Default=uiSoundsEnabled,Callback=function(v) uiSoundsEnabled=v;saveAppearance() end})
+Slider.new(soundSection.Body,deps,{Title="Sound volume",Min=0,Max=100,Step=5,Default=uiSoundVolume,Suffix="%",Callback=function(v) uiSoundVolume=v;saveAppearance() end})
 local gallery=Section.new(settingsCols.Right,deps,{Title="Preset gallery",Description="Click a swatch to apply the complete look."})
 local grid=Instance.new("Frame");grid.Size=UDim2.new(1,0,0,math.ceil(#presets/2)*73-8);grid.BackgroundTransparency=1;grid.Parent=gallery.Body
 local layout=Instance.new("UIGridLayout");layout.CellSize=UDim2.new(0.5,-5,0,65);layout.CellPadding=UDim2.fromOffset(10,8)
@@ -3461,7 +3491,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.52";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.53";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3577,8 +3607,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.52"})
-    for i,data in ipairs({{"Five new complete presets","Garnet, Antique Gold, Petrol, Dusk and Espresso."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.53"})
+    for i,data in ipairs({{"Soft selection sound","Quiet clicks for pages, choices and switches; adjust in Settings."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3612,7 +3642,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.52",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.53",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3857,7 +3887,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.52 BLACK LAYOUT & MEDIA TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.53 SOUND TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
