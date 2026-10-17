@@ -3225,13 +3225,14 @@ local HttpService=game:GetService("HttpService")
 local saveRevision=0
 local uiSoundsEnabled=true
 local uiSoundVolume=35
+local uiSoundStyle="Soft chime"
 saveAppearance=function()
     saveRevision=saveRevision+1
     local revision=saveRevision
     task.delay(0.7,function()
         if revision~=saveRevision or type(writefile)~="function" then return end
         pcall(function()
-            writefile(appearancePath,HttpService:JSONEncode({Version=1,MotionVersion=1,HideDashboardName=hideDashboardName,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,View=app:GetViewState()}))
+            writefile(appearancePath,HttpService:JSONEncode({Version=1,MotionVersion=1,HideDashboardName=hideDashboardName,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,UISoundStyle=uiSoundStyle,View=app:GetViewState()}))
         end)
     end)
 end
@@ -3244,12 +3245,18 @@ if savedAppearance then
     uiSoundsEnabled=savedAppearance.UISoundsEnabled~=false
     local volume=tonumber(savedAppearance.UISoundVolume)
     if volume and volume==volume then uiSoundVolume=math.clamp(volume,0,100) end
+    if savedAppearance.UISoundStyle=="Soft tap" then uiSoundStyle="Soft tap" end
 end
 -- A single local UI sound is reused; no sound instances or listeners are made per click.
 local uiClick=Instance.new("Sound")
 uiClick.Name="SerenitySelectionClick"
-uiClick.SoundId="rbxasset://sounds/button.wav"
-uiClick.Volume=uiSoundVolume/100
+local function setUISoundStyle(style)
+    uiSoundStyle=style
+    uiClick.SoundId=style=="Soft tap" and "rbxasset://sounds/switch.wav" or "rbxasset://sounds/electronicpingshort.wav"
+    uiClick.PlaybackSpeed=style=="Soft tap" and 0.82 or 0.72
+end
+setUISoundStyle(uiSoundStyle)
+uiClick.Volume=0.6*uiSoundVolume/100
 uiClick.Parent=game:GetService("SoundService")
 runtime:TrackCleanup(function() uiClick:Destroy() end)
 local lastUIClick=-math.huge
@@ -3258,7 +3265,7 @@ deps.PlayUISound=function(force)
     local now=os.clock()
     if not force and now-lastUIClick<0.11 then return end
     lastUIClick=now
-    uiClick.Volume=uiSoundVolume/100
+    uiClick.Volume=0.6*uiSoundVolume/100
     uiClick.TimePosition=0
     uiClick:Play()
 end
@@ -3421,8 +3428,9 @@ runtime:TrackConnection(presetControl.Frame:GetPropertyChangedSignal("Visible"):
 local dragSection=Section.new(settingsCols.Left,deps,{Title="Window movement",Tooltip="Outline shows the destination before moving. Smooth follows the pointer softly. Direct follows immediately. Reduced motion always uses Direct."})
 dragControl=Select.new(dragSection.Body,deps,{Title="Drag style",Options={"Outline","Smooth","Direct"},Default="Outline",Callback=function(v) runtime.DragStyle=v;saveAppearance() end})
 reducedMotionToggle(dragSection.Body)
-local soundSection=Section.new(settingsCols.Left,deps,{Title="Interface sounds",Description="A soft click when choosing pages, options or switches."})
+local soundSection=Section.new(settingsCols.Left,deps,{Title="Interface sounds",Description="Gentle cues for pages, options and switches."})
 Toggle.new(soundSection.Body,deps,{Title="Selection sounds",Default=uiSoundsEnabled,Callback=function(v) uiSoundsEnabled=v;saveAppearance() end})
+Select.new(soundSection.Body,deps,{Title="Sound style",Options={"Soft chime","Soft tap"},Default=uiSoundStyle,Callback=function(v) setUISoundStyle(v);saveAppearance() end})
 Slider.new(soundSection.Body,deps,{Title="Sound volume",Min=0,Max=100,Step=5,Default=uiSoundVolume,Suffix="%",Callback=function(v) uiSoundVolume=v;saveAppearance() end})
 local previewSound=Instance.new("TextButton")
 previewSound.Name="PreviewSound"
@@ -3502,7 +3510,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.54";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.55";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3618,8 +3626,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.54"})
-    for i,data in ipairs({{"Audible selection click","Roblox built-in click with a test button and adjustable volume."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.55"})
+    for i,data in ipairs({{"Gentler sound choices","Soft chime by default, with a soft tap option and preview."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3653,7 +3661,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.54",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.55",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3898,7 +3906,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.54 SOUND TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.55 SOUND TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
