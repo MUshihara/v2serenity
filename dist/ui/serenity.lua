@@ -2325,8 +2325,9 @@ function Desktop.Mount(deps, options)
     glint.ZIndex=91;glint.BackgroundColor3=tokens.Color.Text;glint.BackgroundTransparency=0.82;glint.BorderSizePixel=0;glint.Parent=restore
     local statusDock=Instance.new("TextButton")
     statusDock.Name="SerenityStatusDock"
-    statusDock.Position=UDim2.new(0,68,0.5,-23)
-    statusDock.Size=UDim2.fromOffset(0,46)
+    statusDock.AnchorPoint=Vector2.new(0.5,0)
+    statusDock.Position=UDim2.new(0.5,0,0,10)
+    statusDock.Size=UDim2.fromOffset(0,54)
     statusDock.BackgroundColor3=tokens.Color.Panel
     statusDock.BackgroundTransparency=0.06
     statusDock.BorderSizePixel=0;statusDock.Text=""
@@ -2338,12 +2339,28 @@ function Desktop.Mount(deps, options)
     local dockAccent=Instance.new("Frame");dockAccent.Size=UDim2.fromOffset(2,27)
     dockAccent.Position=UDim2.fromOffset(0,9);dockAccent.BorderSizePixel=0
     dockAccent.BackgroundColor3=tokens.Color.Accent;dockAccent.ZIndex=89;dockAccent.Parent=statusDock
-    local dockBrand=deps.Typography.Label(statusDock,"Control",tokens,"SERENITY HUB",UDim2.fromOffset(12,4),UDim2.fromOffset(162,17),tokens.Color.TextDim)
+    local dockBrand=deps.Typography.Label(statusDock,"Control",tokens,"SERENITY HUB",UDim2.fromOffset(14,7),UDim2.new(1,-114,0,17),tokens.Color.TextDim)
     dockBrand.Font=Enum.Font.GothamBold;dockBrand.TextSize=10;dockBrand.ZIndex=89
-    local dockActivity=deps.Typography.Label(statusDock,"Control",tokens,"Ready · waiting for activity",UDim2.fromOffset(12,22),UDim2.fromOffset(162,18),tokens.Color.Text)
+    local dockActivity=deps.Typography.Label(statusDock,"Control",tokens,"Ready · waiting for activity",UDim2.fromOffset(14,27),UDim2.new(1,-114,0,18),tokens.Color.Text)
     dockActivity.TextSize=12;dockActivity.TextTruncate=Enum.TextTruncate.AtEnd;dockActivity.ZIndex=89
-    function app:SetStatus(value)
+    local statusSteps={}
+    for i,name in ipairs({"search","automation","inventory"}) do
+        local tile=Instance.new("Frame");tile.Size=UDim2.fromOffset(24,26)
+        tile.Position=UDim2.new(1,-94+(i-1)*28,0,15)
+        tile.BorderSizePixel=0;tile.BackgroundColor3=tokens.Color.Inset;tile.ZIndex=89;tile.Parent=statusDock
+        corner(tile,3)
+        local image=deps.Icons.Create(tile,name,14,tokens.Color.TextDim,UDim2.fromOffset(5,6))
+        image.ZIndex=90
+        local line=Instance.new("Frame");line.Size=UDim2.fromOffset(12,2);line.Position=UDim2.fromOffset(6,24)
+        line.BorderSizePixel=0;line.BackgroundColor3=tokens.Color.Accent;line.Visible=false;line.ZIndex=90;line.Parent=tile
+        statusSteps[i]={Icon=image,Line=line}
+    end
+    function app:SetStatus(value,stage)
         dockActivity.Text=tostring(value or "Ready · waiting for activity"):sub(1,80)
+        for i,step in ipairs(statusSteps) do
+            step.Icon.ImageColor3=i==stage and tokens.Color.Accent or tokens.Color.TextDim
+            step.Line.Visible=i==stage
+        end
     end
     function app:IsMinimized() return not holder.Visible or self._Minimizing==true end
     local windowTween,windowScaleTween,dockTween,transition= nil,nil,nil,0
@@ -2354,14 +2371,16 @@ function Desktop.Mount(deps, options)
         if dockTween then dockTween:Cancel();dockTween=nil end
     end
     local function iconCenter()
-        local position=restore.AbsolutePosition+restore.AbsoluteSize/2-holder.Parent.AbsolutePosition
-        return UDim2.fromOffset(position.X,position.Y)
+        return UDim2.new(0.5,0,0,37)
+    end
+    local function dockSize()
+        return UDim2.fromOffset(math.min(320,math.max(180,screen.AbsoluteSize.X-24)),54)
     end
     local function showDock()
         statusDock.Visible=true
-        statusDock.Size=UDim2.fromOffset(0,46)
-        if deps.Motion.Reduced then statusDock.Size=UDim2.fromOffset(184,46);return end
-        dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Size=UDim2.fromOffset(184,46)})
+        statusDock.Size=UDim2.fromOffset(0,54)
+        if deps.Motion.Reduced then statusDock.Size=dockSize();return end
+        dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Size=dockSize()})
         dockTween:Play()
     end
     function app:SetVisible(visible)
@@ -2380,7 +2399,7 @@ function Desktop.Mount(deps, options)
             if statusDock.Visible then
                 if deps.Motion.Reduced then statusDock.Visible=false
                 else
-                    dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.16,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.fromOffset(0,46)})
+                    dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.16,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.fromOffset(0,54)})
                     dockTween:Play()
                     dockTween.Completed:Once(function() if transition==current then statusDock.Visible=false end end)
                 end
@@ -2412,6 +2431,7 @@ function Desktop.Mount(deps, options)
                 windowScaleTween=game:GetService("TweenService"):Create(uiScale,TweenInfo.new(0.29,Enum.EasingStyle.Quint,Enum.EasingDirection.In),{Scale=0.08})
                 windowTween.Completed:Once(function()
                     if runtime.Destroyed or transition~=current then return end
+                    if windowScaleTween then windowScaleTween:Cancel();windowScaleTween=nil end
                     holder.Visible=false
                     holder.Position=expandedPosition;uiScale.Scale=expandedScale
                     showDock()
@@ -2444,6 +2464,44 @@ function Desktop.Mount(deps, options)
             restoreFeedback(false)
         end
     end))
+    local iconPointer,iconPress,iconStart
+    local iconDragged=false
+    local suppressIconClickUntil=0
+    local function placeIcon(position)
+        local bounds,size=screen.AbsoluteSize,restore.AbsoluteSize
+        restore.Position=UDim2.fromOffset(
+            math.clamp(position.X,4,math.max(4,bounds.X-size.X-4)),
+            math.clamp(position.Y,4,math.max(4,bounds.Y-size.Y-4)))
+    end
+    runtime:TrackConnection(restore.InputBegan:Connect(function(input)
+        if iconPointer or (input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch) then return end
+        iconPointer=input;iconPress=input.Position;iconDragged=false
+        iconStart=restore.AbsolutePosition-screen.AbsolutePosition
+    end))
+    runtime:TrackConnection(UserInputService.InputChanged:Connect(function(input)
+        if not iconPointer then return end
+        if iconPointer.UserInputType==Enum.UserInputType.Touch then
+            if input~=iconPointer then return end
+        elseif input.UserInputType~=Enum.UserInputType.MouseMovement then return end
+        local delta=input.Position-iconPress
+        if delta.Magnitude<6 then return end
+        iconDragged=true
+        suppressIconClickUntil=os.clock()+0.35
+        placeIcon(iconStart+Vector2.new(delta.X,delta.Y))
+    end))
+    runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input)
+        if input~=iconPointer then return end
+        iconPointer=nil;restoreFeedback(false)
+        if iconDragged then suppressIconClickUntil=os.clock()+0.35 end
+        iconDragged=false
+    end))
+    runtime:TrackConnection(screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+        placeIcon(restore.AbsolutePosition-screen.AbsolutePosition)
+        if statusDock.Visible and app:IsMinimized() then
+            if dockTween then dockTween:Cancel();dockTween=nil end
+            statusDock.Size=dockSize()
+        end
+    end))
     minimize.Activated:Connect(function()
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(false)
@@ -2453,6 +2511,7 @@ function Desktop.Mount(deps, options)
         deps.Motion:Tween(emblem,0.24,{Rotation=0})
     end)
     restore.Activated:Connect(function()
+        if iconDragged or os.clock()<suppressIconClickUntil then return end
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(app:IsMinimized())
     end)
@@ -3654,7 +3713,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.60";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.61";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3770,8 +3829,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.60"})
-    for i,data in ipairs({{"Living minimize state","The window folds into its star and leaves a compact activity card."},{"Quiet notifications","Smaller messages with restrained pixel details and readable type."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.61"})
+    for i,data in ipairs({{"Top-center activity","Top-center activity with three stages and a movable star."},{"Quiet notifications","Smaller messages with restrained pixel details and readable type."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3805,7 +3864,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.60",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.61",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3917,14 +3976,32 @@ do
             end})
     end)
     local notifications=Section.new(columns.Left,deps,{Title="Notifications & status"})
-    text(notifications.Body,"Test the smaller alerts and the activity card beside the star when minimized.",48)
+    text(notifications.Body,"Run the top-center activity demo. The floating star can be dragged with mouse or touch.",48)
     button(notifications.Body,"Show success notification",function() app:Notify("Saved","Your test notification is outside the main window.",5,"Success") end)
     button(notifications.Body,"Test queue (5 messages)",function() for i=1,5 do app:Notify("Queued message "..i,"At most three cards display at once.",4,"Info") end end)
-    button(notifications.Body,"Preview minimized status",function()
-        app:SetStatus("Playground · sample running")
+    local demoTimers={}
+    local function stopStatusDemo()
+        for _,thread in ipairs(demoTimers) do pcall(task.cancel,thread) end
+        table.clear(demoTimers)
+    end
+    runtime:TrackCleanup(stopStatusDemo)
+    button(notifications.Body,"Run status demo · 8 seconds",function()
+        stopStatusDemo()
+        app:SetStatus("Demo · searching",1)
         app:SetVisible(false)
+        local function after(seconds,callback)
+            table.insert(demoTimers,task.delay(seconds,function()
+                if not runtime.Destroyed then callback() end
+            end))
+        end
+        after(2.5,function() app:SetStatus("Demo · working",2) end)
+        after(5,function() app:SetStatus("Demo · collecting",3) end)
+        after(8,function()
+            app:SetStatus("Demo complete · ready",nil)
+            app:Notify("Demo complete","All three activity stages finished.",5,"Success")
+        end)
     end)
-    button(notifications.Body,"Reset activity status",function() app:SetStatus() end)
+    button(notifications.Body,"Reset activity status",function() stopStatusDemo();app:SetStatus() end)
 
 end
 
@@ -4054,7 +4131,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.60 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.61 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
