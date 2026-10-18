@@ -2381,6 +2381,31 @@ function Desktop.Mount(deps, options)
     eventTitle.Font=Enum.Font.GothamBold;eventTitle.TextSize=14;eventTitle.ZIndex=90
     local eventBody=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(54,38),UDim2.new(1,-68,0,30),tokens.Color.TextMuted)
     eventBody.TextSize=12;eventBody.TextWrapped=true;eventBody.TextYAlignment=Enum.TextYAlignment.Top;eventBody.ZIndex=90
+    local statusExpanded=false
+    local statusDetails={"Simulated activity", "Hover for details · click to restore"}
+    local details=Instance.new("Frame");details.BackgroundTransparency=1
+    details.Position=UDim2.fromOffset(14,53);details.Size=UDim2.new(1,-28,0,69)
+    details.Visible=false;details.ZIndex=90;details.Parent=statusRow
+    local detailText=deps.Typography.Label(details,"Control",tokens,table.concat(statusDetails,"\n"),UDim2.fromOffset(0,0),UDim2.new(1,0,0,37),tokens.Color.TextMuted)
+    detailText.TextSize=11;detailText.TextWrapped=true;detailText.TextYAlignment=Enum.TextYAlignment.Top;detailText.ZIndex=91
+    local detailQuick=Instance.new("TextButton");detailQuick.Size=UDim2.new(0.5,-4,0,27)
+    detailQuick.Position=UDim2.fromOffset(0,40);detailQuick.Text="Quick Menu";detailQuick.TextSize=11
+    detailQuick.Font=Enum.Font.GothamMedium;detailQuick.TextColor3=tokens.Color.Text
+    detailQuick.BackgroundColor3=tokens.Color.PanelSoft;detailQuick.AutoButtonColor=false
+    detailQuick.BorderSizePixel=0;detailQuick.ZIndex=92;detailQuick.Parent=details;corner(detailQuick,6)
+    local detailRestore=detailQuick:Clone();detailRestore.Position=UDim2.new(0.5,4,0,40)
+    detailRestore.Text="Restore UI";detailRestore.Parent=details
+    local detailToggle=Instance.new("TextButton");detailToggle.Text="⌄";detailToggle.TextSize=15
+    detailToggle.TextColor3=tokens.Color.TextMuted;detailToggle.BackgroundTransparency=1
+    detailToggle.Size=UDim2.fromOffset(30,22);detailToggle.Position=UDim2.new(1,-37,0,25)
+    detailToggle.ZIndex=92;detailToggle.Parent=statusRow;detailToggle.AutoButtonColor=false
+    dockMetrics.Size=UDim2.new(1,-95,0,16)
+    function app:SetStatusDetails(lines)
+        assert(type(lines)=="table","SetStatusDetails expects an array of strings")
+        statusDetails={}
+        for i=1,math.min(2,#lines) do statusDetails[i]=tostring(lines[i]):sub(1,95) end
+        detailText.Text=table.concat(statusDetails,"\n")
+    end
     local statusNoticeActive=false
     local statusNoticeTimer
     local statusRunning=true
@@ -2414,8 +2439,18 @@ function Desktop.Mount(deps, options)
         return UDim2.new(0.5,0,0,32)
     end
     local function dockSize()
-        return UDim2.fromOffset(math.min(statusNoticeActive and 304 or 244,math.max(120,screen.AbsoluteSize.X-24)),statusNoticeActive and 78 or 48)
+        return UDim2.fromOffset(math.min((statusNoticeActive or statusExpanded) and 304 or 244,math.max(120,screen.AbsoluteSize.X-24)),statusNoticeActive and 78 or (statusExpanded and 128 or 48))
     end
+    local function expandStatus(value)
+        statusExpanded=value;details.Visible=value;detailToggle.Text=value and "⌃" or "⌄"
+        if statusDock.Visible then
+            if dockTween then dockTween:Cancel() end
+            dockTween=deps.Motion:Tween(statusDock,0.22,{Size=dockSize()},Enum.EasingStyle.Quint)
+        end
+    end
+    detailToggle.Activated:Connect(function() expandStatus(not statusExpanded) end)
+    detailQuick.Activated:Connect(function() if app.SetQuickMenuVisible then app:SetQuickMenuVisible(true) end end)
+    detailRestore.Activated:Connect(function() app:SetVisible(true) end)
     function app:StatusNotice(title,message,duration)
         if runtime.Destroyed then return end
         if statusNoticeTimer then pcall(task.cancel,statusNoticeTimer) end
@@ -2451,6 +2486,7 @@ function Desktop.Mount(deps, options)
         transition=transition+1
         local current=transition
         cancelTransition()
+        expandStatus(false)
         deps.PopupManager:Close()
         if visible then
             self._Minimizing=false
@@ -2507,8 +2543,8 @@ function Desktop.Mount(deps, options)
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(true)
     end)
-    statusDock.MouseEnter:Connect(function() if serenityInputBlocked(statusDock) then return end; deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.08}) end)
-    statusDock.MouseLeave:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.72}) end)
+    statusDock.MouseEnter:Connect(function() if serenityInputBlocked(statusDock) then return end; deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.3});if not UserInputService.TouchEnabled then expandStatus(true) end end)
+    statusDock.MouseLeave:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.72});if not UserInputService.TouchEnabled then expandStatus(false) end end)
     local function restoreFeedback(active)
         deps.Motion:Tween(restore,"Hover",{BackgroundColor3=active and tokens.Color.InsetHover or tokens.Color.Inset})
         deps.Motion:Tween(restoreEdge,"Hover",{Transparency=active and 0.25 or 0.65})
@@ -2577,6 +2613,149 @@ function Desktop.Mount(deps, options)
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(app:IsMinimized())
     end)
+
+    do
+        -- Library contract: register only actions supported by the game adapter.
+        -- Callback(value) may return false, reason to reject; silent updates sync external controls.
+        local actions,order,observers={},{},{}
+        local compact=false
+        local quickMenu=Instance.new("Frame");quickMenu.Name="QuickMenu"
+        quickMenu.AnchorPoint=Vector2.new(0.5,0.5);quickMenu.Position=UDim2.fromScale(0.76,0.5)
+        quickMenu.Size=UDim2.fromOffset(246,230);quickMenu.BackgroundColor3=tokens.Color.ShellDeep
+        quickMenu.BackgroundTransparency=0.02;quickMenu.BorderSizePixel=0
+        quickMenu.Visible=false;quickMenu.Active=true;quickMenu.ZIndex=100;quickMenu.Parent=screen
+        corner(quickMenu,12);stroke(quickMenu,tokens.Color.Stroke,0.4,1)
+        local title=deps.Typography.Label(quickMenu,"Control",tokens,"Quick Menu",UDim2.fromOffset(13,6),UDim2.new(1,-80,0,30),tokens.Color.Text)
+        title.Font=Enum.Font.GothamSemibold;title.TextSize=13;title.Active=true;title.ZIndex=101
+        local function smallButton(text,x)
+            local b=Instance.new("TextButton");b.Text=text;b.Size=UDim2.fromOffset(28,28)
+            b.Position=UDim2.new(1,x,0,7);b.TextSize=15;b.Font=Enum.Font.GothamMedium
+            b.TextColor3=tokens.Color.TextMuted;b.BackgroundTransparency=1;b.AutoButtonColor=false
+            b.ZIndex=102;b.Parent=quickMenu;return b
+        end
+        local density=smallButton("−",-66);local close=smallButton("×",-34)
+        local list=Instance.new("ScrollingFrame");list.Position=UDim2.fromOffset(9,43)
+        list.Size=UDim2.new(1,-18,1,-70);list.BackgroundTransparency=1;list.BorderSizePixel=0
+        list.AutomaticCanvasSize=Enum.AutomaticSize.Y;list.CanvasSize=UDim2.new();list.ScrollBarThickness=2
+        list.ScrollBarImageColor3=tokens.Color.Accent;list.ZIndex=101;list.Parent=quickMenu
+        local layout=Instance.new("UIListLayout");layout.Padding=UDim.new(0,5);layout.SortOrder=Enum.SortOrder.LayoutOrder;layout.Parent=list
+        local hint=deps.Typography.Label(quickMenu,"Control",tokens,"RightAlt · menu   |   − compact view",UDim2.new(0,13,1,-23),UDim2.new(1,-26,0,17),tokens.Color.TextDim)
+        hint.TextSize=10;hint.ZIndex=101
+        local launcher=Instance.new("TextButton");launcher.Name="QuickMenuLauncher"
+        launcher.Size=UDim2.fromOffset(36,32);launcher.Position=UDim2.new(1,-48,0.5,28)
+        launcher.Text="≡";launcher.TextSize=23;launcher.TextColor3=tokens.Color.Text
+        launcher.BackgroundColor3=tokens.Color.ShellDeep;launcher.AutoButtonColor=false
+        launcher.BorderSizePixel=0;launcher.ZIndex=99;launcher.Parent=screen
+        corner(launcher,9);stroke(launcher,tokens.Color.Stroke,0.5,1)
+        local function clampMenu()
+            local bounds=screen.AbsoluteSize
+            local size=quickMenu.AbsoluteSize
+            local position=quickMenu.AbsolutePosition-screen.AbsolutePosition
+            quickMenu.Position=UDim2.fromOffset(math.clamp(position.X+size.X/2,size.X/2+6,math.max(size.X/2+6,bounds.X-size.X/2-6)),math.clamp(position.Y+size.Y/2,size.Y/2+6,math.max(size.Y/2+6,bounds.Y-size.Y/2-6)))
+        end
+        local function resize()
+            local count=math.min(#order,5)
+            local h=43+count*(compact and 34 or 45)+(compact and 10 or 29)
+            quickMenu.Size=UDim2.fromOffset(math.min(246,math.max(120,screen.AbsoluteSize.X-12)),math.min(math.max(85,h),math.max(70,screen.AbsoluteSize.Y-12)))
+            list.Size=UDim2.new(1,-18,1,compact and -53 or -70);hint.Visible=not compact
+            for _,id in ipairs(order) do actions[id].Row.Size=UDim2.new(1,-4,0,compact and 29 or 40) end
+            clampMenu()
+        end
+        local function render(action)
+            action.Label.Text=action.Title
+            action.Key.Text=action.Busy and "…" or (not compact and action.KeyCode and action.KeyCode.Name or "")
+            action.Row.BackgroundColor3=action.Value and tokens.Color.NavActive or tokens.Color.PanelSoft
+            action.Switch.BackgroundColor3=action.Value and tokens.Color.Accent or tokens.Color.Inset
+            action.Dot.Position=UDim2.fromOffset(action.Value and 16 or 3,3)
+            for _,fn in ipairs(observers[action.Id] or {}) do pcall(fn,action) end
+        end
+        function app:GetQuickAction(id) return actions[id] end
+        function app:ObserveQuickAction(id,fn)
+            assert(type(fn)=="function","ObserveQuickAction needs a callback")
+            observers[id]=observers[id] or {};table.insert(observers[id],fn)
+            if actions[id] then fn(actions[id]) end
+        end
+        function app:SetQuickAction(id,value,silent)
+            local action=actions[id];if not action or action.Busy then return false end
+            value=value==true
+            if action.Value==value then return true end
+            if silent then action.Value=value;render(action);return true end
+            action.Busy=true;render(action)
+            task.spawn(function()
+                local ok,result,reason=pcall(action.Callback,value)
+                if runtime.Destroyed then return end
+                action.Busy=false
+                if ok and result~=false then action.Value=value
+                elseif app.Notify then app:Notify(action.Title,ok and tostring(reason or "Action unavailable") or "Could not apply this action.",4,"Info") end
+                render(action)
+            end)
+            return true
+        end
+        function app:RegisterQuickAction(options)
+            assert(type(options)=="table" and type(options.Id)=="string" and type(options.Callback)=="function","Quick action needs Id and Callback")
+            assert(not actions[options.Id],"Quick action already registered: "..options.Id)
+            if options.KeyCode then
+                assert(typeof(options.KeyCode)=="EnumItem" and options.KeyCode.EnumType==Enum.KeyCode,"KeyCode must be Enum.KeyCode")
+                assert(options.KeyCode~=Enum.KeyCode.RightAlt and options.KeyCode~=Enum.KeyCode.RightControl and options.KeyCode~=Enum.KeyCode.Unknown,"Key reserved for UI")
+                for _,id in ipairs(order) do assert(actions[id].KeyCode~=options.KeyCode,"Quick action shortcut already registered") end
+            end
+            local action={Id=options.Id,Title=options.Title or options.Id,Value=options.Default==true,KeyCode=options.KeyCode,Callback=options.Callback,Busy=false}
+            local row=Instance.new("TextButton");row.Text="";row.AutoButtonColor=false
+            row.BorderSizePixel=0;row.LayoutOrder=#order+1;row.ZIndex=102;row.Parent=list;corner(row,5)
+            local label=deps.Typography.Label(row,"Control",tokens,action.Title,UDim2.fromOffset(9,0),UDim2.new(1,-88,1,0),tokens.Color.Text)
+            label.TextSize=12;label.ZIndex=103;label.TextTruncate=Enum.TextTruncate.AtEnd
+            local key=deps.Typography.Label(row,"Control",tokens,"",UDim2.new(1,-78,0,0),UDim2.new(0,23,1,0),tokens.Color.TextDim)
+            key.TextSize=10;key.ZIndex=103
+            local switch=Instance.new("Frame");switch.AnchorPoint=Vector2.new(1,0.5)
+            switch.Position=UDim2.new(1,-8,0.5,0);switch.Size=UDim2.fromOffset(32,19)
+            switch.BorderSizePixel=0;switch.ZIndex=103;switch.Parent=row;corner(switch,5)
+            local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(13,13)
+            dot.BackgroundColor3=tokens.Color.Text;dot.BorderSizePixel=0;dot.ZIndex=104;dot.Parent=switch;corner(dot,3)
+            action.Row=row;action.Label=label;action.Key=key;action.Switch=switch;action.Dot=dot
+            actions[action.Id]=action;table.insert(order,action.Id)
+            row.Activated:Connect(function() app:SetQuickAction(action.Id,not action.Value) end)
+            row.MouseEnter:Connect(function() deps.Motion:Tween(row,"Hover",{BackgroundTransparency=0.12}) end)
+            row.MouseLeave:Connect(function() deps.Motion:Tween(row,"Hover",{BackgroundTransparency=0}) end)
+            render(action);resize();return action
+        end
+        function app:SetQuickMenuVisible(visible)
+            quickMenu.Visible=visible==true
+            if visible then resize() end
+        end
+        function app:SetQuickMenuCompact(value)
+            compact=value==true;density.Text=compact and "+" or "−"
+            for _,id in ipairs(order) do render(actions[id]) end
+            resize()
+        end
+        close.Activated:Connect(function() app:SetQuickMenuVisible(false) end)
+        density.Activated:Connect(function() app:SetQuickMenuCompact(not compact) end)
+        launcher.Activated:Connect(function() app:SetQuickMenuVisible(not quickMenu.Visible) end)
+        local dragInput,dragOrigin,menuOrigin
+        runtime:TrackConnection(title.InputBegan:Connect(function(input)
+            if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+                dragInput=input;dragOrigin=input.Position;menuOrigin=quickMenu.AbsolutePosition-screen.AbsolutePosition+quickMenu.AbsoluteSize/2
+            end
+        end))
+        runtime:TrackConnection(UserInputService.InputChanged:Connect(function(input)
+            if not dragInput then return end
+            if dragInput.UserInputType==Enum.UserInputType.Touch and input~=dragInput then return end
+            if dragInput.UserInputType==Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.MouseMovement then return end
+            local delta=input.Position-dragOrigin
+            quickMenu.Position=UDim2.fromOffset(menuOrigin.X+delta.X,menuOrigin.Y+delta.Y);clampMenu()
+        end))
+        runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input) if input==dragInput then dragInput=nil end end))
+        runtime:TrackConnection(screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize))
+        runtime:TrackConnection(UserInputService.InputBegan:Connect(function(input,processed)
+            if processed or UserInputService:GetFocusedTextBox() or deps.PopupManager.Active then return end
+            if input.KeyCode==Enum.KeyCode.RightAlt then app:SetQuickMenuVisible(not quickMenu.Visible);return end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) then return end
+            for _,id in ipairs(order) do
+                local action=actions[id]
+                if action.KeyCode==input.KeyCode then app:SetQuickAction(id,not action.Value);return end
+            end
+        end))
+        resize()
+    end
 
     local function createSearchPopup(categoriesOnly)
         if not holder.Visible then return end
@@ -3214,6 +3393,15 @@ do
     end)
 end
 
+-- Preview adapters demonstrate the shared API; game adapters supply real callbacks.
+for _,entry in ipairs({{"fly","Fly",Enum.KeyCode.F},{"noclip","Noclip",Enum.KeyCode.N},{"esp","Player ESP",Enum.KeyCode.H}}) do
+    local id,title,key=entry[1],entry[2],entry[3]
+    app:RegisterQuickAction({Id=id,Title=title,KeyCode=key,Default=false,Callback=function(value)
+        app:Notify(title.." · preview",value and "Enabled in the UI preview." or "Disabled in the UI preview.",2,"Info")
+        return true
+    end})
+end
+
 local dashboard = app:AddPage({Id="Dashboard", Title="Dashboard", Icon="dashboard", Accent=Tokens.Color.Accent, Order=-2})
 local about = app:AddPage({Id="About", Title="About", Icon="info", Accent=Tokens.Color.Cyan, Order=-3})
 local automation = app:AddPage({Id="Automation", Title="Automation", Icon="automation", Accent=Tokens.Color.Accent, Group="Main", Order=1})
@@ -3775,7 +3963,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.63";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.64";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3855,18 +4043,22 @@ do
     local workspaces=card(dashboard,118,4);workspaces.Name="DashboardWorkspaces"
     label(workspaces,"Jump back in",14,9,-28,24,15)
     local destinations={
-        {"Automation","Feature controls","automation","Automation"},
-        {"Progression","Stages & upgrades","progression","Progression"},
-        {"Playground","Test interactions","settings","Playground"},
+        {"Fly","F · preview off","automation","fly"},
+        {"Noclip","N · preview off","progression","noclip"},
+        {"Player ESP","H · preview off","settings","esp"},
     }
     local shortcuts={}
     for i,data in ipairs(destinations) do
-        local b=button(workspaces,"",function() app:SelectPage(data[4]) end);shortcuts[i]=b
+        local b=button(workspaces,"",function() local action=app:GetQuickAction(data[4]);if action then app:SetQuickAction(data[4],not action.Value) end end);shortcuts[i]=b
         Icons.Create(b,data[3],20,Tokens.Color.Accent,UDim2.fromOffset(10,11))
         local title=label(b,data[1],38,8,-48,22,13)
         title.Font=Enum.Font.GothamMedium
         local sub=label(b,data[2],10,38,-20,18,11,Tokens.Color.TextMuted)
         sub.TextTruncate=Enum.TextTruncate.AtEnd
+        app:ObserveQuickAction(data[4],function(action)
+            sub.Text=(action.KeyCode and action.KeyCode.Name.." · " or "")..(action.Busy and "Applying…" or (action.Value and "Enabled" or "Disabled"))
+            sub.TextColor3=action.Value and Tokens.Color.Accent or Tokens.Color.TextMuted
+        end)
     end
     local function arrangeShortcuts()
         local width=logicalWidth(workspaces);if width<=0 then return end
@@ -3891,8 +4083,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.63"})
-    for i,data in ipairs({{"Dynamic activity capsule","Slim live status expands for rewards, then settles back into place."},{"Focused filter choices","Opaque menus block underlying hover effects and keep one selection focus."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.64"})
+    for i,data in ipairs({{"Quick Menu","Shared toggles and keyboard shortcuts, with a compact view."},{"More status details","Hover the capsule or tap its arrow for details and quick access."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3926,7 +4118,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.63",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.64",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4051,6 +4243,7 @@ do
         stopStatusDemo();demoStarted=true
         app:SetStatus("Auto clicker · DEMO",1)
         app:SetStatusMetrics(0,0,0)
+        app:SetStatusDetails({"Preview clicker · 20 clicks per second","Reward at 5s · finishes at 12s"})
         if not app:IsMinimized() then app:SetVisible(false) end
         demoThread=task.spawn(function()
             local started=os.clock()
@@ -4068,7 +4261,8 @@ do
                 task.wait(0.25)
             end
             if runtime.Destroyed then return end
-            app:SetStatus("Test finished · 240 clicks",3)
+            app:SetStatus("Test complete",3)
+            app:SetStatusDetails({"240 simulated clicks · 1 test reward","Demo finished · use Quick Menu for more controls"})
             app:StatusNotice("Test complete","240 simulated clicks · 1 test reward",3)
             demoThread=nil
         end)
@@ -4206,7 +4400,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.63 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.64 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
