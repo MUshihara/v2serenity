@@ -5,7 +5,7 @@ do
     if type(previous) == "table" and type(previous.Destroy) == "function" then
         pcall(function() previous:Destroy() end)
     end
-    local source = game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/51365714e2001e780a72a1743a0b4341560dd038/dist/ui/serenity.lua")
+    local source = game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/b2b5c0b5b93b136152ef12a3deb2417f8041d976/dist/ui/serenity.lua")
     local chunk, err = loadstring(source)
     if not chunk then error(err) end
     return chunk()
