@@ -3258,7 +3258,7 @@ end
 -- A single local UI sound is reused; preload only this short, essential asset.
 local uiClick=Instance.new("Sound")
 uiClick.Name="SerenitySelectionClick"
-uiClick.SoundId="rbxassetid://84716931764071"
+uiClick.SoundId="rbxassetid://133196982070163"
 uiClick.Volume=math.min(2,uiSoundVolume/50)
 uiClick.Parent=game:GetService("SoundService")
 runtime:TrackCleanup(function() uiClick:Destroy() end)
@@ -3294,7 +3294,7 @@ task.spawn(function()
     uiSoundReady=uiClick.IsLoaded or (ok and result==Enum.AssetFetchStatus.Success)
     if not uiSoundReady and (not ok or (result and result~=Enum.AssetFetchStatus.Success)) then
         uiSoundFailed=true
-        warn("[Serenity UI] Sound 84716931764071 could not load ("..tostring(result and result.Name or preloadError).."). Check Creator Store distribution or experience permissions.")
+        warn("[Serenity UI] Sound 133196982070163 could not load ("..tostring(result and result.Name or preloadError).."). Check Creator Store distribution or experience permissions.")
     end
     updateSoundPreview()
     if uiSoundReady and soundWaiting then soundWaiting=false;playReadySound() end
@@ -3550,7 +3550,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.57";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.58";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3666,8 +3666,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.57"})
-    for i,data in ipairs({{"Audible Serenity sound","Preloads your clip, increases volume and shows when asset access fails."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.58"})
+    for i,data in ipairs({{"New Serenity sound","Your new click sound plays for categories, confirmations and window controls."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3701,7 +3701,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.57",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.58",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3946,7 +3946,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.57 SOUND TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.58 SOUND TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
