@@ -2440,7 +2440,7 @@ function Desktop.Mount(deps, options)
         if dockTween then dockTween:Cancel();dockTween=nil end
     end
     local function iconCenter()
-        return UDim2.new(0.5,0,0,32)
+        return UDim2.fromOffset(statusDock.AbsolutePosition.X-screen.AbsolutePosition.X+statusDock.AbsoluteSize.X/2,statusDock.AbsolutePosition.Y-screen.AbsolutePosition.Y+statusDock.AbsoluteSize.Y/2)
     end
     local function dockSize()
         return UDim2.fromOffset(math.min((statusNoticeActive or statusExpanded) and 304 or 244,math.max(120,screen.AbsoluteSize.X-24)),statusNoticeActive and 78 or (statusExpanded and 112 or 52))
@@ -2543,11 +2543,62 @@ function Desktop.Mount(deps, options)
     end
     runtime:TrackCleanup(cancelTransition)
     statusDock.Activated:Connect(function() if serenityInputBlocked(statusDock) then return end;
+        if app.StatusClickSuppressed and app:StatusClickSuppressed() then return end
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(true)
     end)
-    statusDock.MouseEnter:Connect(function() if serenityInputBlocked(statusDock) then return end; deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.3});if not UserInputService.TouchEnabled then expandStatus(true) end end)
+    statusDock.MouseEnter:Connect(function() if serenityInputBlocked(statusDock) then return end; deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.3});if not UserInputService.TouchEnabled and not (app.StatusClickSuppressed and app:StatusClickSuppressed()) then expandStatus(true) end end)
     statusDock.MouseLeave:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.72});if not UserInputService.TouchEnabled then expandStatus(false) end end)
+    do
+        local pointer,press,start,holdTimer
+        local dragging=false
+        local suppressUntil=0
+        local function clampStatus()
+            local bounds,size=screen.AbsoluteSize,statusDock.AbsoluteSize
+            local point=statusDock.AbsolutePosition-screen.AbsolutePosition
+            statusDock.Position=UDim2.fromOffset(math.clamp(point.X+size.X/2,size.X/2+6,math.max(size.X/2+6,bounds.X-size.X/2-6)),math.clamp(point.Y,6,math.max(6,bounds.Y-size.Y-6)))
+        end
+        function app:StatusClickSuppressed() return dragging or os.clock()<suppressUntil end
+        local function cancelHold()
+            if holdTimer then pcall(task.cancel,holdTimer);holdTimer=nil end
+        end
+        runtime:TrackCleanup(cancelHold)
+        runtime:TrackConnection(statusDock.InputBegan:Connect(function(input)
+            if pointer or (input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch) then return end
+            pointer=input;press=input.Position;dragging=false
+            holdTimer=task.delay(0.35,function()
+                holdTimer=nil
+                if runtime.Destroyed or not pointer or not statusDock.Visible then return end
+                dragging=true;suppressUntil=os.clock()+0.5
+                expandStatus(false)
+                start=statusDock.AbsolutePosition-screen.AbsolutePosition
+                deps.Motion:Tween(dockEdge,0.1,{Transparency=0.15})
+            end)
+        end))
+        runtime:TrackConnection(UserInputService.InputChanged:Connect(function(input)
+            if not pointer then return end
+            if pointer.UserInputType==Enum.UserInputType.Touch and input~=pointer then return end
+            if pointer.UserInputType==Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.MouseMovement then return end
+            local delta=input.Position-press
+            if not dragging then
+                if delta.Magnitude>8 then cancelHold() end
+                return
+            end
+            statusDock.Position=UDim2.fromOffset(start.X+delta.X+statusDock.AbsoluteSize.X/2,start.Y+delta.Y)
+            clampStatus()
+        end))
+        runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input)
+            if input~=pointer then return end
+            cancelHold();pointer=nil
+            if dragging then suppressUntil=os.clock()+0.4 end
+            dragging=false
+            deps.Motion:Tween(dockEdge,0.15,{Transparency=0.72})
+        end))
+        runtime:TrackConnection(screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(clampStatus))
+        runtime:TrackConnection(statusDock:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            if statusDock.Visible then clampStatus() end
+        end))
+    end
     local function restoreFeedback(active)
         deps.Motion:Tween(restore,"Hover",{BackgroundColor3=active and tokens.Color.InsetHover or tokens.Color.Inset})
         deps.Motion:Tween(restoreEdge,"Hover",{Transparency=active and 0.25 or 0.65})
@@ -2619,6 +2670,7 @@ function Desktop.Mount(deps, options)
 
     do
         local actions,order,observers={},{},{}
+        local capturing,captureTimer
         local function clampPanel(panel)
             local bounds=screen.AbsoluteSize
             local size=panel.AbsoluteSize
@@ -2629,17 +2681,40 @@ function Desktop.Mount(deps, options)
             local width=action.Minimized and 170 or 272
             local height=action.Minimized and 36 or (action.PanelBuilder and 106 or 64)
             action.Panel.Size=UDim2.fromOffset(math.min(width,math.max(100,screen.AbsoluteSize.X-12)),height)
-            action.Body.Visible=not action.Minimized;action.Caption.Visible=not action.Minimized
+            action.Body.Visible=not action.Minimized;action.Caption.Visible=not action.Minimized;action.KeyButton.Visible=not action.Minimized
             action.Collapse.Text=action.Minimized and "+" or "−"
             clampPanel(action.Panel)
         end
         local function render(action)
-            action.Panel.Visible=action.Value
-            action.Caption.Text=action.Busy and "Applying change…" or "Enabled · drag to move"
+            action.Panel.Visible=action.PanelEnabled
+            action.Caption.Text=action.Busy and "Applying change…" or (action.Value and "On · drag to move" or "Off · ready to enable")
+            action.KeyButton.Text=capturing==action and "Press key" or (action.KeyCode and action.KeyCode.Name or "Bind key")
             action.Switch.BackgroundColor3=action.Value and tokens.Color.Accent or tokens.Color.Inset
             action.Dot.Position=UDim2.fromOffset(action.Value and 16 or 3,3)
             action.Switch.Active=not action.Busy
             for _,fn in ipairs(observers[action.Id] or {}) do pcall(fn,action) end
+        end
+        function app:SetQuickPanelEnabled(id,value)
+            local action=actions[id];if not action or action.Busy then return false end
+            value=value==true
+            if not value and action.Value then
+                action.HideAfterDisable=true
+                return self:SetQuickAction(id,false)
+            end
+            action.PanelEnabled=value;render(action);return true
+        end
+        local function setKey(action,key)
+            if key~=nil then
+                if typeof(key)~="EnumItem" or key.EnumType~=Enum.KeyCode or key==Enum.KeyCode.Unknown or key==Enum.KeyCode.RightControl or key==Enum.KeyCode.Escape then return false,"Reserved key" end
+                for _,id in ipairs(order) do
+                    if actions[id]~=action and actions[id].KeyCode==key then return false,"Already assigned" end
+                end
+            end
+            action.KeyCode=key;render(action);return true
+        end
+        function app:SetQuickActionKey(id,key)
+            local action=actions[id];if not action then return false,"Unknown action" end
+            return setKey(action,key)
         end
         function app:SetQuickPanelMinimized(id,value)
             local action=actions[id];if not action then return false end
@@ -2654,6 +2729,7 @@ function Desktop.Mount(deps, options)
         function app:SetQuickAction(id,value,silent)
             local action=actions[id];if not action or action.Busy then return false end
             value=value==true
+            if value and not action.PanelEnabled and not silent then return false end
             if action.Value==value then return true end
             if silent then action.Value=value;render(action);return true end
             action.Busy=true;render(action)
@@ -2661,8 +2737,11 @@ function Desktop.Mount(deps, options)
                 local ok,result,reason=pcall(action.Callback,value)
                 if runtime.Destroyed then return end
                 action.Busy=false
-                if ok and result~=false then action.Value=value
+                if ok and result~=false then
+                    action.Value=value
+                    if action.HideAfterDisable and not value then action.PanelEnabled=false end
                 elseif app.Notify then app:Notify(action.Title,ok and tostring(reason or "Action unavailable") or "Could not apply this action.",4,"Info") end
+                action.HideAfterDisable=nil
                 render(action)
             end)
             return true
@@ -2672,7 +2751,7 @@ function Desktop.Mount(deps, options)
             assert(type(options)=="table" and type(options.Id)=="string" and type(options.Callback)=="function","Quick action needs Id and Callback")
             assert(not actions[options.Id],"Quick action already registered: "..options.Id)
             assert(options.Panel==nil or type(options.Panel)=="function","Panel must be a builder function")
-            local action={Id=options.Id,Title=options.Title or options.Id,Value=options.Default==true,Callback=options.Callback,Busy=false,Minimized=false,PanelBuilder=options.Panel}
+            local action={Id=options.Id,Title=options.Title or options.Id,Value=options.Default==true,Callback=options.Callback,Busy=false,PanelEnabled=options.PanelEnabled==true,Minimized=false,PanelBuilder=options.Panel}
             local panel=Instance.new("Frame");panel.Name="FeaturePanel_"..action.Id
             panel.Position=UDim2.new(0,14,0.5,(#order)*72-110);panel.Size=UDim2.fromOffset(272,64)
             panel.BackgroundColor3=tokens.Color.ShellDeep;panel.BackgroundTransparency=0.02
@@ -2683,7 +2762,7 @@ function Desktop.Mount(deps, options)
             accent.BorderSizePixel=0;accent.BackgroundColor3=tokens.Color.Accent;accent.ZIndex=101;accent.Parent=panel
             local title=deps.Typography.Label(panel,"Control",tokens,action.Title,UDim2.fromOffset(13,0),UDim2.new(1,-100,0,36),tokens.Color.Text)
             title.TextSize=13;title.Font=Enum.Font.GothamSemibold;title.Active=true;title.ZIndex=101;title.TextTruncate=Enum.TextTruncate.AtEnd
-            local caption=deps.Typography.Label(panel,"Control",tokens,"Enabled · drag to move",UDim2.fromOffset(13,35),UDim2.new(1,-26,0,21),tokens.Color.TextMuted)
+            local caption=deps.Typography.Label(panel,"Control",tokens,"Enabled · drag to move",UDim2.fromOffset(13,35),UDim2.new(1,-105,0,21),tokens.Color.TextMuted)
             caption.TextSize=11;caption.ZIndex=101
             local collapse=Instance.new("TextButton");collapse.Text="−";collapse.TextSize=19
             collapse.BackgroundTransparency=1;collapse.TextColor3=tokens.Color.TextMuted;collapse.AutoButtonColor=false
@@ -2695,13 +2774,26 @@ function Desktop.Mount(deps, options)
             dot.BorderSizePixel=0;dot.ZIndex=103;dot.Parent=switch;corner(dot,2)
             local body=Instance.new("Frame");body.BackgroundTransparency=1
             body.Position=UDim2.fromOffset(12,62);body.Size=UDim2.new(1,-24,0,36);body.ZIndex=101;body.Parent=panel
+            local keyButton=Instance.new("TextButton");keyButton.Size=UDim2.fromOffset(76,22)
+            keyButton.Position=UDim2.new(1,-88,0,35);keyButton.BackgroundColor3=tokens.Color.PanelSoft
+            keyButton.BorderSizePixel=0;keyButton.TextSize=10;keyButton.Font=Enum.Font.GothamMedium
+            keyButton.TextColor3=tokens.Color.TextMuted;keyButton.AutoButtonColor=false
+            keyButton.ZIndex=102;keyButton.Parent=panel;corner(keyButton,4)
+            action.KeyButton=keyButton
+            keyButton.Activated:Connect(function()
+                if captureTimer then pcall(task.cancel,captureTimer);captureTimer=nil end
+                local previous=capturing;capturing=action
+                if previous then render(previous) end
+                render(action)
+                captureTimer=task.delay(8,function() capturing=nil;captureTimer=nil;if not runtime.Destroyed then render(action) end end)
+            end)
             action.Panel=panel;action.Body=body;action.Caption=caption;action.Collapse=collapse;action.Switch=switch;action.Dot=dot
             if options.Panel then
                 local ok,err=pcall(options.Panel,body,self,action)
                 if not ok then panel:Destroy();error("Quick action panel failed: "..tostring(err)) end
             end
             actions[action.Id]=action;table.insert(order,action.Id)
-            switch.Activated:Connect(function() app:SetQuickAction(action.Id,false) end)
+            switch.Activated:Connect(function() app:SetQuickAction(action.Id,not action.Value) end)
             collapse.Activated:Connect(function()
                 app:SetQuickPanelMinimized(action.Id,not action.Minimized)
             end)
@@ -2719,10 +2811,33 @@ function Desktop.Mount(deps, options)
                 panel.Position=UDim2.fromOffset(start.X+delta.X,start.Y+delta.Y);clampPanel(panel)
             end))
             runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input) if input==dragInput then dragInput=nil end end))
+            if options.KeyCode then
+                local ok,reason=setKey(action,options.KeyCode);assert(ok,reason)
+            end
             sizePanel(action);render(action);return action
         end
         runtime:TrackConnection(screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
             for _,id in ipairs(order) do sizePanel(actions[id]) end
+        end))
+        runtime:TrackCleanup(function() if captureTimer then pcall(task.cancel,captureTimer) end end)
+        runtime:TrackConnection(UserInputService.InputBegan:Connect(function(input,processed)
+            if capturing then
+                if input.UserInputType~=Enum.UserInputType.Keyboard then return end
+                local action=capturing
+                capturing=nil
+                if captureTimer then pcall(task.cancel,captureTimer);captureTimer=nil end
+                if input.KeyCode~=Enum.KeyCode.Escape then
+                    local ok,reason=setKey(action,input.KeyCode~=Enum.KeyCode.Backspace and input.KeyCode or nil)
+                    if not ok and app.Notify then app:Notify("Shortcut",reason,3,"Info") end
+                end
+                render(action);return
+            end
+            if processed or UserInputService:GetFocusedTextBox() or deps.PopupManager.Active then return end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt) then return end
+            for _,id in ipairs(order) do
+                local action=actions[id]
+                if action.PanelEnabled and action.KeyCode==input.KeyCode then app:SetQuickAction(id,not action.Value);return end
+            end
         end))
     end
 
@@ -3363,9 +3478,9 @@ do
 end
 
 -- Preview adapters demonstrate the shared API; game adapters supply real callbacks.
-for _,entry in ipairs({{"fly","Fly"},{"noclip","Noclip"},{"esp","Player ESP"}}) do
-    local id,title=entry[1],entry[2]
-    app:RegisterQuickAction({Id=id,Title=title,Default=false,Callback=function(value)
+for _,entry in ipairs({{"fly","Fly",Enum.KeyCode.F},{"noclip","Noclip",Enum.KeyCode.N},{"esp","Player ESP",Enum.KeyCode.H}}) do
+    local id,title,key=entry[1],entry[2],entry[3]
+    app:RegisterQuickAction({Id=id,Title=title,KeyCode=key,Default=false,Callback=function(value)
         app:Notify(title.." · preview",value and "Enabled in the UI preview." or "Disabled in the UI preview.",2,"Info")
         return true
     end})
@@ -3932,7 +4047,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.65";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.66";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4018,7 +4133,7 @@ do
     }
     local shortcuts={}
     for i,data in ipairs(destinations) do
-        local b=button(workspaces,"",function() local action=app:GetQuickAction(data[4]);if action then app:SetQuickAction(data[4],not action.Value) end end);shortcuts[i]=b
+        local b=button(workspaces,"",function() local action=app:GetQuickAction(data[4]);if action then app:SetQuickPanelEnabled(data[4],not action.PanelEnabled) end end);shortcuts[i]=b
         Icons.Create(b,data[3],20,Tokens.Color.Accent,UDim2.fromOffset(10,11))
         local title=label(b,data[1],38,8,-90,22,13)
         title.Font=Enum.Font.GothamMedium
@@ -4031,10 +4146,10 @@ do
         dot.BackgroundColor3=Tokens.Color.Text;dot.Parent=switch
         local dotCorner=Instance.new("UICorner");dotCorner.CornerRadius=UDim.new(0,2);dotCorner.Parent=dot
         app:ObserveQuickAction(data[4],function(action)
-            sub.Text=action.Busy and "Applying…" or (action.Value and "Enabled · panel visible" or "Disabled")
-            sub.TextColor3=action.Value and Tokens.Color.Accent or Tokens.Color.TextMuted
-            switch.BackgroundColor3=action.Value and Tokens.Color.Accent or Tokens.Color.Inset
-            dot.Position=UDim2.fromOffset(action.Value and 16 or 3,3)
+            sub.Text=action.Busy and "Applying…" or (action.PanelEnabled and "Panel enabled" or "Panel disabled")
+            sub.TextColor3=action.PanelEnabled and Tokens.Color.Accent or Tokens.Color.TextMuted
+            switch.BackgroundColor3=action.PanelEnabled and Tokens.Color.Accent or Tokens.Color.Inset
+            dot.Position=UDim2.fromOffset(action.PanelEnabled and 16 or 3,3)
         end)
     end
     local function arrangeShortcuts()
@@ -4060,8 +4175,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.65"})
-    for i,data in ipairs({{"Feature quick panels","Dashboard switches open individual draggable, minimizable panels."},{"Refined activity status","Readable details, native arrow and a simpler restore control."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.66"})
+    for i,data in ipairs({{"Independent panel controls","Dashboard controls panel access; each panel controls its own feature."},{"Shortcuts & movable status","Click a key to rebind. Hold the status briefly to drag it."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4095,7 +4210,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.65",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.66",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4377,7 +4492,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.65 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.66 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
