@@ -961,18 +961,17 @@ function Section.new(parent, deps, props)
     stack.Parent = frame
 
     local header = Instance.new("TextButton")
-    header.BackgroundTransparency = 0
+    header.BackgroundTransparency = 1
     header.BackgroundColor3 = tokens.Color.PanelSoft
     local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,2);headerCorner.Parent=header
     local headerEdge=Instance.new("UIStroke");headerEdge.Name="SectionHeaderEdge"
     headerEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border;headerEdge.Thickness=1
-    headerEdge.Color=tokens.Color.Stroke;headerEdge.Transparency=0.65;headerEdge.Parent=header
+    headerEdge.Color=tokens.Color.Stroke;headerEdge.Transparency=1;headerEdge.Parent=header
     header.Text = ""
     header.AutoButtonColor = false
-    header.Size = UDim2.new(1, 0, 0, tokens.Size.SectionLabel)
+    header.Size = UDim2.new(1, 0, 0, 24)
     header.LayoutOrder = 1
     header.Parent = frame
-    deps.Material.PixelSurface(header,2)
 
     local title = deps.Typography.Label(
         header,
@@ -985,7 +984,7 @@ function Section.new(parent, deps, props)
     )
     title.TextTransparency = 0
     title.Text = props.Title or "Section"
-    title.TextSize = 14
+    title.TextSize = 13
     title.Font = deps.Typography.Font.Semibold
     title.TextTruncate = Enum.TextTruncate.AtEnd
     title.Position = UDim2.fromOffset(20,0)
@@ -1006,7 +1005,7 @@ function Section.new(parent, deps, props)
     local function runeFeedback(active)
         deps.Motion:Tween(underline,0.14,{BackgroundTransparency=active and 0 or 0.32})
         for _,wing in ipairs(wings) do deps.Motion:Tween(wing,0.14,{BackgroundTransparency=active and 0.1 or 0.45}) end
-        deps.Motion:Tween(headerEdge,0.14,{Transparency=active and 0.35 or 0.65})
+        deps.Motion:Tween(headerEdge,0.14,{Transparency=active and 0.88 or 1})
     end
     deps.Runtime:TrackConnection(header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; runeFeedback(true) end))
     deps.Runtime:TrackConnection(header.MouseLeave:Connect(function() runeFeedback(false) end))
@@ -1097,8 +1096,8 @@ function Section.new(parent, deps, props)
     }, Section)
 
     if self.Collapsible then
-        header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover}) end)
-        header.MouseLeave:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.PanelSoft}) end)
+        header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover,BackgroundTransparency=0.88}) end)
+        header.MouseLeave:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.PanelSoft,BackgroundTransparency=1}) end)
     end
     deps.Runtime:TrackConnection(header.MouseButton1Click:Connect(function() if serenityInputBlocked(header) then return end;
         if self.Collapsible then
@@ -1153,10 +1152,12 @@ function Toggle.new(parent, deps, props)
         tokens,
         props.Title or "Toggle",
         UDim2.fromOffset(13, titleY),
-        UDim2.new(1, -108, 0, titleH),
+        UDim2.new(1, props.Settings and props.OnSettings and -108 or -68, 0, titleH),
         tokens.Color.Text
     )
 
+    if deps.Mobile then controlTitle.TextSize=13 end
+    controlTitle.TextTruncate=Enum.TextTruncate.AtEnd
     if hasDescription then
         deps.Typography.Label(
             row,
@@ -1755,7 +1756,9 @@ function ColumnLayout.new(parent, deps, props)
 
     local function refresh()
         local scale = deps.UIScale and deps.UIScale.Scale or 1
-        local narrow = frame.AbsoluteSize.X / scale < 550
+        local logicalWidth=frame.AbsoluteSize.X/math.max(scale,0.001)
+        local minColumnWidth=props.MinColumnWidth or (deps.Mobile and 224 or 250)
+        local narrow=logicalWidth < minColumnWidth*2+gap
         left.Size = UDim2.new(narrow and 1 or 0.5, narrow and 0 or -(gap / 2), 0, 0)
         right.Size = left.Size
         local leftH = leftList.AbsoluteContentSize.Y / scale
@@ -4121,7 +4124,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.69";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.70";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4249,8 +4252,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.69"})
-    for i,data in ipairs({{"Consistent mobile rows","Aligned switches and proper spacing above dropdowns."},{"Smooth status movement","Hold, then drag. The capsule follows smoothly without shifting as it shrinks."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.70"})
+    for i,data in ipairs({{"Compact section headings","Slim captions replace long filled bars, with quieter hover feedback."},{"Responsive content columns","Landscape uses balanced columns; narrow screens retain one column."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4284,7 +4287,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.69",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.70",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4565,7 +4568,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.69 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.70 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
