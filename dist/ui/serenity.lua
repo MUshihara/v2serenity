@@ -2615,6 +2615,12 @@ function Desktop.Mount(deps, options)
     end)
 
     do
+        local function stroke(parent,color,transparency,thickness)
+            local edge=Instance.new("UIStroke")
+            edge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+            edge.Color=color;edge.Transparency=transparency;edge.Thickness=thickness or 1
+            edge.Parent=parent;return edge
+        end
         -- Library contract: register only actions supported by the game adapter.
         -- Callback(value) may return false, reason to reject; silent updates sync external controls.
         local actions,order,observers={},{},{}
@@ -3963,7 +3969,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.64";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.64.1";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4083,7 +4089,7 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.64"})
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.64.1"})
     for i,data in ipairs({{"Quick Menu","Shared toggles and keyboard shortcuts, with a compact view."},{"More status details","Hover the capsule or tap its arrow for details and quick access."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
@@ -4118,7 +4124,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.64",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.64.1",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4400,7 +4406,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.64 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.64.1 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
