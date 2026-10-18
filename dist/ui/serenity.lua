@@ -1,4 +1,12 @@
 -- Serenity M4 Compact: generated from modular test source. One download; UI only.
+-- Popup isolation also applies to hover events, which Roblox can deliver behind a shield.
+local function serenityInputBlocked(object)
+    while object do
+        if object:GetAttribute("SerenityPopupBlocked") then return true end
+        object=object.Parent
+    end
+    return false
+end
 local modules = {}
 modules["src/core/Runtime.lua"] = (function()
 local Runtime = {}
@@ -361,9 +369,9 @@ function Material.OptionHover(button, tokens, selected, motion)
         if button.Text ~= "" then properties.TextColor3=active and tokens.Color.Text or (selected and tokens.Color.Text or tokens.Color.TextMuted) end
         if motion then motion:Tween(button,"Hover",properties) else for key,value in pairs(properties) do button[key]=value end end
     end
-    button.MouseEnter:Connect(function() pointer=true;render() end)
+    button.MouseEnter:Connect(function() if serenityInputBlocked(button) then return end; pointer=true;render() end)
     button.MouseLeave:Connect(function() pointer=false;render() end)
-    button.SelectionGained:Connect(function() focused=true;render() end)
+    button.SelectionGained:Connect(function() if serenityInputBlocked(button) then return end; focused=true;render() end)
     button.SelectionLost:Connect(function() focused=false;render() end)
 end
 
@@ -483,7 +491,8 @@ end
 
 function Material.Popup(frame, tokens)
     frame.BackgroundColor3 = tokens.Color.Popup
-    frame.BackgroundTransparency = tokens.Material.PopupTransparency
+    frame.BackgroundTransparency = 0
+    frame.Active = true
     frame.BorderSizePixel = 0
     corner(frame, 3, "PopupCorner")
     stroke(frame, tokens.Color.Stroke, 0.52, 1, "PopupStroke")
@@ -848,7 +857,7 @@ function NavItem.new(parent, deps, props)
         Deps = deps,
     }, NavItem)
 
-    row.MouseEnter:Connect(function()
+    row.MouseEnter:Connect(function() if serenityInputBlocked(row) then return end;
         deps.Motion:Tween(tile,"Hover",{BackgroundTransparency=1})
         deps.Motion:Tween(rim,"Hover",{Transparency=0.25})
         deps.Motion:Tween(label,"Hover",{Position=UDim2.fromOffset(deps.Motion.Reduced and 44 or 46,0)})
@@ -878,7 +887,7 @@ function NavItem.new(parent, deps, props)
     row.MouseButton1Up:Connect(function()
         deps.Motion:Tween(scale,"Select",{Scale=1})
     end)
-    row.Activated:Connect(function()
+    row.Activated:Connect(function() if serenityInputBlocked(row) then return end;
         if self.Callback then self.Callback() end
         if deps.PlayUISound then deps.PlayUISound() end
     end)
@@ -977,7 +986,7 @@ function Section.new(parent, deps, props)
         for _,wing in ipairs(wings) do deps.Motion:Tween(wing,0.14,{BackgroundTransparency=active and 0.1 or 0.45}) end
         deps.Motion:Tween(headerEdge,0.14,{Transparency=active and 0.35 or 0.65})
     end
-    deps.Runtime:TrackConnection(header.MouseEnter:Connect(function() runeFeedback(true) end))
+    deps.Runtime:TrackConnection(header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; runeFeedback(true) end))
     deps.Runtime:TrackConnection(header.MouseLeave:Connect(function() runeFeedback(false) end))
 
     -- Opt-in feature groups preserve legacy section sizing and presentation.
@@ -1063,10 +1072,10 @@ function Section.new(parent, deps, props)
     }, Section)
 
     if self.Collapsible then
-        header.MouseEnter:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover}) end)
+        header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover}) end)
         header.MouseLeave:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.PanelSoft}) end)
     end
-    deps.Runtime:TrackConnection(header.MouseButton1Click:Connect(function()
+    deps.Runtime:TrackConnection(header.MouseButton1Click:Connect(function() if serenityInputBlocked(header) then return end;
         if self.Collapsible then
             self:SetOpen(not self.Open)
         end
@@ -1192,13 +1201,13 @@ function Toggle.new(parent, deps, props)
 
     self:_render(false)
 
-    hit.MouseEnter:Connect(function()
+    hit.MouseEnter:Connect(function() if serenityInputBlocked(hit) then return end;
         if self.Enabled then deps.Material.Hover(row, tokens, true) end
     end)
     hit.MouseLeave:Connect(function()
         deps.Material.Hover(row, tokens, false)
     end)
-    hit.MouseButton1Click:Connect(function()
+    hit.MouseButton1Click:Connect(function() if serenityInputBlocked(hit) then return end;
         if not self.Enabled then return end
         self:Set(not self.Value)
     end)
@@ -1505,14 +1514,14 @@ function Select.new(parent, deps, props)
         self.Frame.GroupTransparency = self.Enabled and 0 or 0.45
     end
 
-    button.MouseEnter:Connect(function()
+    button.MouseEnter:Connect(function() if serenityInputBlocked(button) then return end;
         if self.Enabled then button.BackgroundColor3 = tokens.Color.InsetHover end
     end)
     button.MouseLeave:Connect(function()
         button.BackgroundColor3 = tokens.Color.Inset
     end)
 
-    button.MouseButton1Click:Connect(function()
+    button.MouseButton1Click:Connect(function() if serenityInputBlocked(button) then return end;
         if not self.Enabled then return end
         deps.PopupManager:Close()
 
@@ -1554,12 +1563,13 @@ function Select.new(parent, deps, props)
             for _,entry in ipairs(entries) do
                 local selected=isSelected(entry.Option)
                 local active=target==entry
+                local emphasized=active or (selected and (self.Multi or not target))
                 local show=self.Multi and selected or (not self.Multi and (target and active or (not target and selected)))
                 -- Hide synchronously so a crossfade never leaves two single-select arrows.
                 for _,part in ipairs(entry.Pixels) do part.BackgroundTransparency=show and 0.15 or 1 end
-                entry.Button.BackgroundColor3=(active or selected) and tokens.Color.NavActive or tokens.Color.PanelSoft
-                deps.Motion:Tween(entry.Button,0.1,{BackgroundTransparency=active and 0 or (selected and 0.12 or 0.55)})
-                entry.Button.TextColor3=(active or selected) and tokens.Color.Text or tokens.Color.TextMuted
+                entry.Button.BackgroundColor3=emphasized and tokens.Color.NavActive or tokens.Color.PanelSoft
+                deps.Motion:Tween(entry.Button,0.1,{BackgroundTransparency=active and 0 or (emphasized and 0.12 or 0.55)})
+                entry.Button.TextColor3=emphasized and tokens.Color.Text or tokens.Color.TextMuted
             end
         end
         self.RefreshOpenChoices=refreshChoices
@@ -1593,11 +1603,11 @@ function Select.new(parent, deps, props)
             end
             local entry={Button=item,Pixels=pixels,Option=option}
             table.insert(entries,entry)
-            item.MouseEnter:Connect(function() hovered=entry;refreshChoices() end)
+            item.MouseEnter:Connect(function() if serenityInputBlocked(item) then return end; hovered=entry;refreshChoices() end)
             item.MouseLeave:Connect(function() if hovered==entry then hovered=nil end;refreshChoices() end)
-            item.SelectionGained:Connect(function() focused=entry;refreshChoices() end)
+            item.SelectionGained:Connect(function() if serenityInputBlocked(item) then return end; focused=entry;refreshChoices() end)
             item.SelectionLost:Connect(function() if focused==entry then focused=nil end;refreshChoices() end)
-            item.MouseButton1Click:Connect(function()
+            item.MouseButton1Click:Connect(function() if serenityInputBlocked(item) then return end;
                 if self.Multi then
                     local values=table.clone(self.Value);local index=table.find(values,option)
                     if index then table.remove(values,index) else table.insert(values,option) end
@@ -2087,7 +2097,7 @@ function Desktop.Mount(deps, options)
     shield.BackgroundColor3=Color3.new(0,0,0);shield.BackgroundTransparency=0.75
     shield.Size=UDim2.fromScale(1,1);shield.ZIndex=71;shield.Visible=false
     shield.Active=true;shield.Parent=overlay
-    shield.Activated:Connect(function() deps.PopupManager:Close() end)
+    shield.Activated:Connect(function() if serenityInputBlocked(shield) then return end; deps.PopupManager:Close() end)
     local lockedScrollers={}
     deps.PopupManager.OnChange=function(active)
         for frame,enabled in pairs(lockedScrollers) do
@@ -2095,6 +2105,11 @@ function Desktop.Mount(deps, options)
         end
         table.clear(lockedScrollers)
         shield.Visible=active~=nil
+        for _,child in ipairs(shell:GetChildren()) do
+            if child:IsA("GuiObject") and child~=overlay then
+                child:SetAttribute("SerenityPopupBlocked",active~=nil)
+            end
+        end
         if active then
             for _,frame in ipairs(shell:GetDescendants()) do
                 if frame:IsA("ScrollingFrame") and not frame:IsDescendantOf(active) then
@@ -2326,72 +2341,66 @@ function Desktop.Mount(deps, options)
     local statusDock=Instance.new("TextButton")
     statusDock.Name="SerenityStatusDock"
     statusDock.AnchorPoint=Vector2.new(0.5,0)
-    statusDock.Position=UDim2.new(0.5,0,0,10)
-    statusDock.Size=UDim2.fromOffset(0,78)
-    statusDock.BackgroundColor3=tokens.Color.ShellDeep
-    statusDock.BackgroundTransparency=0.06
+    statusDock.Position=UDim2.new(0.5,0,0,8)
+    statusDock.Size=UDim2.fromOffset(0,48)
+    statusDock.BackgroundColor3=tokens.Color.ShellDeep:Lerp(Color3.new(0,0,0),0.6)
+    statusDock.BackgroundTransparency=0
     statusDock.BorderSizePixel=0;statusDock.Text=""
     statusDock.AutoButtonColor=false;statusDock.ClipsDescendants=true
     statusDock.Visible=false;statusDock.ZIndex=88;statusDock.Parent=screen
-    corner(statusDock,26)
+    corner(statusDock,24)
     local dockEdge=Instance.new("UIStroke");dockEdge.Color=tokens.Color.Stroke
-    dockEdge.Transparency=0.32;dockEdge.Parent=statusDock
+    dockEdge.Transparency=0.72;dockEdge.Parent=statusDock
+    -- Compact live activity: one title, one metric line, and a quiet activity glyph.
     local statusRow=Instance.new("Frame")
-    statusRow.BackgroundTransparency=1;statusRow.Size=UDim2.fromOffset(186,49)
-    statusRow.AnchorPoint=Vector2.new(0.5,0);statusRow.Position=UDim2.new(0.5,0,0,5)
+    statusRow.BackgroundTransparency=1;statusRow.Size=UDim2.fromScale(1,1)
     statusRow.ZIndex=89;statusRow.Parent=statusDock
-    local statusSteps={}
-    for i,data in ipairs({{"automation",tokens.Color.Cyan},{"activity",tokens.Color.Amber},{"inventory",tokens.Color.Mint}}) do
-        local tile=Instance.new("Frame");tile.Size=UDim2.fromOffset(40,40)
-        tile.Position=UDim2.fromOffset(11+(i-1)*62,0)
-        tile.BorderSizePixel=0;tile.BackgroundColor3=tokens.Color.PanelSoft;tile.ZIndex=89;tile.Parent=statusRow
-        corner(tile,20)
-        local rim=Instance.new("UIStroke");rim.Color=data[2];rim.Thickness=1.5;rim.Transparency=0.35;rim.Parent=tile
-        local image=Instance.new("Frame");image.BackgroundTransparency=1
-        image.Size=UDim2.fromOffset(24,24);image.Position=UDim2.fromOffset(8,4);image.ZIndex=90;image.Parent=tile
-        local function part(x,y,w,h)
-            local f=Instance.new("Frame");f.Position=UDim2.fromOffset(x,y);f.Size=UDim2.fromOffset(w,h)
-            f.BorderSizePixel=0;f.BackgroundColor3=data[2];f.ZIndex=90;f.Parent=image;return f
-        end
-        if i==1 then
-            -- Stepped cursor, drawn locally so the icon cannot fail to load.
-            for n=0,6 do part(4+n*2,3+n*2,2,math.max(2,17-n*2)) end
-            local stem=part(12,15,3,9);stem.Rotation=-28
-        elseif i==2 then
-            local ring=part(3,2,19,19);ring.BackgroundTransparency=1;corner(ring,10)
-            local edge=Instance.new("UIStroke");edge.Color=data[2];edge.Thickness=2;edge.Parent=ring
-            part(11,6,2,7);part(11,11,6,2)
-        else
-            part(3,9,19,13);part(1,6,23,4)
-            local ribbon=part(11,6,3,16);ribbon.BackgroundColor3=tokens.Color.ShellDeep
-            local left=part(6,1,6,4);left.Rotation=25
-            local right=part(12,1,6,4);right.Rotation=-25
-        end
-        local value=deps.Typography.Label(tile,"Control",tokens,i==2 and "0s" or "0",UDim2.fromOffset(-6,28),UDim2.fromOffset(52,20),tokens.Color.Text)
-        value.TextXAlignment=Enum.TextXAlignment.Center;value.Font=Enum.Font.GothamBold;value.TextSize=13
-        value.TextStrokeTransparency=0.2;value.TextStrokeColor3=tokens.Color.ShellDeep;value.ZIndex=91
-        statusSteps[i]={Icon=image,Rim=rim,Value=value}
+    local activityTile=Instance.new("Frame")
+    activityTile.BackgroundColor3=tokens.Color.Accent;activityTile.BackgroundTransparency=0.88
+    activityTile.BorderSizePixel=0;activityTile.Size=UDim2.fromOffset(30,30)
+    activityTile.Position=UDim2.fromOffset(10,9);activityTile.ZIndex=90;activityTile.Parent=statusRow
+    corner(activityTile,10)
+    local activityBars={}
+    for i=1,4 do
+        local bar=Instance.new("Frame");bar.BorderSizePixel=0
+        bar.BackgroundColor3=tokens.Color.Accent;bar.AnchorPoint=Vector2.new(0,0.5)
+        bar.Position=UDim2.new(0,6+(i-1)*5,0.5,0);bar.Size=UDim2.fromOffset(3,6+i*2)
+        bar.ZIndex=91;bar.Parent=activityTile;corner(bar,2);activityBars[i]=bar
     end
-    local dockActivity=deps.Typography.Label(statusDock,"Control",tokens,"Auto clicker · DEMO",UDim2.fromOffset(10,57),UDim2.new(1,-20,0,16),tokens.Color.TextMuted)
-    dockActivity.TextXAlignment=Enum.TextXAlignment.Center;dockActivity.TextSize=11
-    dockActivity.TextTruncate=Enum.TextTruncate.AtEnd;dockActivity.ZIndex=89
+    local dockActivity=deps.Typography.Label(statusRow,"Control",tokens,"Auto clicker",UDim2.fromOffset(50,6),UDim2.new(1,-108,0,19),tokens.Color.Text)
+    dockActivity.TextSize=12;dockActivity.Font=Enum.Font.GothamSemibold
+    dockActivity.TextTruncate=Enum.TextTruncate.AtEnd;dockActivity.ZIndex=90
+    local dockMetrics=deps.Typography.Label(statusRow,"Control",tokens,"0 clicks  ·  0 rewards",UDim2.fromOffset(50,25),UDim2.new(1,-65,0,16),tokens.Color.TextMuted)
+    dockMetrics.TextSize=10;dockMetrics.ZIndex=90;dockMetrics.TextTruncate=Enum.TextTruncate.AtEnd
+    local dockTime=deps.Typography.Label(statusRow,"Control",tokens,"0s",UDim2.new(1,-52,0,8),UDim2.fromOffset(37,17),tokens.Color.Accent)
+    dockTime.TextSize=11;dockTime.TextXAlignment=Enum.TextXAlignment.Right;dockTime.ZIndex=90
     local statusEvent=Instance.new("Frame");statusEvent.BackgroundTransparency=1
     statusEvent.Size=UDim2.fromScale(1,1);statusEvent.Visible=false;statusEvent.ZIndex=89;statusEvent.Parent=statusDock
-    local eventIcon=deps.Icons.Create(statusEvent,"inventory",26,tokens.Color.Mint,UDim2.fromOffset(16,24));eventIcon.ZIndex=90
+    local eventIcon=deps.Icons.Create(statusEvent,"inventory",26,tokens.Color.Mint,UDim2.fromOffset(16,23));eventIcon.ZIndex=90
     local eventTitle=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(54,15),UDim2.new(1,-68,0,21),tokens.Color.Text)
     eventTitle.Font=Enum.Font.GothamBold;eventTitle.TextSize=14;eventTitle.ZIndex=90
     local eventBody=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(54,38),UDim2.new(1,-68,0,30),tokens.Color.TextMuted)
     eventBody.TextSize=12;eventBody.TextWrapped=true;eventBody.TextYAlignment=Enum.TextYAlignment.Top;eventBody.ZIndex=90
     local statusNoticeActive=false
     local statusNoticeTimer
+    local statusRunning=true
     function app:SetStatus(value,stage)
-        dockActivity.Text=tostring(value or "Auto clicker · DEMO"):sub(1,80)
-        for i,step in ipairs(statusSteps) do step.Rim.Transparency=i==stage and 0 or 0.45 end
+        local text=tostring(value or "Auto clicker")
+        dockActivity.Text=text:gsub(" · DEMO", ""):sub(1,80)
+        statusRunning=stage~=3 and not text:lower():find("paused",1,true)
+        if not statusRunning then
+            for _,bar in ipairs(activityBars) do deps.Motion:Tween(bar,0.15,{Size=UDim2.fromOffset(3,4)}) end
+        end
     end
     function app:SetStatusMetrics(clicks,seconds,rewards)
-        statusSteps[1].Value.Text=tostring(clicks or 0)
-        statusSteps[2].Value.Text=tostring(seconds or 0).."s"
-        statusSteps[3].Value.Text=tostring(rewards or 0)
+        dockMetrics.Text=tostring(clicks or 0).." clicks  ·  "..tostring(rewards or 0).." rewards"
+        dockTime.Text=tostring(seconds or 0).."s"
+        -- Reuse the bounded demo's updates; no perpetual animation or render loop.
+        if statusRunning and statusDock.Visible and not statusNoticeActive and not deps.Motion.Reduced then
+            for i,bar in ipairs(activityBars) do
+                deps.Motion:Tween(bar,0.18,{Size=UDim2.fromOffset(3,5+((math.floor(clicks or 0)+i*3)%12))})
+            end
+        end
     end
     function app:IsMinimized() return not holder.Visible or self._Minimizing==true end
     local windowTween,windowScaleTween,dockTween,transition= nil,nil,nil,0
@@ -2402,10 +2411,10 @@ function Desktop.Mount(deps, options)
         if dockTween then dockTween:Cancel();dockTween=nil end
     end
     local function iconCenter()
-        return UDim2.new(0.5,0,0,49)
+        return UDim2.new(0.5,0,0,32)
     end
     local function dockSize()
-        return UDim2.fromOffset(math.min(statusNoticeActive and 302 or 206,math.max(180,screen.AbsoluteSize.X-24)),78)
+        return UDim2.fromOffset(math.min(statusNoticeActive and 304 or 244,math.max(120,screen.AbsoluteSize.X-24)),statusNoticeActive and 78 or 48)
     end
     function app:StatusNotice(title,message,duration)
         if runtime.Destroyed then return end
@@ -2431,7 +2440,7 @@ function Desktop.Mount(deps, options)
     local function showDock()
         statusDock.Visible=true
         if app.OnMinimized then app.OnMinimized() end
-        statusDock.Size=UDim2.fromOffset(0,78)
+        statusDock.Size=UDim2.fromOffset(0,48)
         if deps.Motion.Reduced then statusDock.Size=dockSize();return end
         dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Size=dockSize()})
         dockTween:Play()
@@ -2452,7 +2461,7 @@ function Desktop.Mount(deps, options)
             if statusDock.Visible then
                 if deps.Motion.Reduced then statusDock.Visible=false
                 else
-                    dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.16,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.fromOffset(0,78)})
+                    dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.16,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.fromOffset(0,48)})
                     dockTween:Play()
                     dockTween.Completed:Once(function() if transition==current then statusDock.Visible=false end end)
                 end
@@ -2494,18 +2503,18 @@ function Desktop.Mount(deps, options)
         end
     end
     runtime:TrackCleanup(cancelTransition)
-    statusDock.Activated:Connect(function()
+    statusDock.Activated:Connect(function() if serenityInputBlocked(statusDock) then return end;
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(true)
     end)
-    statusDock.MouseEnter:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.08}) end)
-    statusDock.MouseLeave:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.32}) end)
+    statusDock.MouseEnter:Connect(function() if serenityInputBlocked(statusDock) then return end; deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.08}) end)
+    statusDock.MouseLeave:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.72}) end)
     local function restoreFeedback(active)
         deps.Motion:Tween(restore,"Hover",{BackgroundColor3=active and tokens.Color.InsetHover or tokens.Color.Inset})
         deps.Motion:Tween(restoreEdge,"Hover",{Transparency=active and 0.25 or 0.65})
         deps.Motion:Tween(emblemScale,"Hover",{Scale=(active and not deps.Motion.Reduced) and 1.06 or 1})
     end
-    runtime:TrackConnection(restore.MouseEnter:Connect(function() restoreFeedback(true) end))
+    runtime:TrackConnection(restore.MouseEnter:Connect(function() if serenityInputBlocked(restore) then return end; restoreFeedback(true) end))
     runtime:TrackConnection(restore.MouseLeave:Connect(function() restoreFeedback(false) end))
     runtime:TrackConnection(restore.InputBegan:Connect(function(input)
         if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -2555,7 +2564,7 @@ function Desktop.Mount(deps, options)
             statusDock.Size=dockSize()
         end
     end))
-    minimize.Activated:Connect(function()
+    minimize.Activated:Connect(function() if serenityInputBlocked(minimize) then return end;
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(false)
         emblemScale.Scale=deps.Motion.Reduced and 1 or 0.85
@@ -2563,7 +2572,7 @@ function Desktop.Mount(deps, options)
         deps.Motion:Tween(emblemScale,0.24,{Scale=1})
         deps.Motion:Tween(emblem,0.24,{Rotation=0})
     end)
-    restore.Activated:Connect(function()
+    restore.Activated:Connect(function() if serenityInputBlocked(restore) then return end;
         if iconDragged or os.clock()<suppressIconClickUntil then return end
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(app:IsMinimized())
@@ -2593,7 +2602,7 @@ function Desktop.Mount(deps, options)
         close.Text="×";close.TextSize=22;close.TextColor3=tokens.Color.TextMuted
         close.BackgroundTransparency=1;close.Size=UDim2.fromOffset(40,36)
         close.Position=UDim2.new(1,-44,0,2);close.ZIndex=82;close.Parent=popup
-        close.Activated:Connect(function() deps.PopupManager:Close() end)
+        close.Activated:Connect(function() if serenityInputBlocked(close) then return end; deps.PopupManager:Close() end)
         local input = Instance.new("TextBox")
         input.Position = UDim2.fromOffset(8, 42)
         input.Size = UDim2.new(1, -16, 0, 34)
@@ -2672,7 +2681,7 @@ function Desktop.Mount(deps, options)
             end
             table.insert(rows,{Frame=row,Match=match,Search=string.lower(match.Title.." "..match.Entry.Title.." "..(match.Description or ""))})
             deps.Material.OptionHover(row, tokens, categoriesOnly and match.Entry.Id==currentPage, deps.Motion)
-            row.Activated:Connect(function() jump(match) end)
+            row.Activated:Connect(function() if serenityInputBlocked(row) then return end; jump(match) end)
         end
         local empty=deps.Typography.Label(listFrame,"Value",tokens,categoriesOnly and "No matching categories" or "No matching features",UDim2.new(),UDim2.new(1,-10,0,40),tokens.Color.TextMuted)
         empty.ZIndex=83;empty.Visible=false
@@ -2729,7 +2738,7 @@ function Desktop.Mount(deps, options)
             item.Parent = popup
             corner(item, 6)
             deps.Material.OptionHover(item, tokens, name == scopeText.Text, deps.Motion)
-            item.MouseButton1Click:Connect(function()
+            item.MouseButton1Click:Connect(function() if serenityInputBlocked(item) then return end;
                 scopeText.Text = name
                 deps.PopupManager:Close()
             end)
@@ -2737,8 +2746,8 @@ function Desktop.Mount(deps, options)
         deps.PopupManager:Set(popup)
     end
 
-    searchButton.Activated:Connect(function() createSearchPopup(false) end)
-    pageButton.Activated:Connect(function() createSearchPopup(true) end)
+    searchButton.Activated:Connect(function() if serenityInputBlocked(searchButton) then return end; createSearchPopup(false) end)
+    pageButton.Activated:Connect(function() if serenityInputBlocked(pageButton) then return end; createSearchPopup(true) end)
     scopeButton.MouseButton1Click:Connect(createScopePopup)
 
     runtime:TrackConnection(UserInputService.InputBegan:Connect(function(input, processed)
@@ -2979,14 +2988,14 @@ do
     end
     function app:Tooltip(target, message, tapToOpen)
         assert(type(message) == "string" and message ~= "", "Tooltip needs text")
-        runtime:TrackConnection(target.MouseEnter:Connect(function()
+        runtime:TrackConnection(target.MouseEnter:Connect(function() if serenityInputBlocked(target) then return end;
             if not UserInputService.TouchEnabled then showTip(target, message) end
         end))
         runtime:TrackConnection(target.MouseLeave:Connect(hideTip))
-        runtime:TrackConnection(target.SelectionGained:Connect(function() showTip(target, message) end))
+        runtime:TrackConnection(target.SelectionGained:Connect(function() if serenityInputBlocked(target) then return end; showTip(target, message) end))
         runtime:TrackConnection(target.SelectionLost:Connect(hideTip))
         if tapToOpen then
-            runtime:TrackConnection(target.Activated:Connect(function()
+            runtime:TrackConnection(target.Activated:Connect(function() if serenityInputBlocked(target) then return end;
                 if activeTip and activeTip.Target == target then hideTip() else showTip(target, message) end
             end))
         end
@@ -3048,9 +3057,9 @@ do
             b.TextColor3 = primary and Color3.fromRGB(8, 24, 38) or Tokens.Color.Text
             b.Parent = card; rounded(b, 8)
             local resting=b.BackgroundColor3
-            b.MouseEnter:Connect(function() animate(b,{BackgroundColor3=primary and Tokens.Color.AccentBright or Tokens.Color.InsetHover}) end)
+            b.MouseEnter:Connect(function() if serenityInputBlocked(b) then return end; animate(b,{BackgroundColor3=primary and Tokens.Color.AccentBright or Tokens.Color.InsetHover}) end)
             b.MouseLeave:Connect(function() animate(b,{BackgroundColor3=resting}) end)
-            b.SelectionGained:Connect(function() animate(b,{BackgroundColor3=primary and Tokens.Color.AccentBright or Tokens.Color.InsetHover}) end)
+            b.SelectionGained:Connect(function() if serenityInputBlocked(b) then return end; animate(b,{BackgroundColor3=primary and Tokens.Color.AccentBright or Tokens.Color.InsetHover}) end)
             b.SelectionLost:Connect(function() animate(b,{BackgroundColor3=resting}) end)
             return b
         end
@@ -3077,15 +3086,15 @@ do
         end
         activeDialog = resolve
         if deps.PlayUISound then deps.PlayUISound() end
-        cancel.Activated:Connect(function()
+        cancel.Activated:Connect(function() if serenityInputBlocked(cancel) then return end;
             if deps.PlayUISound then deps.PlayUISound() end
             resolve(false)
         end)
-        accept.Activated:Connect(function()
+        accept.Activated:Connect(function() if serenityInputBlocked(accept) then return end;
             if deps.PlayUISound then deps.PlayUISound() end
             resolve(true)
         end)
-        overlay.Activated:Connect(function() resolve(false) end)
+        overlay.Activated:Connect(function() if serenityInputBlocked(overlay) then return end; resolve(false) end)
         if previousFocus then guiService.SelectedObject = cancel end
         animate(overlay, {BackgroundTransparency = 0.55})
         animate(card, {GroupTransparency = 0, Position = UDim2.fromScale(0.5, 0.5)})
@@ -3170,7 +3179,7 @@ do
             local dismiss=Instance.new("TextButton");dismiss.Size=UDim2.fromOffset(30,30)
             dismiss.Position=UDim2.new(1,-34,0,5);dismiss.BackgroundTransparency=1;dismiss.AutoButtonColor=false
             dismiss.Text="×";dismiss.Font=Enum.Font.GothamMedium;dismiss.TextColor3=Tokens.Color.TextMuted;dismiss.TextSize=18;dismiss.Parent=card
-            dismiss.MouseEnter:Connect(function() dismiss.TextColor3=Tokens.Color.Text end)
+            dismiss.MouseEnter:Connect(function() if serenityInputBlocked(dismiss) then return end; dismiss.TextColor3=Tokens.Color.Text end)
             dismiss.MouseLeave:Connect(function() dismiss.TextColor3=Tokens.Color.TextMuted end)
             local track=Instance.new("Frame");track.Size=UDim2.new(1,-32,0,1);track.Position=UDim2.new(0,16,1,-7)
             track.BorderSizePixel=0;track.BackgroundTransparency=0.75;track.BackgroundColor3=color;track.Parent=card
@@ -3178,7 +3187,7 @@ do
             local cardScale=Instance.new("UIScale");cardScale.Scale=toastScale();cardScale.Parent=card
             local entry={Frame=card,Scale=cardScale};table.insert(active,entry)
             if Motion.Reduced then card.Position=UDim2.new(1,-12,1,-12-(#active-1)*90*toastScale()) end
-            entry.Connection=dismiss.Activated:Connect(function() close(entry) end)
+            entry.Connection=dismiss.Activated:Connect(function() if serenityInputBlocked(dismiss) then return end; close(entry) end)
             entry.Progress=tweenService:Create(fill,TweenInfo.new(data.Duration,Enum.EasingStyle.Linear),{Size=UDim2.fromScale(0,1)})
             entry.Progress:Play();entry.Timer=later(data.Duration,function() entry.Timer=nil;close(entry) end)
             arrange()
@@ -3640,7 +3649,7 @@ local reset=Instance.new("TextButton")
 reset.Size=UDim2.new(1,0,0,36);reset.Text="Restore preferred appearance"
 reset.Font=Enum.Font.GothamMedium;reset.TextSize=12;reset.TextColor3=Tokens.Color.Text
 reset.Parent=appearance.Body;Material.Inset(reset,Tokens)
-reset.Activated:Connect(function() restoreAppearance(nil) end)
+reset.Activated:Connect(function() if serenityInputBlocked(reset) then return end; restoreAppearance(nil) end)
 local presets={
     {Name="Serenity Grimoire",Theme="Midnight",Mode="Basic",Palette="Match theme",Opacity=100,Edge=45,Blur=0,Color=Color3.fromRGB(171,149,104)},
     {Name="Aurora",Theme="Aurora",Mode="Enhanced",Palette="Aurora",Opacity=92,Edge=72,Blur=4,Color=Color3.fromRGB(77,193,215)},
@@ -3698,7 +3707,7 @@ previewSound.TextColor3=Tokens.Color.Text
 previewSound.AutoButtonColor=true
 previewSound.Parent=soundSection.Body
 Material.Inset(previewSound,Tokens)
-previewSound.Activated:Connect(function() deps.PlayUISound(true) end)
+previewSound.Activated:Connect(function() if serenityInputBlocked(previewSound) then return end; deps.PlayUISound(true) end)
 local gallery=Section.new(settingsCols.Right,deps,{Title="Preset gallery",Description="Click a swatch to apply the complete look."})
 local grid=Instance.new("Frame");grid.Size=UDim2.new(1,0,0,math.ceil(#presets/2)*73-8);grid.BackgroundTransparency=1;grid.Parent=gallery.Body
 local layout=Instance.new("UIGridLayout");layout.CellSize=UDim2.new(0.5,-5,0,65);layout.CellPadding=UDim2.fromOffset(10,8)
@@ -3717,7 +3726,7 @@ for i,preset in ipairs(presets) do
     badge:SetAttribute("FixedPresetColor",true)
     presetTiles[preset.Name]={Badge=badge,Stroke=stroke}
     Material.OptionHover(tile,Tokens,false,Motion)
-    runtime:TrackConnection(tile.Activated:Connect(function() usePreset(preset.Name) end))
+    runtime:TrackConnection(tile.Activated:Connect(function() if serenityInputBlocked(tile) then return end; usePreset(preset.Name) end))
 end
 
 -- Selection changes are reflected through the stored preset value, including custom edits.
@@ -3741,7 +3750,7 @@ do
                 Motion:Tween(part,"Hover",{BackgroundTransparency=active and 0.38 or 0.72})
             end
         end
-        runtime:TrackConnection(f.MouseEnter:Connect(function() feedback(true) end))
+        runtime:TrackConnection(f.MouseEnter:Connect(function() if serenityInputBlocked(f) then return end; feedback(true) end))
         runtime:TrackConnection(f.MouseLeave:Connect(function() feedback(false) end))
         return f
     end
@@ -3756,7 +3765,7 @@ do
         b.Parent=parent;Material.Inset(b,Tokens)
         runtime:TrackConnection(b.Activated:Connect(callback))
         local normal=b.BackgroundTransparency
-        runtime:TrackConnection(b.MouseEnter:Connect(function() Motion:Tween(b,"Hover",{BackgroundTransparency=0.05}) end))
+        runtime:TrackConnection(b.MouseEnter:Connect(function() if serenityInputBlocked(b) then return end; Motion:Tween(b,"Hover",{BackgroundTransparency=0.05}) end))
         runtime:TrackConnection(b.MouseLeave:Connect(function() Motion:Tween(b,"Hover",{BackgroundTransparency=normal}) end))
         return b
     end
@@ -3766,7 +3775,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.62";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.63";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3882,8 +3891,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.62"})
-    for i,data in ipairs({{"Top-center activity","Round activity counters, live clicker demo and expanding event alerts."},{"Quiet notifications","Smaller messages with restrained pixel details and readable type."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.63"})
+    for i,data in ipairs({{"Dynamic activity capsule","Slim live status expands for rewards, then settles back into place."},{"Focused filter choices","Opaque menus block underlying hover effects and keep one selection focus."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3917,7 +3926,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.62",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.63",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3927,7 +3936,7 @@ end
 do
     local player=game:GetService("Players").LocalPlayer
     local profile=app:AddPage({Id="Profile",Title="Profile",Icon="info",Group="System",Order=8})
-    app.ProfileButton.Activated:Connect(function() app:SelectPage("Profile") end)
+    app.ProfileButton.Activated:Connect(function() if serenityInputBlocked(ProfileButton) then return end; app:SelectPage("Profile") end)
     local lab=app:AddPage({Id="Playground",Title="Playground",Icon="settings",Group="System",Order=9})
     local function text(parent,message,height)
         local label=Typography.Label(parent,"Control",Tokens,message,UDim2.new(),UDim2.new(1,-20,0,height or 32),Tokens.Color.Text)
@@ -4188,16 +4197,16 @@ do
                 pending[icon]=Motion:Tween(icon,0.12,{Rotation=(active and not Motion.Reduced) and 3 or 0})
             end
         end
-        runtime:TrackConnection(target.MouseEnter:Connect(function() feedback(true) end))
+        runtime:TrackConnection(target.MouseEnter:Connect(function() if serenityInputBlocked(target) then return end; feedback(true) end))
         runtime:TrackConnection(target.MouseLeave:Connect(function() feedback(false) end))
-        runtime:TrackConnection(target.SelectionGained:Connect(function() feedback(true) end))
+        runtime:TrackConnection(target.SelectionGained:Connect(function() if serenityInputBlocked(target) then return end; feedback(true) end))
         runtime:TrackConnection(target.SelectionLost:Connect(function() feedback(false) end))
-        runtime:TrackConnection(target.Activated:Connect(function() feedback(false) end))
+        runtime:TrackConnection(target.Activated:Connect(function() if serenityInputBlocked(target) then return end; feedback(false) end))
     end
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.62 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.63 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
