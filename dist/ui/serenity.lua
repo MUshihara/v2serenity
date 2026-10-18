@@ -746,16 +746,38 @@ function Icons.Get(name)
     return Icons.Map[name] or Icons.Map.info
 end
 
+local discordBytes = "\137\080\078\071\013\010\026\010\000\000\000\013\073\072\068\082\000\000\000\096\000\000\000\096\008\006\000\000\000\226\152\119\056\000\000\000\006\098\075\071\068\000\255\000\255\000\255\160\189\167\147\000\000\007\135\073\068\065\084\120\156\237\157\107\172\093\069\025\134\159\217\080\045\160\080\048\020\106\075\079\041\002\210\082\169\128\182\133\054\165\085\049\018\021\047\137\049\214\107\172\070\052\193\018\073\212\038\218\024\196\250\195\160\008\018\019\012\074\240\022\139\134\168\137\183\018\091\032\177\252\192\210\096\065\173\008\216\026\133\010\148\182\156\222\207\227\143\057\109\119\247\125\239\181\102\239\150\051\079\114\126\156\189\215\204\251\173\111\246\204\172\053\235\155\111\065\038\147\201\100\050\153\076\038\147\201\100\050\153\076\223\008\131\020\087\039\000\151\000\179\129\103\066\008\119\245\073\247\099\192\105\192\122\224\161\016\194\011\253\208\029\056\234\084\245\163\234\247\213\191\170\035\030\102\088\157\210\007\027\166\169\187\171\116\071\212\071\213\239\169\031\086\039\167\182\161\111\168\199\171\139\213\155\212\199\108\207\119\251\096\211\237\029\216\177\081\253\134\186\080\061\046\181\077\165\162\030\167\094\169\222\161\062\219\193\201\086\179\071\157\154\208\182\169\163\026\221\176\213\216\104\139\213\074\217\054\149\054\007\168\231\003\031\007\062\004\156\089\160\170\155\067\008\203\026\212\127\042\113\220\158\000\188\012\056\169\230\144\157\192\094\224\121\224\217\016\194\246\006\117\220\004\092\087\192\182\127\003\119\002\119\132\016\030\047\080\207\033\010\053\192\104\247\188\026\248\012\176\168\104\125\163\236\000\110\006\206\001\134\070\255\038\002\227\186\172\103\047\240\052\240\047\224\041\224\113\224\179\192\201\037\216\040\176\026\184\021\248\117\008\097\164\215\138\122\118\152\122\021\112\011\048\189\215\058\094\034\252\003\184\038\132\176\186\151\194\061\053\128\058\009\216\008\156\218\075\249\151\032\207\000\051\067\008\255\235\182\096\175\147\202\173\100\231\087\051\017\248\118\047\005\187\238\001\234\213\192\061\189\136\141\001\174\010\033\252\166\155\002\093\053\128\122\034\240\040\113\098\204\212\243\004\113\040\218\213\105\129\110\135\160\047\146\157\223\138\179\137\062\234\152\142\123\128\058\013\120\012\024\223\157\077\099\142\221\192\140\016\194\019\157\028\220\077\015\088\073\118\126\039\140\007\190\222\233\193\029\245\000\245\141\192\186\078\143\207\032\048\047\132\240\096\187\003\059\237\001\095\035\059\191\027\002\113\196\104\075\219\006\080\175\000\222\084\208\160\177\200\034\181\173\223\218\254\170\213\053\192\194\050\044\026\131\060\016\066\088\208\234\128\150\061\064\093\064\118\126\017\230\171\045\253\215\110\008\250\124\137\198\140\085\090\250\176\233\016\164\190\150\120\215\155\039\223\098\008\204\010\033\108\108\244\101\171\030\176\140\236\252\050\008\192\181\173\190\172\195\024\173\176\133\250\167\078\153\222\024\006\038\135\016\182\213\126\209\172\007\044\033\059\191\076\078\036\062\170\173\163\089\015\088\079\140\213\201\148\199\134\016\066\157\079\235\122\128\058\155\236\252\020\092\164\190\190\246\195\070\067\208\007\251\096\204\088\101\073\237\007\071\012\065\106\000\158\004\146\197\230\140\113\054\003\067\033\004\015\126\080\219\003\230\144\157\159\146\179\128\185\213\031\212\054\192\187\251\103\203\152\229\093\213\255\212\054\192\219\251\104\200\088\229\008\031\031\106\000\117\008\152\209\007\003\030\001\062\069\012\232\170\132\016\002\048\153\056\065\221\215\007\253\063\001\031\001\166\134\081\128\105\192\082\224\207\125\208\159\049\250\120\247\072\212\165\093\006\173\118\203\030\245\218\118\001\174\234\123\212\231\018\232\111\087\091\094\225\169\193\232\135\023\019\232\087\243\137\070\226\063\074\040\184\071\189\178\211\159\136\058\067\125\186\068\253\023\212\075\187\208\191\076\221\081\162\126\045\063\110\036\186\057\161\224\039\059\061\249\042\123\022\168\251\075\208\030\081\187\158\219\212\247\150\160\221\140\045\181\098\211\018\138\173\237\246\228\171\236\186\173\004\253\159\020\208\191\167\004\253\102\012\193\225\073\120\110\011\059\138\242\213\002\101\087\002\251\007\168\127\067\065\237\086\204\129\195\013\112\073\034\145\255\000\247\246\090\056\132\176\025\232\185\007\001\235\155\061\008\233\080\255\033\098\048\090\010\046\133\195\013\080\183\072\084\018\247\021\217\188\112\176\142\002\101\215\020\212\046\170\223\138\217\112\184\001\046\076\036\242\183\018\234\216\116\012\235\183\226\066\128\138\250\042\224\140\068\034\117\251\180\122\096\231\128\245\119\148\080\071\035\038\169\019\042\192\185\137\004\160\156\088\210\034\117\148\161\127\066\009\117\052\227\220\010\113\051\092\042\166\149\080\199\217\199\176\126\059\206\169\144\054\222\255\178\001\215\081\134\254\188\018\234\104\198\080\133\184\016\150\138\025\234\204\094\011\171\039\003\111\046\160\191\080\157\088\064\127\136\209\203\197\068\076\169\000\147\018\010\000\092\095\160\236\053\020\139\206\024\071\220\027\220\043\215\209\251\070\198\078\056\019\245\254\132\183\219\170\007\212\249\221\090\166\014\025\023\209\138\178\203\024\229\215\173\254\044\187\079\107\208\045\107\042\164\223\110\090\001\126\106\023\057\032\212\087\002\119\083\206\174\246\241\192\047\140\151\219\157\234\159\014\172\034\166\068\072\201\105\021\098\238\133\212\076\006\238\087\047\110\119\160\122\022\113\249\162\204\177\247\002\096\173\218\246\146\219\152\243\098\045\112\126\137\250\205\056\165\066\255\034\224\166\002\235\212\111\169\117\233\013\212\137\234\114\224\047\192\027\018\232\207\004\030\086\111\080\095\221\064\127\138\122\035\049\137\211\005\009\244\027\241\138\160\238\006\094\222\039\193\106\254\078\188\205\063\064\188\094\159\009\244\043\055\207\008\113\145\237\159\196\208\156\233\068\167\247\059\024\121\056\168\035\003\016\206\068\246\087\200\206\031\036\149\148\215\184\153\014\168\016\199\224\204\096\216\087\033\102\150\202\012\134\189\021\098\110\131\204\096\024\174\144\238\129\067\166\061\059\043\064\221\190\165\076\223\216\086\001\158\075\040\240\036\176\039\097\253\169\217\069\204\186\152\138\231\043\192\214\068\149\223\069\188\187\029\002\086\016\115\110\030\043\060\005\044\039\198\243\207\002\126\158\072\103\043\234\007\060\050\151\114\025\236\181\038\022\212\152\198\248\029\234\221\198\037\226\163\141\093\234\207\212\183\089\147\174\088\125\167\071\230\185\046\075\239\125\007\005\102\027\243\037\151\205\239\108\016\020\171\158\162\046\081\087\169\219\018\232\118\202\054\163\211\151\024\159\190\213\218\057\079\253\099\002\221\013\234\172\090\177\241\198\132\213\101\004\196\086\051\162\254\074\189\188\081\031\052\246\140\249\234\151\213\223\155\182\065\182\171\171\213\021\198\224\223\134\217\120\213\069\234\111\019\232\239\083\087\170\135\022\063\235\214\129\212\185\192\237\164\009\214\122\016\248\014\176\042\132\208\240\254\195\184\081\240\053\192\069\196\021\202\243\136\171\165\083\136\241\075\237\194\068\118\019\019\169\110\038\094\004\108\034\174\124\110\000\054\053\139\212\083\079\002\222\015\124\026\104\251\220\162\007\030\006\150\142\134\059\182\070\029\167\126\065\221\153\224\087\160\250\195\094\207\066\061\193\248\236\096\122\205\223\025\198\180\154\189\214\251\203\068\231\186\093\253\156\122\124\047\070\077\049\110\220\040\115\002\026\177\139\205\018\253\194\248\174\128\050\057\160\254\192\152\230\185\176\113\115\212\053\037\025\086\191\059\228\040\193\242\122\193\031\212\242\035\206\213\183\170\235\010\024\246\162\241\153\239\081\137\122\158\197\034\033\030\080\023\247\195\208\183\168\247\246\096\224\242\228\198\021\068\189\177\203\115\026\049\094\049\045\026\132\177\023\171\119\218\217\141\220\035\106\234\048\143\194\024\039\249\077\029\156\207\176\241\213\038\175\027\180\205\168\167\171\215\219\252\069\061\251\060\010\039\222\102\024\039\228\003\045\126\072\203\140\175\084\057\250\080\231\170\183\168\255\173\050\250\043\131\182\171\091\212\111\086\217\191\197\248\038\168\020\247\007\105\048\190\077\233\010\245\075\246\114\013\060\096\140\043\003\043\212\203\077\240\246\164\076\038\147\201\100\050\153\076\038\147\201\100\050\153\001\240\127\198\110\234\048\180\057\119\096\000\000\000\000\073\069\078\068\174\066\096\130" -- Simple Icons, CC0; same compact mark as existing Serenity library.
+local discordUri
+local function loadDiscord(image)
+    local environment=type(getgenv)=="function" and getgenv() or _G
+    local custom=environment.getcustomasset or getcustomasset or environment.getsynasset or getsynasset
+    local write=environment.writefile or writefile
+    local exists=environment.isfile or isfile
+    if type(custom)~="function" or type(write)~="function" then return end
+    task.spawn(function()
+        local ok,uri=pcall(function()
+            if discordUri then return discordUri end
+            local path="Serenity_Discord_Mark_v1.png"
+            if type(exists)~="function" or not exists(path) then write(path,discordBytes) end
+            return custom(path)
+        end)
+        if ok and type(uri)=="string" and image.Parent then
+            discordUri=uri;image.Image=uri;image.ImageColor3=Color3.new(1,1,1)
+        end
+    end)
+end
+
 function Icons.Create(parent, name, size, color, position)
     local image = Instance.new("ImageLabel")
     image.Name = "Icon_" .. tostring(name)
     image.BackgroundTransparency = 1
-    image.Image = Icons.Get(name)
+    image.Image = name=="discord" and "" or Icons.Get(name)
     image.ImageColor3 = color or Color3.new(1, 1, 1)
     image.ScaleType = Enum.ScaleType.Fit
     image.Size = UDim2.fromOffset(size or 18, size or 18)
     if position then image.Position = position end
     image.Parent = parent
+    if name=="discord" then loadDiscord(image) end
     return image
 end
 
@@ -990,19 +1012,21 @@ function Section.new(parent, deps, props)
     deps.Runtime:TrackConnection(header.MouseLeave:Connect(function() runeFeedback(false) end))
 
     -- Opt-in feature groups preserve legacy section sizing and presentation.
+    local description
     if props.Description then
         title.Text = props.Title or "Section"
         title.TextColor3 = tokens.Color.Text
         title.TextTransparency = 0
         title.Position = UDim2.fromOffset(20, 0)
         title.Size = UDim2.new(1, -45, 1, 0)
-        local description = deps.Typography.Label(frame, "Description", tokens, props.Description,
+        description = deps.Typography.Label(frame, "Description", tokens, props.Description,
             UDim2.fromOffset(10, 0), UDim2.new(1, -20, 0, 34), tokens.Color.TextMuted)
         description.TextSize = 12
         description.TextColor3 = tokens.Color.TextMuted
         description.TextWrapped = true
         description.TextYAlignment = Enum.TextYAlignment.Center
         description.LayoutOrder = 2
+        description.Visible = props.Open ~= false
     end
     if props.Tooltip and deps.Help then
         local help = Instance.new("TextButton")
@@ -1064,6 +1088,7 @@ function Section.new(parent, deps, props)
         Frame = frame,
         Header = header,
         Body = body,
+        Description = description,
         Open = props.Open ~= false,
         Status = status,
         Caret = caret,
@@ -1087,6 +1112,7 @@ end
 function Section:SetOpen(value)
     self.Open = not not value
     self.Body.Visible = self.Open
+    if self.Description then self.Description.Visible=self.Open end
     if self.Caret then
         self.Caret.Image = self.Deps.Icons.Get(self.Open and "minus" or "plus")
     end
@@ -2701,7 +2727,10 @@ function Desktop.Mount(deps, options)
                 action.HideAfterDisable=true
                 return self:SetQuickAction(id,false)
             end
-            action.PanelEnabled=value;render(action);return true
+            local changed=action.PanelEnabled~=value
+            action.PanelEnabled=value;render(action)
+            if changed and value and self.Notify then self:Notify(action.Title.." panel","Use its switch to turn the feature on or off.",2,"Info") end
+            return true
         end
         local function setKey(action,key)
             if key~=nil then
@@ -3481,7 +3510,6 @@ end
 for _,entry in ipairs({{"fly","Fly",Enum.KeyCode.F},{"noclip","Noclip",Enum.KeyCode.N},{"esp","Player ESP",Enum.KeyCode.H}}) do
     local id,title,key=entry[1],entry[2],entry[3]
     app:RegisterQuickAction({Id=id,Title=title,KeyCode=key,Default=false,Callback=function(value)
-        app:Notify(title.." · preview",value and "Enabled in the UI preview." or "Disabled in the UI preview.",2,"Info")
         return true
     end})
 end
@@ -4047,7 +4075,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.66";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.67";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4175,8 +4203,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.66"})
-    for i,data in ipairs({{"Independent panel controls","Dashboard controls panel access; each panel controls its own feature."},{"Shortcuts & movable status","Click a key to rebind. Hold the status briefly to drag it."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.67"})
+    for i,data in ipairs({{"Quiet quick controls","Feature toggles stay quiet. A message appears only when opening a panel."},{"Compact sections & Discord","Closed sections hide their descriptions. Community uses the Discord mark."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4186,8 +4214,8 @@ do
         sub.TextWrapped=true;sub.TextYAlignment=Enum.TextYAlignment.Top
     end
     local community=card(dashboard,88,6)
-    Icons.Create(community,"webhook",23,Tokens.Color.Accent,UDim2.fromOffset(14,16))
-    local communityTitle=label(community,"Serenity community",48,10,-180,23,15)
+    Icons.Create(community,"discord",25,Tokens.Color.Accent,UDim2.fromOffset(14,16))
+    local communityTitle=label(community,"Serenity Hub Discord",48,10,-180,23,15)
     local communityText=label(community,"Help with keys, updates and premium.",48,36,-180,30,12,Tokens.Color.TextMuted)
     communityText.TextWrapped=true
     local join=button(community,"Join Discord  ↗",function()
@@ -4210,7 +4238,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.66",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.67",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4266,7 +4294,6 @@ do
     Slider.new(numbers.Body,deps,{Title="Delay (0–2 seconds)",Min=0,Max=2,Step=0.1,Default=0.5,Suffix="s",Callback=report})
     Slider.new(numbers.Body,deps,{Title="Signed (-50–50)",Min=-50,Max=50,Step=5,Default=0,Callback=report})
     local choices=Section.new(columns.Right,deps,{Title="Choices & filters",Collapsible=true,
-        Description="Long option lists and independent selections.",
         Tooltip="Dropdown options scroll inside their popup. Rare, Epic and Legendary can be selected together."})
     local options={};for i=1,30 do options[i]="Option "..i end
     local apiSelect=Select.new(choices.Body,deps,{Title="Scrollable options",Options=options,Default=options[1],Callback=report})
@@ -4492,7 +4519,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.66 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.67 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
