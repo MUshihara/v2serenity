@@ -1178,18 +1178,6 @@ function Toggle.new(parent, deps, props)
     switch.AnchorPoint = Vector2.new(1, 0.5)
     switch.Position = UDim2.new(1, -13, 0.5, 0)
     switch.Size = UDim2.fromOffset(38, 21)
-    if deps.Mobile then
-        local function alignSwitch()
-            local scale=deps.UIScale and deps.UIScale.Scale or 1
-            local width=row.AbsoluteSize.X/math.max(0.001,scale)
-            local right=math.min(width-13,310)
-            switch.Position=UDim2.new(0,right,0.5,0)
-            controlTitle.Size=UDim2.fromOffset(math.max(30,right-63),titleH)
-            controlTitle.TextTruncate=Enum.TextTruncate.AtEnd
-        end
-        deps.Runtime:TrackConnection(row:GetPropertyChangedSignal("AbsoluteSize"):Connect(alignSwitch))
-        task.defer(alignSwitch)
-    end
     switch.BorderSizePixel = 0
     switch.Parent = row
     local switchCorner = Instance.new("UICorner")
@@ -1498,7 +1486,7 @@ function Select.new(parent, deps, props)
     local tokens = deps.Tokens
     props = props or {}
     local hasDescription = props.Description and props.Description ~= ""
-    local height = hasDescription and tokens.Size.ControlWithDescription or tokens.Size.Select
+    local height = math.max(hasDescription and 76 or 58,hasDescription and tokens.Size.ControlWithDescription or tokens.Size.Select)
 
     local row = Instance.new("CanvasGroup")
     row.Name = props.Id or "Select"
@@ -2595,45 +2583,67 @@ function Desktop.Mount(deps, options)
     statusDock.MouseEnter:Connect(function() if serenityInputBlocked(statusDock) then return end; deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.3});if not UserInputService.TouchEnabled and not (app.StatusClickSuppressed and app:StatusClickSuppressed()) then expandStatus(true) end end)
     statusDock.MouseLeave:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.72});if not UserInputService.TouchEnabled then expandStatus(false) end end)
     do
-        local pointer,press,start,holdTimer
+        local pointer,press,holdTimer,follow,settle
         local dragging=false
         local suppressUntil=0
+        local originX,originY,currentX,currentY,targetX,targetY
         function app:StatusClickSuppressed() return dragging or os.clock()<suppressUntil end
         local function cancelHold()
             if holdTimer then pcall(task.cancel,holdTimer);holdTimer=nil end
         end
-        runtime:TrackCleanup(cancelHold)
+        local function stopFollow()
+            if follow then follow:Disconnect();follow=nil end
+        end
+        local function stopSettle()
+            if settle then settle:Cancel();settle=nil end
+        end
+        local function finishStatusDrag()
+            cancelHold();pointer=nil;stopFollow()
+            if dragging then
+                suppressUntil=os.clock()+0.4
+                stopSettle()
+                settle=deps.Motion:Tween(statusDock,0.1,{Position=UDim2.fromOffset(targetX,targetY)},Enum.EasingStyle.Quad)
+            end
+            dragging=false
+            deps.Motion:Tween(dockEdge,0.15,{Transparency=0.72})
+        end
         local function beginStatusDrag(input)
             if pointer or (input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch) then return end
             pointer=input;press=input.Position;dragging=false
             holdTimer=task.delay(0.35,function()
                 holdTimer=nil
                 if runtime.Destroyed or not pointer or not statusDock.Visible then return end
+                stopSettle()
+                local point=statusDock.AbsolutePosition-screen.AbsolutePosition
+                -- Capture the anchor once; changing capsule width must not shift its drag origin.
+                originX=point.X+statusDock.AbsoluteSize.X/2;originY=point.Y
+                currentX,currentY=originX,originY;targetX,targetY=originX,originY
                 dragging=true;suppressUntil=os.clock()+0.5
                 expandStatus(false)
-                start=statusDock.AbsolutePosition-screen.AbsolutePosition
                 deps.Motion:Tween(dockEdge,0.1,{Transparency=0.15})
+                follow=game:GetService("RunService").RenderStepped:Connect(function(dt)
+                    if runtime.Destroyed then stopFollow();return end
+                    local alpha=deps.Motion.Reduced and 1 or (1-math.exp(-30*dt))
+                    currentX=currentX+(targetX-currentX)*alpha
+                    currentY=currentY+(targetY-currentY)*alpha
+                    statusDock.Position=UDim2.fromOffset(currentX,currentY)
+                end)
             end)
         end
         runtime:TrackConnection(statusDock.InputBegan:Connect(beginStatusDrag))
         runtime:TrackConnection(statusDragHandle.InputBegan:Connect(beginStatusDrag))
         runtime:TrackConnection(UserInputService.InputChanged:Connect(function(input)
-            if not pointer then return end
+            if not pointer or not dragging then return end
             if pointer.UserInputType==Enum.UserInputType.Touch and input~=pointer then return end
             if pointer.UserInputType==Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.MouseMovement then return end
             local delta=input.Position-press
-            if not dragging then
-                return
-            end
-            statusDock.Position=UDim2.fromOffset(start.X+delta.X+statusDock.AbsoluteSize.X/2,start.Y+delta.Y)
+            targetX=originX+delta.X;targetY=originY+delta.Y
         end))
         runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input)
-            if input~=pointer then return end
-            cancelHold();pointer=nil
-            if dragging then suppressUntil=os.clock()+0.4 end
-            dragging=false
-            deps.Motion:Tween(dockEdge,0.15,{Transparency=0.72})
+            if input==pointer then finishStatusDrag() end
         end))
+        runtime:TrackConnection(UserInputService.WindowFocusReleased:Connect(finishStatusDrag))
+        runtime:TrackCleanup(function() cancelHold();stopFollow();stopSettle();pointer=nil;dragging=false end)
     end
     local function restoreFeedback(active)
         deps.Motion:Tween(restore,"Hover",{BackgroundColor3=active and tokens.Color.InsetHover or tokens.Color.Inset})
@@ -3246,9 +3256,9 @@ if deps.Mobile then
     Tokens.Size.SectionLabel=28
     Tokens.Size.NavRow=34
     Tokens.Size.NavGroup=20
-    Tokens.Size.Control=34
-    Tokens.Size.Slider=50
-    Tokens.Size.Select=48
+    Tokens.Size.Control=40
+    Tokens.Size.Slider=55
+    Tokens.Size.Select=58
 end
 
 local app = Desktop.Mount(deps, {
@@ -4111,7 +4121,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.68";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.69";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4239,8 +4249,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.68"})
-    for i,data in ipairs({{"Comfortable mobile spacing","Closer switches, compact section gaps and a clearer hub title."},{"Free floating placement","Drag beyond window edges. Reset all positions from Settings."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.69"})
+    for i,data in ipairs({{"Consistent mobile rows","Aligned switches and proper spacing above dropdowns."},{"Smooth status movement","Hold, then drag. The capsule follows smoothly without shifting as it shrinks."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4274,7 +4284,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.68",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.69",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4555,7 +4565,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.68 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.69 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
