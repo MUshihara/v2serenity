@@ -1534,7 +1534,7 @@ function Select.new(parent, deps, props)
     function self:_render()
         if self.Multi then
             local names={};for _,value in ipairs(self.Value) do table.insert(names,tostring(value)) end
-            self.Label.Text=#names>0 and table.concat(names,", ") or "Select options"
+            self.Label.Text=#names>2 and (tostring(#names).." selected") or (#names>0 and table.concat(names,", ") or "Select options")
             self.Label.TextTruncate=Enum.TextTruncate.AtEnd
         else self.Label.Text = tostring(self.Value or "Select") end
         if self.RefreshOpenChoices then self.RefreshOpenChoices() end
@@ -1553,7 +1553,10 @@ function Select.new(parent, deps, props)
         deps.PopupManager:Close()
 
         local width = math.max(180, math.floor(button.AbsoluteSize.X / math.max(0.001, (deps.UIScale and deps.UIScale.Scale) or 1)))
-        local heightPopup = math.min(230, 12 + (#self.Options * 34))
+        local searchable=props.Searchable~=false and (props.Searchable==true or #self.Options>6)
+        local top=searchable and 44 or 6
+        local footer=self.Multi and 36 or 0
+        local heightPopup = math.min(270, top+footer+6+math.max(34,#self.Options*34))
         local popup = Instance.new("Frame")
         popup.Size = UDim2.fromOffset(width, heightPopup)
         popup.Position = popupPosition(deps, button, width, heightPopup)
@@ -1564,8 +1567,8 @@ function Select.new(parent, deps, props)
         local scroller = Instance.new("ScrollingFrame")
         scroller.BackgroundTransparency = 1
         scroller.BorderSizePixel = 0
-        scroller.Position = UDim2.fromOffset(6, 6)
-        scroller.Size = UDim2.new(1, -12, 1, -12)
+        scroller.Position = UDim2.fromOffset(6, top)
+        scroller.Size = UDim2.new(1, -12, 1, -(top+footer+6))
         scroller.CanvasSize = UDim2.new()
         scroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroller.ScrollBarThickness = 2
@@ -1592,11 +1595,15 @@ function Select.new(parent, deps, props)
                 local active=target==entry
                 local emphasized=active or (selected and (self.Multi or not target))
                 local show=self.Multi and selected or (not self.Multi and (target and active or (not target and selected)))
-                -- Hide synchronously so a crossfade never leaves two single-select arrows.
+                local state=(active and 4 or 0)+(emphasized and 2 or 0)+(show and 1 or 0)
+                if entry.State~=state then
+                entry.State=state
+                -- Only changed rows animate; keep single-select markers exclusive.
                 for _,part in ipairs(entry.Pixels) do part.BackgroundTransparency=show and 0.15 or 1 end
                 entry.Button.BackgroundColor3=emphasized and tokens.Color.NavActive or tokens.Color.PanelSoft
                 deps.Motion:Tween(entry.Button,0.1,{BackgroundTransparency=active and 0 or (emphasized and 0.12 or 0.55)})
                 entry.Button.TextColor3=emphasized and tokens.Color.Text or tokens.Color.TextMuted
+                end
             end
         end
         self.RefreshOpenChoices=refreshChoices
@@ -1634,7 +1641,7 @@ function Select.new(parent, deps, props)
             item.MouseLeave:Connect(function() if hovered==entry then hovered=nil end;refreshChoices() end)
             item.SelectionGained:Connect(function() if serenityInputBlocked(item) then return end; focused=entry;refreshChoices() end)
             item.SelectionLost:Connect(function() if focused==entry then focused=nil end;refreshChoices() end)
-            item.MouseButton1Click:Connect(function() if serenityInputBlocked(item) then return end;
+            item.MouseButton1Click:Connect(function() if serenityInputBlocked(item) or not self.Enabled then return end;
                 if self.Multi then
                     local values=table.clone(self.Value);local index=table.find(values,option)
                     if index then table.remove(values,index) else table.insert(values,option) end
@@ -1644,7 +1651,50 @@ function Select.new(parent, deps, props)
                 end
             end)
         end
-        refreshChoices()
+        local empty=Instance.new("TextLabel")
+        empty.BackgroundTransparency=1;empty.Size=UDim2.new(1,0,0,34)
+        empty.TextColor3=tokens.Color.TextMuted;empty.TextSize=12;empty.Font=Enum.Font.Gotham
+        empty.ZIndex=82;empty.Parent=scroller
+        local function filter(query)
+            query=string.lower(query or "")
+            hovered=nil;focused=nil
+            local count=0
+            for _,entry in ipairs(entries) do
+                local visible=string.find(string.lower(tostring(entry.Option)),query,1,true)~=nil
+                entry.Button.Visible=visible
+                if visible then count=count+1 end
+            end
+            empty.Text=#entries==0 and "No options available" or "No matching options"
+            empty.Visible=count==0
+            scroller.CanvasPosition=Vector2.new()
+            refreshChoices()
+        end
+        if searchable then
+            local search=Instance.new("TextBox")
+            search.Name="OptionSearch";search.Text="";search.PlaceholderText="Search options…"
+            search.ClearTextOnFocus=false;search.TextSize=12;search.Font=Enum.Font.Gotham
+            search.TextColor3=tokens.Color.Text;search.PlaceholderColor3=tokens.Color.TextMuted
+            search.BackgroundColor3=tokens.Color.Inset;search.BorderSizePixel=0
+            search.Position=UDim2.fromOffset(6,6);search.Size=UDim2.new(1,-12,0,32)
+            search.ZIndex=82;search.Parent=popup
+            search:GetPropertyChangedSignal("Text"):Connect(function() filter(search.Text) end)
+        end
+        if self.Multi then
+            local function bulkButton(text,x,callback)
+                local action=Instance.new("TextButton")
+                action.Text=text;action.Font=Enum.Font.GothamMedium;action.TextSize=12
+                action.TextColor3=tokens.Color.Text;action.BackgroundColor3=tokens.Color.Inset
+                action.BorderSizePixel=0;action.AutoButtonColor=true;action.ZIndex=82
+                action.Position=UDim2.new(x,x==0 and 6 or 3,1,-34)
+                action.Size=UDim2.new(0.5,-9,0,28);action.Parent=popup
+                action.Activated:Connect(function()
+                    if self.Enabled and not serenityInputBlocked(action) then callback() end
+                end)
+            end
+            bulkButton("Select all",0,function() self:Set(table.clone(self.Options)) end)
+            bulkButton("Clear",0.5,function() self:Set({}) end)
+        end
+        filter("")
 
         deps.PopupManager:Set(popup)
     end)
@@ -4146,7 +4196,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.71";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.72";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4279,8 +4329,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.71"})
-    for i,data in ipairs({{"Quieter background work","Dashboard timing sleeps while hidden and catches up when reopened."},{"Batched responsive layout","Size changes share a layout pass; compact sections stay responsive."},{"Focus-aware animation","Decorative motion pauses outside Roblox and resumes on return."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.72"})
+    for i,data in ipairs({{"Search your dropdowns","Long lists include search and clear empty states."},{"Faster multi-selection","Select all, clear, and compact selected counts."},{"Lighter hover animation","Only changed option rows animate as you move."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4314,7 +4364,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.71",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.72",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4595,7 +4645,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.71 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.72 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
