@@ -1767,16 +1767,32 @@ function ColumnLayout.new(parent, deps, props)
         frame.Size = UDim2.new(1, 0, 0, narrow and (leftH + gap + rightH) or math.max(leftH, rightH))
     end
 
-    if deps.Runtime then
-        deps.Runtime:TrackConnection(leftList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refresh))
-        deps.Runtime:TrackConnection(rightList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refresh))
-    else
-        leftList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refresh)
-        rightList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refresh)
+    -- Coalesce size/content signals into one layout pass per scheduler turn.
+    local pending
+    local function scheduleRefresh()
+        if pending or (deps.Runtime and deps.Runtime.Destroyed) then return end
+        pending=task.defer(function()
+            pending=nil
+            if not deps.Runtime or not deps.Runtime.Destroyed then refresh() end
+        end)
     end
-
-    deps.Runtime:TrackConnection(frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(refresh))
-    task.defer(refresh)
+    local function observe(object,property)
+        local connection=object:GetPropertyChangedSignal(property):Connect(scheduleRefresh)
+        if deps.Runtime then deps.Runtime:TrackConnection(connection) end
+    end
+    observe(leftList,"AbsoluteContentSize")
+    observe(rightList,"AbsoluteContentSize")
+    local lastWidth
+    local widthConnection=frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+        local width=frame.AbsoluteSize.X
+        if width~=lastWidth then lastWidth=width;scheduleRefresh() end
+    end)
+    if deps.Runtime then
+        deps.Runtime:TrackConnection(widthConnection)
+        deps.Runtime:TrackCleanup(function() if pending then pcall(task.cancel,pending);pending=nil end end)
+    end
+    if deps.UIScale then observe(deps.UIScale,"Scale") end
+    scheduleRefresh()
     return self
 end
 
@@ -2355,7 +2371,7 @@ function Desktop.Mount(deps, options)
         if self.RefreshBrandMotion then self:RefreshBrandMotion() end
         if idleTween then idleTween:Cancel();idleTween=nil end
         idleScale.Scale=1
-        if not deps.Motion.Reduced and not runtime.Destroyed then
+        if not deps.Motion.Reduced and not runtime.Destroyed and not self.MotionSuspended then
             idleTween=game:GetService("TweenService"):Create(idleScale,TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Scale=1.045})
             idleTween:Play()
         end
@@ -3157,7 +3173,7 @@ function Desktop.Mount(deps, options)
         for _,pixel in ipairs(star:GetChildren()) do
             if pixel:IsA("Frame") then pixel.BackgroundTransparency=pixel==glow and 0.94 or 0 end
         end
-        if runtime.Destroyed or deps.Motion.Reduced or not holder.Visible then return end
+        if runtime.Destroyed or deps.Motion.Reduced or self.MotionSuspended or not holder.Visible then return end
         local service=game:GetService("TweenService")
         local halo=service:Create(glow,TweenInfo.new(2.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{BackgroundTransparency=0.86})
         table.insert(brandTweens,halo);halo:Play()
@@ -3191,6 +3207,12 @@ function Desktop.Mount(deps, options)
         for _,tween in ipairs(brandTweens) do tween:Cancel() end
         table.clear(brandTweens)
     end)
+    runtime:TrackConnection(UserInputService.WindowFocusReleased:Connect(function()
+        app.MotionSuspended=true;app:RefreshIconMotion()
+    end))
+    runtime:TrackConnection(UserInputService.WindowFocused:Connect(function()
+        app.MotionSuspended=false;app:RefreshIconMotion()
+    end))
     app:RefreshBrandMotion()
     return app
 end
@@ -4124,7 +4146,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.70";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.71";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4191,15 +4213,20 @@ do
     app:Tooltip(tiles[3],"This preview does not connect game automation, authentication or active-user services.")
     local timer
     local function updateSession()
-        if runtime.Destroyed then return end
-        if dashboard.Visible and app.Holder.Visible then
-            local elapsed=math.floor(os.clock()-started)
-            values[1].Text=string.format("%02d:%02d",math.floor(elapsed/60),elapsed%60)
-        end
+        timer=nil
+        if runtime.Destroyed or not dashboard.Visible or not app.Holder.Visible then return end
+        local elapsed=math.floor(os.clock()-started)
+        values[1].Text=string.format("%02d:%02d",math.floor(elapsed/60),elapsed%60)
         timer=task.delay(1,updateSession)
     end
-    updateSession()
-    runtime:TrackCleanup(function() if timer then pcall(task.cancel,timer) end end)
+    local function refreshSession()
+        if timer then pcall(task.cancel,timer);timer=nil end
+        updateSession()
+    end
+    runtime:TrackConnection(dashboard:GetPropertyChangedSignal("Visible"):Connect(refreshSession))
+    runtime:TrackConnection(app.Holder:GetPropertyChangedSignal("Visible"):Connect(refreshSession))
+    refreshSession()
+    runtime:TrackCleanup(function() if timer then pcall(task.cancel,timer);timer=nil end end)
 
     local workspaces=card(dashboard,118,4);workspaces.Name="DashboardWorkspaces"
     label(workspaces,"Quick Menu",14,9,-28,24,15)
@@ -4252,8 +4279,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.70"})
-    for i,data in ipairs({{"Compact section headings","Slim captions replace long filled bars, with quieter hover feedback."},{"Responsive content columns","Landscape uses balanced columns; narrow screens retain one column."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.71"})
+    for i,data in ipairs({{"Quieter background work","Dashboard timing sleeps while hidden and catches up when reopened."},{"Batched responsive layout","Size changes share a layout pass; compact sections stay responsive."},{"Focus-aware animation","Decorative motion pauses outside Roblox and resumes on return."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4287,7 +4314,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.70",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.71",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4568,7 +4595,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.70 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.71 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
