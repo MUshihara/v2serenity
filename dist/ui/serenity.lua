@@ -2323,6 +2323,110 @@ function Desktop.Mount(deps, options)
     local glint=Instance.new("Frame");glint.Name="TileHighlight"
     glint.Size=UDim2.new(1,-22,0,1);glint.Position=UDim2.fromOffset(11,2)
     glint.ZIndex=91;glint.BackgroundColor3=tokens.Color.Text;glint.BackgroundTransparency=0.82;glint.BorderSizePixel=0;glint.Parent=restore
+    local statusDock=Instance.new("TextButton")
+    statusDock.Name="SerenityStatusDock"
+    statusDock.Position=UDim2.new(0,68,0.5,-23)
+    statusDock.Size=UDim2.fromOffset(0,46)
+    statusDock.BackgroundColor3=tokens.Color.Panel
+    statusDock.BackgroundTransparency=0.06
+    statusDock.BorderSizePixel=0;statusDock.Text=""
+    statusDock.AutoButtonColor=false;statusDock.ClipsDescendants=true
+    statusDock.Visible=false;statusDock.ZIndex=88;statusDock.Parent=screen
+    corner(statusDock,5)
+    local dockEdge=Instance.new("UIStroke");dockEdge.Color=tokens.Color.Stroke
+    dockEdge.Transparency=0.32;dockEdge.Parent=statusDock
+    local dockAccent=Instance.new("Frame");dockAccent.Size=UDim2.fromOffset(2,27)
+    dockAccent.Position=UDim2.fromOffset(0,9);dockAccent.BorderSizePixel=0
+    dockAccent.BackgroundColor3=tokens.Color.Accent;dockAccent.ZIndex=89;dockAccent.Parent=statusDock
+    local dockBrand=deps.Typography.Label(statusDock,"Control",tokens,"SERENITY HUB",UDim2.fromOffset(12,4),UDim2.fromOffset(162,17),tokens.Color.TextDim)
+    dockBrand.Font=Enum.Font.GothamBold;dockBrand.TextSize=10;dockBrand.ZIndex=89
+    local dockActivity=deps.Typography.Label(statusDock,"Control",tokens,"Ready · waiting for activity",UDim2.fromOffset(12,22),UDim2.fromOffset(162,18),tokens.Color.Text)
+    dockActivity.TextSize=12;dockActivity.TextTruncate=Enum.TextTruncate.AtEnd;dockActivity.ZIndex=89
+    function app:SetStatus(value)
+        dockActivity.Text=tostring(value or "Ready · waiting for activity"):sub(1,80)
+    end
+    function app:IsMinimized() return not holder.Visible or self._Minimizing==true end
+    local windowTween,windowScaleTween,dockTween,transition= nil,nil,nil,0
+    local expandedPosition,expandedScale=holder.Position,uiScale.Scale
+    local function cancelTransition()
+        if windowTween then windowTween:Cancel();windowTween=nil end
+        if windowScaleTween then windowScaleTween:Cancel();windowScaleTween=nil end
+        if dockTween then dockTween:Cancel();dockTween=nil end
+    end
+    local function iconCenter()
+        local position=restore.AbsolutePosition+restore.AbsoluteSize/2-holder.Parent.AbsolutePosition
+        return UDim2.fromOffset(position.X,position.Y)
+    end
+    local function showDock()
+        statusDock.Visible=true
+        statusDock.Size=UDim2.fromOffset(0,46)
+        if deps.Motion.Reduced then statusDock.Size=UDim2.fromOffset(184,46);return end
+        dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Size=UDim2.fromOffset(184,46)})
+        dockTween:Play()
+    end
+    function app:SetVisible(visible)
+        if runtime.Destroyed then return end
+        visible=visible==true
+        transition=transition+1
+        local current=transition
+        cancelTransition()
+        deps.PopupManager:Close()
+        if visible then
+            self._Minimizing=false
+            if not holder.Visible and math.abs(uiScale.Scale-expandedScale)>0.001 then
+                -- An orientation or viewport change recalculated the hidden window size.
+                expandedPosition=holder.Position;expandedScale=uiScale.Scale
+            end
+            if statusDock.Visible then
+                if deps.Motion.Reduced then statusDock.Visible=false
+                else
+                    dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.16,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.fromOffset(0,46)})
+                    dockTween:Play()
+                    dockTween.Completed:Once(function() if transition==current then statusDock.Visible=false end end)
+                end
+            end
+            if not holder.Visible then
+                holder.Position=iconCenter()
+                uiScale.Scale=0.08
+                holder.Visible=true
+            end
+            if acrylic then acrylic:SetVisible(true) end
+            if deps.Motion.Reduced then
+                holder.Position=expandedPosition;uiScale.Scale=expandedScale
+            else
+                windowTween=game:GetService("TweenService"):Create(holder,TweenInfo.new(0.34,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Position=expandedPosition})
+                windowScaleTween=game:GetService("TweenService"):Create(uiScale,TweenInfo.new(0.34,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Scale=expandedScale})
+                windowTween:Play();windowScaleTween:Play()
+            end
+        else
+            if not self._Minimizing then
+                expandedPosition=holder.Position;expandedScale=uiScale.Scale
+            end
+            self._Minimizing=true
+            if acrylic then acrylic:SetVisible(false) end
+            if deps.Motion.Reduced then
+                holder.Visible=false;holder.Position=expandedPosition;uiScale.Scale=expandedScale
+                showDock()
+            else
+                windowTween=game:GetService("TweenService"):Create(holder,TweenInfo.new(0.29,Enum.EasingStyle.Quint,Enum.EasingDirection.In),{Position=iconCenter()})
+                windowScaleTween=game:GetService("TweenService"):Create(uiScale,TweenInfo.new(0.29,Enum.EasingStyle.Quint,Enum.EasingDirection.In),{Scale=0.08})
+                windowTween.Completed:Once(function()
+                    if runtime.Destroyed or transition~=current then return end
+                    holder.Visible=false
+                    holder.Position=expandedPosition;uiScale.Scale=expandedScale
+                    showDock()
+                end)
+                windowTween:Play();windowScaleTween:Play()
+            end
+        end
+    end
+    runtime:TrackCleanup(cancelTransition)
+    statusDock.Activated:Connect(function()
+        if deps.PlayUISound then deps.PlayUISound() end
+        app:SetVisible(true)
+    end)
+    statusDock.MouseEnter:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.08}) end)
+    statusDock.MouseLeave:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.32}) end)
     local function restoreFeedback(active)
         deps.Motion:Tween(restore,"Hover",{BackgroundColor3=active and tokens.Color.InsetHover or tokens.Color.Inset})
         deps.Motion:Tween(restoreEdge,"Hover",{Transparency=active and 0.25 or 0.65})
@@ -2343,7 +2447,6 @@ function Desktop.Mount(deps, options)
     minimize.Activated:Connect(function()
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(false)
-        restore.Visible=true
         emblemScale.Scale=deps.Motion.Reduced and 1 or 0.85
         emblem.Rotation=deps.Motion.Reduced and 0 or -8
         deps.Motion:Tween(emblemScale,0.24,{Scale=1})
@@ -2351,7 +2454,7 @@ function Desktop.Mount(deps, options)
     end)
     restore.Activated:Connect(function()
         if deps.PlayUISound then deps.PlayUISound() end
-        app:SetVisible(not holder.Visible)
+        app:SetVisible(app:IsMinimized())
     end)
 
     local function createSearchPopup(categoriesOnly)
@@ -2536,8 +2639,7 @@ function Desktop.Mount(deps, options)
             createSearchPopup()
         elseif input.KeyCode == Enum.KeyCode.RightControl then
             if deps.PlayUISound then deps.PlayUISound() end
-            app:SetVisible(not holder.Visible)
-            restore.Visible = true
+            app:SetVisible(app:IsMinimized())
         elseif input.KeyCode == Enum.KeyCode.Escape then
             deps.PopupManager:Close()
         end
@@ -2905,7 +3007,7 @@ do
     local function toastScale()
         return deps.Mobile and math.clamp(deps.UIScale.Scale*0.94,0.72,1) or 1
     end
-    local function capacity() return deps.Mobile and 2 or math.clamp(math.floor((root.AbsoluteSize.Y-32)/100),1,3) end
+    local function capacity() return deps.Mobile and 2 or math.clamp(math.floor((root.AbsoluteSize.Y-32)/90),1,3) end
     local function animate(entry,properties,duration)
         if entry.Tween then entry.Tween:Cancel() end
         entry.Tween=tweenService:Create(entry.Frame,TweenInfo.new(duration,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),properties)
@@ -2913,12 +3015,12 @@ do
     end
     arrange=function()
         local scale=toastScale()
-        local width=math.max(100,math.min(deps.Mobile and 286 or 326,(root.AbsoluteSize.X-24)/scale))
+        local width=math.max(100,math.min(deps.Mobile and 286 or 306,(root.AbsoluteSize.X-24)/scale))
         for i,entry in ipairs(active) do
             entry.Scale.Scale=scale
-            entry.Frame.Size=UDim2.fromOffset(width,88)
+            entry.Frame.Size=UDim2.fromOffset(width,78)
             if not entry.Closing then
-                animate(entry,{Position=UDim2.new(1,-12,1,-12-(i-1)*100*scale),GroupTransparency=0},Motion.Reduced and 0.12 or 0.3)
+                animate(entry,{Position=UDim2.new(1,-12,1,-12-(i-1)*90*scale),GroupTransparency=0},Motion.Reduced and 0.12 or 0.26)
             end
         end
     end
@@ -2939,38 +3041,31 @@ do
         while #active<capacity() and #queue>0 do
             local data=table.remove(queue,1)
             local card=Instance.new("CanvasGroup");card.AnchorPoint=Vector2.new(1,1)
-            card.Size=UDim2.fromOffset(326,88);card.Position=UDim2.new(1,350,1,-12)
+            card.Size=UDim2.fromOffset(306,78);card.Position=UDim2.new(1,330,1,-12)
             card.GroupTransparency=1;card.BackgroundColor3=Tokens.Color.PanelSoft
             card.BackgroundTransparency=0.02;card.BorderSizePixel=0;card.Parent=root
-            local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,7);corner.Parent=card
+            local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,3);corner.Parent=card
             local color=({Success=Tokens.Color.Mint,Warning=Tokens.Color.Amber,Error=Tokens.Color.Red})[data.Kind] or Tokens.Color.Accent
-            local stroke=Instance.new("UIStroke");stroke.Color=Tokens.Color.Stroke;stroke.Transparency=0.16;stroke.Thickness=1;stroke.Parent=card
-            local rail=Instance.new("Frame");rail.Size=UDim2.fromOffset(3,54);rail.Position=UDim2.fromOffset(0,14)
-            rail.BorderSizePixel=0;rail.BackgroundColor3=color;rail.Parent=card
-            local iconTile=Instance.new("Frame");iconTile.Position=UDim2.fromOffset(15,15);iconTile.Size=UDim2.fromOffset(30,30)
-            iconTile.BorderSizePixel=0;iconTile.BackgroundColor3=Tokens.Color.Inset;iconTile.Parent=card
-            local tileCorner=Instance.new("UICorner");tileCorner.CornerRadius=UDim.new(0,4);tileCorner.Parent=iconTile
-            local tileStroke=Instance.new("UIStroke");tileStroke.Color=color;tileStroke.Transparency=0.55;tileStroke.Parent=iconTile
-            local icon=Instance.new("TextLabel");icon.BackgroundTransparency=1
-            icon.Size=UDim2.fromScale(1,1);icon.Text=({Success="✓",Warning="!",Error="×"})[data.Kind] or "✦"
-            icon.TextColor3=color;icon.Font=Enum.Font.GothamBold;icon.TextSize=18;icon.Parent=iconTile
-            local title=Typography.Label(card,"Control",Tokens,data.Title,UDim2.fromOffset(55,12),UDim2.new(1,-98,0,23),Tokens.Color.Text)
-            title.Font=Enum.Font.GothamBold;title.TextSize=13;title.TextTruncate=Enum.TextTruncate.AtEnd
-            local body=Typography.Label(card,"Control",Tokens,data.Message,UDim2.fromOffset(55,35),UDim2.new(1,-75,0,36),Tokens.Color.TextMuted)
+            local stroke=Instance.new("UIStroke");stroke.Color=Tokens.Color.Stroke;stroke.Transparency=0.35;stroke.Thickness=1;stroke.Parent=card
+            local mark=Instance.new("Frame");mark.Size=UDim2.fromOffset(13,2);mark.Position=UDim2.fromOffset(16,12)
+            mark.BorderSizePixel=0;mark.BackgroundColor3=color;mark.Parent=card
+            local notch=Instance.new("Frame");notch.Size=UDim2.fromOffset(3,3);notch.Position=UDim2.fromOffset(16,16)
+            notch.BorderSizePixel=0;notch.BackgroundColor3=color;notch.BackgroundTransparency=0.3;notch.Parent=card
+            local title=Typography.Label(card,"Control",Tokens,data.Title,UDim2.fromOffset(37,9),UDim2.new(1,-76,0,23),Tokens.Color.Text)
+            title.Font=Enum.Font.GothamBold;title.TextSize=14;title.TextTruncate=Enum.TextTruncate.AtEnd
+            local body=Typography.Label(card,"Control",Tokens,data.Message,UDim2.fromOffset(16,34),UDim2.new(1,-48,0,29),Tokens.Color.TextMuted)
             body.TextWrapped=true;body.TextYAlignment=Enum.TextYAlignment.Top;body.TextSize=12;body.TextTruncate=Enum.TextTruncate.AtEnd
-            local dismiss=Instance.new("TextButton");dismiss.Size=UDim2.fromOffset(32,32)
-            dismiss.Position=UDim2.new(1,-36,0,5);dismiss.BackgroundColor3=Tokens.Color.Inset
-            dismiss.BackgroundTransparency=0.45;dismiss.AutoButtonColor=false
-            dismiss.Text="×";dismiss.Font=Enum.Font.GothamMedium;dismiss.TextColor3=Tokens.Color.TextMuted;dismiss.TextSize=19;dismiss.Parent=card
-            local closeCorner=Instance.new("UICorner");closeCorner.CornerRadius=UDim.new(0,4);closeCorner.Parent=dismiss
-            dismiss.MouseEnter:Connect(function() tweenService:Create(dismiss,TweenInfo.new(0.12),{BackgroundTransparency=0,TextColor3=Tokens.Color.Text}):Play() end)
-            dismiss.MouseLeave:Connect(function() tweenService:Create(dismiss,TweenInfo.new(0.12),{BackgroundTransparency=0.45,TextColor3=Tokens.Color.TextMuted}):Play() end)
-            local track=Instance.new("Frame");track.Size=UDim2.new(1,-69,0,2);track.Position=UDim2.new(0,55,1,-11)
+            local dismiss=Instance.new("TextButton");dismiss.Size=UDim2.fromOffset(30,30)
+            dismiss.Position=UDim2.new(1,-34,0,5);dismiss.BackgroundTransparency=1;dismiss.AutoButtonColor=false
+            dismiss.Text="×";dismiss.Font=Enum.Font.GothamMedium;dismiss.TextColor3=Tokens.Color.TextMuted;dismiss.TextSize=18;dismiss.Parent=card
+            dismiss.MouseEnter:Connect(function() dismiss.TextColor3=Tokens.Color.Text end)
+            dismiss.MouseLeave:Connect(function() dismiss.TextColor3=Tokens.Color.TextMuted end)
+            local track=Instance.new("Frame");track.Size=UDim2.new(1,-32,0,1);track.Position=UDim2.new(0,16,1,-7)
             track.BorderSizePixel=0;track.BackgroundTransparency=0.75;track.BackgroundColor3=color;track.Parent=card
             local fill=Instance.new("Frame");fill.Size=UDim2.fromScale(1,1);fill.BorderSizePixel=0;fill.BackgroundColor3=color;fill.Parent=track
             local cardScale=Instance.new("UIScale");cardScale.Scale=toastScale();cardScale.Parent=card
             local entry={Frame=card,Scale=cardScale};table.insert(active,entry)
-            if Motion.Reduced then card.Position=UDim2.new(1,-12,1,-12-(#active-1)*100*toastScale()) end
+            if Motion.Reduced then card.Position=UDim2.new(1,-12,1,-12-(#active-1)*90*toastScale()) end
             entry.Connection=dismiss.Activated:Connect(function() close(entry) end)
             entry.Progress=tweenService:Create(fill,TweenInfo.new(data.Duration,Enum.EasingStyle.Linear),{Size=UDim2.fromScale(0,1)})
             entry.Progress:Play();entry.Timer=later(data.Duration,function() entry.Timer=nil;close(entry) end)
@@ -3559,7 +3654,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.59";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.60";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3675,8 +3770,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.59"})
-    for i,data in ipairs({{"Clearer notifications","A compact status tile, accent edge and easier-to-read message."},{"New Serenity sound","Your new click sound plays for categories and confirmations."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.60"})
+    for i,data in ipairs({{"Living minimize state","The window folds into its star and leaves a compact activity card."},{"Quiet notifications","Smaller messages with restrained pixel details and readable type."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3710,7 +3805,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.59",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.60",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3821,11 +3916,15 @@ do
                 else report("Cancelled — counter kept at "..count) end
             end})
     end)
-    local notifications=Section.new(columns.Left,deps,{Title="Notifications · 2026-10-07"})
-    text(notifications.Body,"Test only: bottom-right slide-in, queue, timer, close button. Dashboard unchanged.",48)
+    local notifications=Section.new(columns.Left,deps,{Title="Notifications & status"})
+    text(notifications.Body,"Test the smaller alerts and the activity card beside the star when minimized.",48)
     button(notifications.Body,"Show success notification",function() app:Notify("Saved","Your test notification is outside the main window.",5,"Success") end)
     button(notifications.Body,"Test queue (5 messages)",function() for i=1,5 do app:Notify("Queued message "..i,"At most three cards display at once.",4,"Info") end end)
-    button(notifications.Body,"Show notification, then minimize",function() app:Notify("Still visible","Notifications stay visible while the main UI is minimized.",8,"Warning"); end)
+    button(notifications.Body,"Preview minimized status",function()
+        app:SetStatus("Playground · sample running")
+        app:SetVisible(false)
+    end)
+    button(notifications.Body,"Reset activity status",function() app:SetStatus() end)
 
 end
 
@@ -3955,7 +4054,9 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.59 SOUND + NOTIFICATION TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.60 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+
+return app
 
 
 
