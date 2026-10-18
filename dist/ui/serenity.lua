@@ -2903,9 +2903,9 @@ do
         timers[thread]=true;return thread
     end
     local function toastScale()
-        return deps.Mobile and math.clamp(deps.UIScale.Scale*0.9,0.55,1) or 1
+        return deps.Mobile and math.clamp(deps.UIScale.Scale*0.94,0.72,1) or 1
     end
-    local function capacity() return deps.Mobile and 2 or math.clamp(math.floor((root.AbsoluteSize.Y-32)/104),1,3) end
+    local function capacity() return deps.Mobile and 2 or math.clamp(math.floor((root.AbsoluteSize.Y-32)/100),1,3) end
     local function animate(entry,properties,duration)
         if entry.Tween then entry.Tween:Cancel() end
         entry.Tween=tweenService:Create(entry.Frame,TweenInfo.new(duration,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),properties)
@@ -2913,12 +2913,12 @@ do
     end
     arrange=function()
         local scale=toastScale()
-        local width=math.max(100,math.min(deps.Mobile and 290 or 320,(root.AbsoluteSize.X-32)/scale))
+        local width=math.max(100,math.min(deps.Mobile and 286 or 326,(root.AbsoluteSize.X-24)/scale))
         for i,entry in ipairs(active) do
             entry.Scale.Scale=scale
-            entry.Frame.Size=UDim2.fromOffset(width,94)
+            entry.Frame.Size=UDim2.fromOffset(width,88)
             if not entry.Closing then
-                animate(entry,{Position=UDim2.new(1,-16,1,-16-(i-1)*104*scale),GroupTransparency=0},Motion.Reduced and 0.12 or 0.28)
+                animate(entry,{Position=UDim2.new(1,-12,1,-12-(i-1)*100*scale),GroupTransparency=0},Motion.Reduced and 0.12 or 0.3)
             end
         end
     end
@@ -2939,29 +2939,38 @@ do
         while #active<capacity() and #queue>0 do
             local data=table.remove(queue,1)
             local card=Instance.new("CanvasGroup");card.AnchorPoint=Vector2.new(1,1)
-            card.Size=UDim2.fromOffset(320,94);card.Position=UDim2.new(1,340,1,-16)
+            card.Size=UDim2.fromOffset(326,88);card.Position=UDim2.new(1,350,1,-12)
             card.GroupTransparency=1;card.BackgroundColor3=Tokens.Color.PanelSoft
-            card.BackgroundTransparency=0.04;card.BorderSizePixel=0;card.Parent=root
-            local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,12);corner.Parent=card
+            card.BackgroundTransparency=0.02;card.BorderSizePixel=0;card.Parent=root
+            local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,7);corner.Parent=card
             local color=({Success=Tokens.Color.Mint,Warning=Tokens.Color.Amber,Error=Tokens.Color.Red})[data.Kind] or Tokens.Color.Accent
-            local stroke=Instance.new("UIStroke");stroke.Color=color;stroke.Transparency=0.55;stroke.Parent=card
+            local stroke=Instance.new("UIStroke");stroke.Color=Tokens.Color.Stroke;stroke.Transparency=0.16;stroke.Thickness=1;stroke.Parent=card
+            local rail=Instance.new("Frame");rail.Size=UDim2.fromOffset(3,54);rail.Position=UDim2.fromOffset(0,14)
+            rail.BorderSizePixel=0;rail.BackgroundColor3=color;rail.Parent=card
+            local iconTile=Instance.new("Frame");iconTile.Position=UDim2.fromOffset(15,15);iconTile.Size=UDim2.fromOffset(30,30)
+            iconTile.BorderSizePixel=0;iconTile.BackgroundColor3=Tokens.Color.Inset;iconTile.Parent=card
+            local tileCorner=Instance.new("UICorner");tileCorner.CornerRadius=UDim.new(0,4);tileCorner.Parent=iconTile
+            local tileStroke=Instance.new("UIStroke");tileStroke.Color=color;tileStroke.Transparency=0.55;tileStroke.Parent=iconTile
             local icon=Instance.new("TextLabel");icon.BackgroundTransparency=1
-            icon.Position=UDim2.fromOffset(12,10);icon.Size=UDim2.fromOffset(24,24)
-            icon.Text=({Success="✓",Warning="!",Error="×"})[data.Kind] or "i"
-            icon.TextColor3=color;icon.Font=Enum.Font.GothamBold;icon.TextSize=19;icon.Parent=card
-            local title=Typography.Label(card,"Control",Tokens,data.Title,UDim2.fromOffset(44,10),UDim2.new(1,-88,0,24),Tokens.Color.Text)
+            icon.Size=UDim2.fromScale(1,1);icon.Text=({Success="✓",Warning="!",Error="×"})[data.Kind] or "✦"
+            icon.TextColor3=color;icon.Font=Enum.Font.GothamBold;icon.TextSize=18;icon.Parent=iconTile
+            local title=Typography.Label(card,"Control",Tokens,data.Title,UDim2.fromOffset(55,12),UDim2.new(1,-98,0,23),Tokens.Color.Text)
             title.Font=Enum.Font.GothamBold;title.TextSize=13;title.TextTruncate=Enum.TextTruncate.AtEnd
-            local body=Typography.Label(card,"Control",Tokens,data.Message,UDim2.fromOffset(16,37),UDim2.new(1,-32,0,40),Tokens.Color.TextMuted)
+            local body=Typography.Label(card,"Control",Tokens,data.Message,UDim2.fromOffset(55,35),UDim2.new(1,-75,0,36),Tokens.Color.TextMuted)
             body.TextWrapped=true;body.TextYAlignment=Enum.TextYAlignment.Top;body.TextSize=12;body.TextTruncate=Enum.TextTruncate.AtEnd
-            local dismiss=Instance.new("TextButton");dismiss.Size=UDim2.fromOffset(44,36)
-            dismiss.Position=UDim2.new(1,-44,0,2);dismiss.BackgroundTransparency=1
-            dismiss.Text="×";dismiss.TextColor3=Tokens.Color.TextMuted;dismiss.TextSize=22;dismiss.Parent=card
-            local track=Instance.new("Frame");track.Size=UDim2.new(1,-32,0,2);track.Position=UDim2.new(0,16,1,-9)
+            local dismiss=Instance.new("TextButton");dismiss.Size=UDim2.fromOffset(32,32)
+            dismiss.Position=UDim2.new(1,-36,0,5);dismiss.BackgroundColor3=Tokens.Color.Inset
+            dismiss.BackgroundTransparency=0.45;dismiss.AutoButtonColor=false
+            dismiss.Text="×";dismiss.Font=Enum.Font.GothamMedium;dismiss.TextColor3=Tokens.Color.TextMuted;dismiss.TextSize=19;dismiss.Parent=card
+            local closeCorner=Instance.new("UICorner");closeCorner.CornerRadius=UDim.new(0,4);closeCorner.Parent=dismiss
+            dismiss.MouseEnter:Connect(function() tweenService:Create(dismiss,TweenInfo.new(0.12),{BackgroundTransparency=0,TextColor3=Tokens.Color.Text}):Play() end)
+            dismiss.MouseLeave:Connect(function() tweenService:Create(dismiss,TweenInfo.new(0.12),{BackgroundTransparency=0.45,TextColor3=Tokens.Color.TextMuted}):Play() end)
+            local track=Instance.new("Frame");track.Size=UDim2.new(1,-69,0,2);track.Position=UDim2.new(0,55,1,-11)
             track.BorderSizePixel=0;track.BackgroundTransparency=0.75;track.BackgroundColor3=color;track.Parent=card
             local fill=Instance.new("Frame");fill.Size=UDim2.fromScale(1,1);fill.BorderSizePixel=0;fill.BackgroundColor3=color;fill.Parent=track
             local cardScale=Instance.new("UIScale");cardScale.Scale=toastScale();cardScale.Parent=card
             local entry={Frame=card,Scale=cardScale};table.insert(active,entry)
-            if Motion.Reduced then card.Position=UDim2.new(1,-16,1,-16-(#active-1)*104*toastScale()) end
+            if Motion.Reduced then card.Position=UDim2.new(1,-12,1,-12-(#active-1)*100*toastScale()) end
             entry.Connection=dismiss.Activated:Connect(function() close(entry) end)
             entry.Progress=tweenService:Create(fill,TweenInfo.new(data.Duration,Enum.EasingStyle.Linear),{Size=UDim2.fromScale(0,1)})
             entry.Progress:Play();entry.Timer=later(data.Duration,function() entry.Timer=nil;close(entry) end)
@@ -3550,7 +3559,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.58";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.59";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -3666,8 +3675,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.58"})
-    for i,data in ipairs({{"New Serenity sound","Your new click sound plays for categories, confirmations and window controls."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."},{"Consistent control methods","Read values, hide controls and refresh choices."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.59"})
+    for i,data in ipairs({{"Clearer notifications","A compact status tile, accent edge and easier-to-read message."},{"New Serenity sound","Your new click sound plays for categories and confirmations."},{"Modern pixel grimoire","Stepped section bars, fields, switches and slider thumbs."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -3701,7 +3710,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.58",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.59",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -3946,7 +3955,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.58 SOUND TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.59 SOUND + NOTIFICATION TEST | Playground: help tips & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 
 
