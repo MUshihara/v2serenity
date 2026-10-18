@@ -956,7 +956,7 @@ function Section.new(parent, deps, props)
     frame.Parent = parent
 
     local stack = Instance.new("UIListLayout")
-    stack.Padding = UDim.new(0, 6)
+    stack.Padding = UDim.new(0, deps.Mobile and 4 or 6)
     stack.SortOrder = Enum.SortOrder.LayoutOrder
     stack.Parent = frame
 
@@ -1147,7 +1147,7 @@ function Toggle.new(parent, deps, props)
 
     local titleY = hasDescription and 6 or 0
     local titleH = hasDescription and 19 or height
-    deps.Typography.Label(
+    local controlTitle=deps.Typography.Label(
         row,
         "Control",
         tokens,
@@ -1178,6 +1178,18 @@ function Toggle.new(parent, deps, props)
     switch.AnchorPoint = Vector2.new(1, 0.5)
     switch.Position = UDim2.new(1, -13, 0.5, 0)
     switch.Size = UDim2.fromOffset(38, 21)
+    if deps.Mobile then
+        local function alignSwitch()
+            local scale=deps.UIScale and deps.UIScale.Scale or 1
+            local width=row.AbsoluteSize.X/math.max(0.001,scale)
+            local right=math.min(width-13,310)
+            switch.Position=UDim2.new(0,right,0.5,0)
+            controlTitle.Size=UDim2.fromOffset(math.max(30,right-63),titleH)
+            controlTitle.TextTruncate=Enum.TextTruncate.AtEnd
+        end
+        deps.Runtime:TrackConnection(row:GetPropertyChangedSignal("AbsoluteSize"):Connect(alignSwitch))
+        task.defer(alignSwitch)
+    end
     switch.BorderSizePixel = 0
     switch.Parent = row
     local switchCorner = Instance.new("UICorner")
@@ -1823,8 +1835,7 @@ local function makeDraggable(runtime, frame, handles)
         local parentSize,size=frame.Parent.AbsoluteSize,frame.AbsoluteSize
         local x=start.X.Scale*parentSize.X+start.X.Offset+delta.X
         local y=start.Y.Scale*parentSize.Y+start.Y.Offset+delta.Y
-        target=UDim2.fromOffset(math.clamp(x,size.X/2,math.max(size.X/2,parentSize.X-size.X/2)),
-            math.clamp(y,size.Y/2,math.max(size.Y/2,parentSize.Y-size.Y/2)))
+        target=UDim2.fromOffset(x,y)
         local style=runtime.ReducedMotion and "Direct" or runtime.DragStyle
         if style=="Outline" then
             if not ghost then
@@ -1914,7 +1925,6 @@ function Desktop.Mount(deps, options)
             uiScale.Scale = 1
             holder.Size = UDim2.fromOffset(math.min(tokens.Size.Window.X, math.max(320, viewport.X - 24)), math.min(tokens.Size.Window.Y, math.max(240, viewport.Y - inset.Y - 24)))
         end
-        holder.Position = UDim2.fromScale(0.5, 0.5)
         deps.PopupManager:Close()
     end
     local cameraConnection
@@ -2568,28 +2578,32 @@ function Desktop.Mount(deps, options)
         end
     end
     runtime:TrackCleanup(cancelTransition)
-    statusDock.Activated:Connect(function() if serenityInputBlocked(statusDock) then return end;
+    local statusDragHandle=Instance.new("TextButton")
+    statusDragHandle.Name="StatusDragHandle";statusDragHandle.Text="";statusDragHandle.AutoButtonColor=false
+    statusDragHandle.BackgroundTransparency=1;statusDragHandle.Size=UDim2.new(1,-38,0,52)
+    statusDragHandle.Active=true;statusDragHandle.ZIndex=94;statusDragHandle.Parent=statusDock
+    local statusRestoreGate=0
+    local function activateStatus()
         if app.StatusClickSuppressed and app:StatusClickSuppressed() then return end
+        if os.clock()<statusRestoreGate then return end
+        statusRestoreGate=os.clock()+0.2
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(true)
-    end)
+    end
+    statusDock.Activated:Connect(activateStatus)
+    statusDragHandle.Activated:Connect(activateStatus)
     statusDock.MouseEnter:Connect(function() if serenityInputBlocked(statusDock) then return end; deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.3});if not UserInputService.TouchEnabled and not (app.StatusClickSuppressed and app:StatusClickSuppressed()) then expandStatus(true) end end)
     statusDock.MouseLeave:Connect(function() deps.Motion:Tween(dockEdge,"Hover",{Transparency=0.72});if not UserInputService.TouchEnabled then expandStatus(false) end end)
     do
         local pointer,press,start,holdTimer
         local dragging=false
         local suppressUntil=0
-        local function clampStatus()
-            local bounds,size=screen.AbsoluteSize,statusDock.AbsoluteSize
-            local point=statusDock.AbsolutePosition-screen.AbsolutePosition
-            statusDock.Position=UDim2.fromOffset(math.clamp(point.X+size.X/2,size.X/2+6,math.max(size.X/2+6,bounds.X-size.X/2-6)),math.clamp(point.Y,6,math.max(6,bounds.Y-size.Y-6)))
-        end
         function app:StatusClickSuppressed() return dragging or os.clock()<suppressUntil end
         local function cancelHold()
             if holdTimer then pcall(task.cancel,holdTimer);holdTimer=nil end
         end
         runtime:TrackCleanup(cancelHold)
-        runtime:TrackConnection(statusDock.InputBegan:Connect(function(input)
+        local function beginStatusDrag(input)
             if pointer or (input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch) then return end
             pointer=input;press=input.Position;dragging=false
             holdTimer=task.delay(0.35,function()
@@ -2600,18 +2614,18 @@ function Desktop.Mount(deps, options)
                 start=statusDock.AbsolutePosition-screen.AbsolutePosition
                 deps.Motion:Tween(dockEdge,0.1,{Transparency=0.15})
             end)
-        end))
+        end
+        runtime:TrackConnection(statusDock.InputBegan:Connect(beginStatusDrag))
+        runtime:TrackConnection(statusDragHandle.InputBegan:Connect(beginStatusDrag))
         runtime:TrackConnection(UserInputService.InputChanged:Connect(function(input)
             if not pointer then return end
             if pointer.UserInputType==Enum.UserInputType.Touch and input~=pointer then return end
             if pointer.UserInputType==Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.MouseMovement then return end
             local delta=input.Position-press
             if not dragging then
-                if delta.Magnitude>8 then cancelHold() end
                 return
             end
             statusDock.Position=UDim2.fromOffset(start.X+delta.X+statusDock.AbsoluteSize.X/2,start.Y+delta.Y)
-            clampStatus()
         end))
         runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input)
             if input~=pointer then return end
@@ -2619,10 +2633,6 @@ function Desktop.Mount(deps, options)
             if dragging then suppressUntil=os.clock()+0.4 end
             dragging=false
             deps.Motion:Tween(dockEdge,0.15,{Transparency=0.72})
-        end))
-        runtime:TrackConnection(screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(clampStatus))
-        runtime:TrackConnection(statusDock:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-            if statusDock.Visible then clampStatus() end
         end))
     end
     local function restoreFeedback(active)
@@ -2646,10 +2656,7 @@ function Desktop.Mount(deps, options)
     local iconDragged=false
     local suppressIconClickUntil=0
     local function placeIcon(position)
-        local bounds,size=screen.AbsoluteSize,restore.AbsoluteSize
-        restore.Position=UDim2.fromOffset(
-            math.clamp(position.X,4,math.max(4,bounds.X-size.X-4)),
-            math.clamp(position.Y,4,math.max(4,bounds.Y-size.Y-4)))
+        restore.Position=UDim2.fromOffset(position.X,position.Y)
     end
     runtime:TrackConnection(restore.InputBegan:Connect(function(input)
         if iconPointer or (input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch) then return end
@@ -2680,6 +2687,14 @@ function Desktop.Mount(deps, options)
             statusDock.Size=dockSize()
         end
     end))
+    function app:ResetFloatingPositions()
+        holder.Position=UDim2.fromScale(0.5,0.5)
+        expandedPosition=holder.Position
+        statusDock.Position=UDim2.new(0.5,0,0,8)
+        restore.Position=UDim2.new(0,12,0.5,-25)
+        if self.ResetQuickPanelPositions then self:ResetQuickPanelPositions() end
+        if not holder.Visible then self:SetVisible(true) end
+    end
     minimize.Activated:Connect(function() if serenityInputBlocked(minimize) then return end;
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(false)
@@ -2688,8 +2703,14 @@ function Desktop.Mount(deps, options)
         deps.Motion:Tween(emblemScale,0.24,{Scale=1})
         deps.Motion:Tween(emblem,0.24,{Rotation=0})
     end)
+    local lastRestoreTap=0
     restore.Activated:Connect(function() if serenityInputBlocked(restore) then return end;
         if iconDragged or os.clock()<suppressIconClickUntil then return end
+        local now=os.clock()
+        if lastRestoreTap>0 and now-lastRestoreTap<0.4 then
+            lastRestoreTap=0;app:ResetFloatingPositions();return
+        end
+        lastRestoreTap=now
         if deps.PlayUISound then deps.PlayUISound() end
         app:SetVisible(app:IsMinimized())
     end)
@@ -2697,19 +2718,12 @@ function Desktop.Mount(deps, options)
     do
         local actions,order,observers={},{},{}
         local capturing,captureTimer
-        local function clampPanel(panel)
-            local bounds=screen.AbsoluteSize
-            local size=panel.AbsoluteSize
-            local point=panel.AbsolutePosition-screen.AbsolutePosition
-            panel.Position=UDim2.fromOffset(math.clamp(point.X,6,math.max(6,bounds.X-size.X-6)),math.clamp(point.Y,6,math.max(6,bounds.Y-size.Y-6)))
-        end
         local function sizePanel(action)
             local width=action.Minimized and 170 or 272
             local height=action.Minimized and 36 or (action.PanelBuilder and 106 or 64)
             action.Panel.Size=UDim2.fromOffset(math.min(width,math.max(100,screen.AbsoluteSize.X-12)),height)
             action.Body.Visible=not action.Minimized;action.Caption.Visible=not action.Minimized;action.KeyButton.Visible=not action.Minimized
             action.Collapse.Text=action.Minimized and "+" or "−"
-            clampPanel(action.Panel)
         end
         local function render(action)
             action.Panel.Visible=action.PanelEnabled
@@ -2837,13 +2851,18 @@ function Desktop.Mount(deps, options)
                 if dragInput.UserInputType==Enum.UserInputType.Touch and input~=dragInput then return end
                 if dragInput.UserInputType==Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.MouseMovement then return end
                 local delta=input.Position-origin
-                panel.Position=UDim2.fromOffset(start.X+delta.X,start.Y+delta.Y);clampPanel(panel)
+                panel.Position=UDim2.fromOffset(start.X+delta.X,start.Y+delta.Y)
             end))
             runtime:TrackConnection(UserInputService.InputEnded:Connect(function(input) if input==dragInput then dragInput=nil end end))
             if options.KeyCode then
                 local ok,reason=setKey(action,options.KeyCode);assert(ok,reason)
             end
             sizePanel(action);render(action);return action
+        end
+        function app:ResetQuickPanelPositions()
+            for index,id in ipairs(order) do
+                actions[id].Panel.Position=UDim2.new(0,14,0.5,(index-1)*72-110)
+            end
         end
         runtime:TrackConnection(screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
             for _,id in ipairs(order) do sizePanel(actions[id]) end
@@ -3078,17 +3097,26 @@ function Desktop.Mount(deps, options)
     sidebar.Position=UDim2.new();sidebar.Size=UDim2.new(0,tokens.Size.Sidebar,1,0)
     topbar.Position=UDim2.fromOffset(tokens.Size.Sidebar,0)
     topbar.Size=UDim2.new(1,-tokens.Size.Sidebar,0,tokens.Size.Topbar)
-    heading.Parent=sidebar;heading.TextSize=deps.Mobile and 11 or 13;heading.Position=UDim2.fromOffset(deps.Mobile and 44 or 54,15)
+    heading.Parent=sidebar;heading.TextSize=13;heading.Position=UDim2.fromOffset(deps.Mobile and 44 or 54,15)
     heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-(deps.Mobile and 50 or 64),22)
     star.Parent=sidebar;star.Position=UDim2.fromOffset(16,17);star.Size=UDim2.fromOffset(26,26)
     brandSub.Parent=sidebar;brandSub.Position=UDim2.fromOffset(54,37);brandSub.Text="Interface preview"
     brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,16)
+    heading.TextTruncate=Enum.TextTruncate.AtEnd
+    brandSub.TextTruncate=Enum.TextTruncate.AtEnd
+    if deps.Mobile then
+        heading.Position=UDim2.fromOffset(46,12)
+        heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-50,24)
+        brandSub.Position=UDim2.fromOffset(16,39)
+        brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-30,15)
+        brandSub.TextSize=10
+    end
     pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(deps.Mobile and 160 or 190,40)
     pageButton.BackgroundTransparency=1;pageText.TextSize=17;pageText.TextColor3=tokens.Color.Text
     navHolder.Position=UDim2.fromOffset(10,66)
     navHolder.Size=UDim2.new(1,-20,1,-(66+tokens.Size.SidebarUser+8))
-    content.Position=UDim2.fromOffset(tokens.Size.Sidebar+20,tokens.Size.Topbar+4)
-    content.Size=UDim2.new(1,-(tokens.Size.Sidebar+40),1,-(tokens.Size.Topbar+14))
+    content.Position=UDim2.fromOffset(tokens.Size.Sidebar+(deps.Mobile and 12 or 20),tokens.Size.Topbar+4)
+    content.Size=UDim2.new(1,-(tokens.Size.Sidebar+(deps.Mobile and 24 or 40)),1,-(tokens.Size.Topbar+14))
     -- A static divider replaces the bright full-window glass rim.
     local divider=Instance.new("Frame");divider.BorderSizePixel=0
     divider.Position=UDim2.fromOffset(tokens.Size.Sidebar,0);divider.Size=UDim2.new(0,1,1,0)
@@ -3215,11 +3243,12 @@ if deps.Mobile then
     Tokens.Size.Window=Vector2.new(viewport.X<viewport.Y and 430 or 700,420)
     Tokens.Size.Topbar=48
     Tokens.Size.Sidebar=156
+    Tokens.Size.SectionLabel=28
     Tokens.Size.NavRow=34
     Tokens.Size.NavGroup=20
-    Tokens.Size.Control=40
-    Tokens.Size.Slider=55
-    Tokens.Size.Select=54
+    Tokens.Size.Control=34
+    Tokens.Size.Slider=50
+    Tokens.Size.Select=48
 end
 
 local app = Desktop.Mount(deps, {
@@ -3991,9 +4020,16 @@ presetControl=Select.new(presetSection.Body,deps,{Title="Choose a preset",Option
     if v=="Custom" then selectedPreset=v;highlightPreset();saveAppearance() else usePreset(v) end
 end})
 runtime:TrackConnection(presetControl.Frame:GetPropertyChangedSignal("Visible"):Connect(highlightPreset))
-local dragSection=Section.new(settingsCols.Left,deps,{Title="Window movement",Tooltip="Outline shows the destination before moving. Smooth follows the pointer softly. Direct follows immediately. Reduced motion always uses Direct."})
+local dragSection=Section.new(settingsCols.Left,deps,{Title="Window movement",Tooltip="Drag freely beyond the screen edges. Double-tap the floating star or use Reset all floating positions to recover. Outline previews movement; Smooth glides; Direct follows immediately."})
 dragControl=Select.new(dragSection.Body,deps,{Title="Drag style",Options={"Outline","Smooth","Direct"},Default="Outline",Callback=function(v) runtime.DragStyle=v;saveAppearance() end})
 reducedMotionToggle(dragSection.Body)
+do
+    local reset=Instance.new("TextButton");reset.Size=UDim2.new(1,0,0,34)
+    reset.Text="Reset all floating positions";reset.TextSize=12;reset.Font=Enum.Font.GothamMedium
+    reset.TextColor3=Tokens.Color.Text;reset.BackgroundColor3=Tokens.Color.PanelSoft
+    reset.BorderSizePixel=0;reset.AutoButtonColor=false;reset.Parent=dragSection.Body
+    reset.Activated:Connect(function() app:ResetFloatingPositions() end)
+end
 local soundSection=Section.new(settingsCols.Left,deps,{Title="Interface sounds",Description="Gentle cues for categories, confirmations and window controls."})
 Toggle.new(soundSection.Body,deps,{Title="Interface sounds",Default=uiSoundsEnabled,Callback=function(v) uiSoundsEnabled=v;saveAppearance() end})
 Slider.new(soundSection.Body,deps,{Title="Sound volume",Min=0,Max=100,Step=5,Default=uiSoundVolume,Suffix="%",Callback=function(v) uiSoundVolume=v;saveAppearance() end})
@@ -4075,7 +4111,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.67";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.68";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4203,8 +4239,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.67"})
-    for i,data in ipairs({{"Quiet quick controls","Feature toggles stay quiet. A message appears only when opening a panel."},{"Compact sections & Discord","Closed sections hide their descriptions. Community uses the Discord mark."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.68"})
+    for i,data in ipairs({{"Comfortable mobile spacing","Closer switches, compact section gaps and a clearer hub title."},{"Free floating placement","Drag beyond window edges. Reset all positions from Settings."},{"New Serenity sound","Your new click sound plays for key interactions."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4238,7 +4274,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.67",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.68",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4519,7 +4555,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.67 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.68 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
