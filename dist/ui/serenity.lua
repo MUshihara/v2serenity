@@ -1002,7 +1002,11 @@ function Section.new(parent, deps, props)
         wing.BackgroundColor3=props.Accent or tokens.Color.Accent;wing.BackgroundTransparency=0.45;wing.Parent=underline
         table.insert(wings,wing)
     end
+    deps.SectionRunes=deps.SectionRunes or setmetatable({}, {__mode="k"})
+    local rune={Mark=underline,Wings=wings,Hovered=false}
+    deps.SectionRunes[header]=rune
     local function runeFeedback(active)
+        rune.Hovered=active
         deps.Motion:Tween(underline,0.14,{BackgroundTransparency=active and 0 or 0.32})
         for _,wing in ipairs(wings) do deps.Motion:Tween(wing,0.14,{BackgroundTransparency=active and 0.1 or 0.45}) end
         deps.Motion:Tween(headerEdge,0.14,{Transparency=active and 0.88 or 1})
@@ -3342,6 +3346,101 @@ local app = Desktop.Mount(deps, {
     BlurSize = 3,
 })
 
+-- One optional music reader drives visible section runes; no game audio is modified.
+do
+    local soundService=game:GetService("SoundService")
+    local candidates=setmetatable({}, {__mode="k"})
+    local enabled=false
+    local explicit,source,follow,added,removed
+    local amplitude,elapsed,pickElapsed=0,0,1
+    local function resetRunes()
+        for header,rune in pairs(deps.SectionRunes or {}) do
+            if header.Parent then
+                rune.Mark.BackgroundTransparency=rune.Hovered and 0 or 0.32
+                for _,wing in ipairs(rune.Wings) do wing.BackgroundTransparency=rune.Hovered and 0.1 or 0.45 end
+            end
+        end
+    end
+    local function audible(sound)
+        return sound and sound.Parent and sound:IsA("Sound") and sound.IsPlaying and sound.Volume>0
+    end
+    local function pickSource()
+        if explicit then return audible(explicit) and explicit or nil end
+        if audible(source) then return source end
+        local chosen,rank=nil,-1
+        for sound in pairs(candidates) do
+            if audible(sound) then
+                local name=string.lower(sound.Name)
+                local named=name:find("music",1,true) or name:find("bgm",1,true) or name:find("soundtrack",1,true)
+                local score=(named and 2 or 0)+(sound.Looped and 1 or 0)
+                if score>0 and score>rank then chosen,rank=sound,score end
+            end
+        end
+        return chosen
+    end
+    local function stop()
+        if follow then follow:Disconnect();follow=nil end
+        if added then added:Disconnect();added=nil end
+        if removed then removed:Disconnect();removed=nil end
+        table.clear(candidates);source=nil;amplitude=0;elapsed=0;pickElapsed=1
+        resetRunes()
+    end
+    function app:SetMusicSource(sound)
+        if sound~=nil and (typeof(sound)~="Instance" or not sound:IsA("Sound")) then return false end
+        explicit=sound;source=nil;pickElapsed=1
+        return true
+    end
+    function app:SetMusicReactive(value)
+        enabled=value==true
+        stop()
+        if not enabled or runtime.Destroyed then return end
+        -- Automatic fallback is scoped to SoundService, avoiding world-wide polling.
+        for _,object in ipairs(soundService:GetDescendants()) do
+            if object:IsA("Sound") then candidates[object]=true end
+        end
+        added=soundService.DescendantAdded:Connect(function(object)
+            if object:IsA("Sound") then candidates[object]=true;pickElapsed=1 end
+        end)
+        removed=soundService.DescendantRemoving:Connect(function(object)
+            candidates[object]=nil
+            if source==object then source=nil;pickElapsed=1 end
+        end)
+        follow=game:GetService("RunService").Heartbeat:Connect(function(dt)
+            if runtime.Destroyed then return end
+            if Motion.Reduced or app.MotionSuspended or not app.Holder.Visible then
+                if amplitude~=0 then amplitude=0;resetRunes() end
+                return
+            end
+            elapsed=elapsed+dt
+            if elapsed<1/30 then return end
+            local step=elapsed;elapsed=0
+            pickElapsed=pickElapsed+step
+            if pickElapsed>=1 then source=pickSource();pickElapsed=0 end
+            local target=audible(source) and math.clamp(source.PlaybackLoudness/450,0,1) or 0
+            amplitude=amplitude+(target-amplitude)*(1-math.exp(-step*(target>amplitude and 18 or 7)))
+            if target==0 and amplitude<0.005 then
+                if amplitude~=0 then amplitude=0;resetRunes() end
+                return
+            end
+            for header,rune in pairs(deps.SectionRunes or {}) do
+                local visible=true
+                local ancestor=header
+                while ancestor and ancestor~=app.Holder do
+                    if ancestor:IsA("GuiObject") and not ancestor.Visible then visible=false;break end
+                    ancestor=ancestor.Parent
+                end
+                if visible and header.Parent then
+                    rune.Mark.BackgroundTransparency=math.max(0,(rune.Hovered and 0 or 0.32)-amplitude*0.28)
+                    for _,wing in ipairs(rune.Wings) do
+                        wing.BackgroundTransparency=math.max(0.04,(rune.Hovered and 0.1 or 0.45)-amplitude*0.36)
+                    end
+                end
+            end
+        end)
+    end
+    runtime:TrackCleanup(stop)
+end
+
 -- TEST ONLY: do not migrate production or legacy dashboards without explicit release approval.
 -- Shared interaction layer: event-driven help and one confirmation at a time.
 do
@@ -4116,6 +4215,7 @@ do
     reset.Activated:Connect(function() app:ResetFloatingPositions() end)
 end
 local soundSection=Section.new(settingsCols.Left,deps,{Title="Interface sounds",Description="Gentle cues for categories, confirmations and window controls."})
+Toggle.new(soundSection.Body,deps,{Title="Music-reactive runes",Default=false,Description="Softly follow game music. Supports Sound tracks; stops with Reduced motion.",Callback=function(v) app:SetMusicReactive(v) end})
 Toggle.new(soundSection.Body,deps,{Title="Interface sounds",Default=uiSoundsEnabled,Callback=function(v) uiSoundsEnabled=v;saveAppearance() end})
 Slider.new(soundSection.Body,deps,{Title="Sound volume",Min=0,Max=100,Step=5,Default=uiSoundVolume,Suffix="%",Callback=function(v) uiSoundVolume=v;saveAppearance() end})
 previewSound=Instance.new("TextButton")
@@ -4196,7 +4296,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.72";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.73";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4329,8 +4429,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.72"})
-    for i,data in ipairs({{"Search your dropdowns","Long lists include search and clear empty states."},{"Faster multi-selection","Select all, clear, and compact selected counts."},{"Lighter hover animation","Only changed option rows animate as you move."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.73"})
+    for i,data in ipairs({{"Music-reactive section runes","Optional in Interface sounds; gentle pulses follow game music."},{"One shared music reader","Visible headings share a capped update loop; no extra sounds play."},{"Game-specific audio support","Games can bind their music Sound directly; Reduced motion pauses pulses."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4364,7 +4464,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.72",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.73",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4645,7 +4745,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.72 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.73 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
