@@ -2441,47 +2441,58 @@ function Desktop.Mount(deps, options)
     statusDock.Position=UDim2.new(0.5,0,0,8)
     statusDock.Size=UDim2.fromOffset(0,52)
     statusDock.BackgroundColor3=tokens.Color.ShellDeep:Lerp(Color3.new(0,0,0),0.6)
-    statusDock.BackgroundTransparency=0
+    statusDock.BackgroundTransparency=1
     statusDock.BorderSizePixel=0;statusDock.Text=""
     statusDock.AutoButtonColor=false;statusDock.ClipsDescendants=true
     statusDock.Visible=false;statusDock.ZIndex=88;statusDock.Parent=screen
     corner(statusDock,24)
+    local statusBody=Instance.new("Frame");statusBody.Name="StatusBody"
+    statusBody.Position=UDim2.fromOffset(58,0);statusBody.Size=UDim2.new(1,-58,1,0)
+    statusBody.BackgroundColor3=statusDock.BackgroundColor3;statusBody.BorderSizePixel=0
+    statusBody.ZIndex=88;statusBody.Parent=statusDock;corner(statusBody,22)
     local dockEdge=Instance.new("UIStroke");dockEdge.Color=tokens.Color.Stroke
-    dockEdge.Transparency=0.72;dockEdge.Parent=statusDock
+    dockEdge.Transparency=0.72;dockEdge.Parent=statusBody
     -- Compact live activity: one title, one metric line, and a quiet activity glyph.
     local statusRow=Instance.new("Frame")
-    statusRow.BackgroundTransparency=1;statusRow.Size=UDim2.fromScale(1,1)
+    statusRow.BackgroundTransparency=1;statusRow.Position=UDim2.fromOffset(58,0);statusRow.Size=UDim2.new(1,-58,1,0)
     statusRow.ZIndex=89;statusRow.Parent=statusDock
     local activityTile=Instance.new("Frame")
-    activityTile.BackgroundColor3=tokens.Color.Accent;activityTile.BackgroundTransparency=0.88
-    activityTile.BorderSizePixel=0;activityTile.Size=UDim2.fromOffset(30,30)
-    activityTile.Position=UDim2.fromOffset(10,9);activityTile.ZIndex=90;activityTile.Parent=statusRow
-    corner(activityTile,10)
+    activityTile.Name="StatusActivityOrb"
+    activityTile.BackgroundColor3=statusDock.BackgroundColor3;activityTile.BackgroundTransparency=0
+    activityTile.BorderSizePixel=0;activityTile.Size=UDim2.fromOffset(46,46)
+    activityTile.Position=UDim2.fromOffset(2,3);activityTile.ZIndex=90;activityTile.Parent=statusDock
+    corner(activityTile,23)
+    local orbEdge=Instance.new("UIStroke");orbEdge.Color=tokens.Color.Accent
+    orbEdge.Transparency=0.55;orbEdge.Thickness=1;orbEdge.Parent=activityTile
+    local orbInset=Instance.new("Frame");orbInset.BackgroundColor3=tokens.Color.Accent
+    orbInset.BackgroundTransparency=0.93;orbInset.BorderSizePixel=0
+    orbInset.Size=UDim2.fromOffset(34,34);orbInset.Position=UDim2.fromOffset(6,6)
+    orbInset.ZIndex=90;orbInset.Parent=activityTile;corner(orbInset,17)
     local activityBars={}
     for i=1,4 do
         local bar=Instance.new("Frame");bar.BorderSizePixel=0
         bar.BackgroundColor3=tokens.Color.Accent;bar.AnchorPoint=Vector2.new(0,0.5)
-        bar.Position=UDim2.new(0,6+(i-1)*5,0.5,0);bar.Size=UDim2.fromOffset(3,6+i*2)
+        bar.Position=UDim2.new(0,14+(i-1)*5,0.5,0);bar.Size=UDim2.fromOffset(3,6+i*2)
         bar.ZIndex=91;bar.Parent=activityTile;corner(bar,2);activityBars[i]=bar
     end
-    local dockActivity=deps.Typography.Label(statusRow,"Control",tokens,"Auto clicker",UDim2.fromOffset(50,6),UDim2.new(1,-108,0,19),tokens.Color.Text)
+    local dockActivity=deps.Typography.Label(statusRow,"Control",tokens,"Auto clicker",UDim2.fromOffset(14,7),UDim2.new(1,-65,0,19),tokens.Color.Text)
     dockActivity.TextSize=13;dockActivity.Font=Enum.Font.GothamSemibold
     dockActivity.TextTruncate=Enum.TextTruncate.AtEnd;dockActivity.ZIndex=90
-    local dockMetrics=deps.Typography.Label(statusRow,"Control",tokens,"0 clicks  ·  0 rewards",UDim2.fromOffset(50,25),UDim2.new(1,-65,0,16),tokens.Color.TextMuted)
+    local dockMetrics=deps.Typography.Label(statusRow,"Control",tokens,"0 clicks  ·  0 rewards",UDim2.fromOffset(14,27),UDim2.new(1,-50,0,16),tokens.Color.TextMuted)
     dockMetrics.TextSize=11;dockMetrics.ZIndex=90;dockMetrics.TextTruncate=Enum.TextTruncate.AtEnd
     local dockTime=deps.Typography.Label(statusRow,"Control",tokens,"0s",UDim2.new(1,-52,0,8),UDim2.fromOffset(37,17),tokens.Color.Accent)
     dockTime.TextSize=11;dockTime.TextXAlignment=Enum.TextXAlignment.Right;dockTime.ZIndex=90
     local statusEvent=Instance.new("Frame");statusEvent.BackgroundTransparency=1
-    statusEvent.Size=UDim2.fromScale(1,1);statusEvent.Visible=false;statusEvent.ZIndex=89;statusEvent.Parent=statusDock
-    local eventIcon=deps.Icons.Create(statusEvent,"inventory",26,tokens.Color.Mint,UDim2.fromOffset(16,23));eventIcon.ZIndex=90
-    local eventTitle=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(54,15),UDim2.new(1,-68,0,21),tokens.Color.Text)
+    statusEvent.Position=UDim2.fromOffset(58,0);statusEvent.Size=UDim2.new(1,-58,1,0);statusEvent.Visible=false;statusEvent.ZIndex=89;statusEvent.Parent=statusDock
+    local eventIcon=deps.Icons.Create(statusEvent,"inventory",18,tokens.Color.Mint,UDim2.fromOffset(14,14));eventIcon.ZIndex=90
+    local eventTitle=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(40,10),UDim2.new(1,-54,0,21),tokens.Color.Text)
     eventTitle.Font=Enum.Font.GothamBold;eventTitle.TextSize=14;eventTitle.ZIndex=90
-    local eventBody=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(54,38),UDim2.new(1,-68,0,30),tokens.Color.TextMuted)
+    local eventBody=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(14,36),UDim2.new(1,-28,0,30),tokens.Color.TextMuted)
     eventBody.TextSize=12;eventBody.TextWrapped=true;eventBody.TextYAlignment=Enum.TextYAlignment.Top;eventBody.ZIndex=90
     local statusExpanded=false
     local statusDetails={"No active task", "Start a demo from Playground"}
     local details=Instance.new("Frame");details.BackgroundTransparency=1
-    details.Position=UDim2.fromOffset(14,49);details.Size=UDim2.new(1,-28,0,60)
+    details.Position=UDim2.fromOffset(14,56);details.Size=UDim2.new(1,-28,0,60)
     details.Visible=false;details.ZIndex=90;details.Parent=statusRow
     local detailText=deps.Typography.Label(details,"Control",tokens,table.concat(statusDetails,"\n"),UDim2.fromOffset(0,0),UDim2.new(1,0,0,37),tokens.Color.TextMuted)
     detailText.TextSize=12;detailText.TextWrapped=true;detailText.TextYAlignment=Enum.TextYAlignment.Top;detailText.ZIndex=91
@@ -2500,7 +2511,34 @@ function Desktop.Mount(deps, options)
         bar.Position=UDim2.fromOffset((i-1)*4,2);bar.Rotation=i==1 and 40 or -40
         bar.BackgroundColor3=tokens.Color.TextMuted;bar.ZIndex=93;bar.Parent=chevron
     end
-    dockMetrics.Size=UDim2.new(1,-95,0,16)
+    dockMetrics.Size=UDim2.new(1,-50,0,16)
+    local progressTrack=Instance.new("Frame");progressTrack.Name="StatusProgress"
+    progressTrack.BackgroundColor3=tokens.Color.Stroke;progressTrack.BackgroundTransparency=0.83
+    progressTrack.BorderSizePixel=0;progressTrack.Position=UDim2.new(0,14,0,47)
+    progressTrack.Size=UDim2.new(1,-28,0,2);progressTrack.Visible=false
+    progressTrack.ZIndex=90;progressTrack.Parent=statusRow;corner(progressTrack,1)
+    local progressFill=Instance.new("Frame");progressFill.BorderSizePixel=0
+    progressFill.BackgroundColor3=tokens.Color.Accent;progressFill.BackgroundTransparency=0.18
+    progressFill.Size=UDim2.fromScale(0,1);progressFill.ZIndex=91;progressFill.Parent=progressTrack
+    corner(progressFill,1)
+    local progressTween
+    function app:SetStatusProgress(value)
+        if runtime.Destroyed then return end
+        if progressTween then progressTween:Cancel();progressTween=nil end
+        local number=tonumber(value)
+        if not number or number~=number then progressTrack.Visible=false;return end
+        progressTrack.Visible=true
+        local target=UDim2.fromScale(math.clamp(number,0,1),1)
+        if statusDock.Visible and not deps.Motion.Reduced then
+            progressTween=deps.Motion:Tween(progressFill,0.2,{Size=target})
+        else progressFill.Size=target end
+    end
+    function app:SetStatusSummary(summary,time)
+        if runtime.Destroyed then return end
+        dockMetrics.Text=tostring(summary or ""):sub(1,120)
+        dockTime.Text=tostring(time or ""):sub(1,12)
+    end
+    runtime:TrackCleanup(function() if progressTween then progressTween:Cancel();progressTween=nil end end)
     function app:SetStatusDetails(lines)
         assert(type(lines)=="table","SetStatusDetails expects an array of strings")
         statusDetails={}
@@ -2540,7 +2578,7 @@ function Desktop.Mount(deps, options)
         return UDim2.fromOffset(statusDock.AbsolutePosition.X-screen.AbsolutePosition.X+statusDock.AbsoluteSize.X/2,statusDock.AbsolutePosition.Y-screen.AbsolutePosition.Y+statusDock.AbsoluteSize.Y/2)
     end
     local function dockSize()
-        return UDim2.fromOffset(math.min((statusNoticeActive or statusExpanded) and 304 or 244,math.max(120,screen.AbsoluteSize.X-24)),statusNoticeActive and 78 or (statusExpanded and 112 or 52))
+        return UDim2.fromOffset(math.min((statusNoticeActive or statusExpanded) and 336 or 286,math.max(120,screen.AbsoluteSize.X-24)),statusNoticeActive and 78 or (statusExpanded and 120 or 52))
     end
     local function expandStatus(value)
         statusExpanded=value;details.Visible=value;deps.Motion:Tween(chevron,0.16,{Rotation=value and 180 or 0})
@@ -4296,7 +4334,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.73";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.74";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4429,8 +4467,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.73"})
-    for i,data in ipairs({{"Music-reactive section runes","Optional in Interface sounds; gentle pulses follow game music."},{"One shared music reader","Visible headings share a capped update loop; no extra sounds play."},{"Game-specific audio support","Games can bind their music Sound directly; Reduced motion pauses pulses."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.74"})
+    for i,data in ipairs({{"Separate activity circle","A quiet circular indicator sits beside the status capsule."},{"Clearer compact status","Action, results and elapsed time have dedicated space."},{"Optional progress feedback","Games can supply progress and custom status summaries."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4464,7 +4502,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.73",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.74",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4588,6 +4626,7 @@ do
         stopStatusDemo();demoStarted=true
         app:SetStatus("Auto clicker · DEMO",1)
         app:SetStatusMetrics(0,0,0)
+        app:SetStatusProgress(0)
         app:SetStatusDetails({"Preview clicker · 20 clicks per second","Reward at 5s · finishes at 12s"})
         if not app:IsMinimized() then app:SetVisible(false) end
         demoThread=task.spawn(function()
@@ -4597,6 +4636,7 @@ do
                 local elapsed=math.min(12,os.clock()-started)
                 local clicks=math.floor(elapsed*20)
                 app:SetStatusMetrics(clicks,math.floor(elapsed),reward and 1 or 0)
+                app:SetStatusProgress(elapsed/12)
                 if elapsed>=5 and not reward then
                     reward=true
                     app:SetStatusMetrics(clicks,math.floor(elapsed),1)
@@ -4614,7 +4654,7 @@ do
     end
     app.OnMinimized=function() if not demoStarted then app:StartStatusDemo() end end
     button(notifications.Body,"Run auto-clicker demo · 12 seconds",function() app:StartStatusDemo() end)
-    button(notifications.Body,"Stop activity demo",function() stopStatusDemo();app:SetStatus("Demo paused") end)
+    button(notifications.Body,"Stop activity demo",function() stopStatusDemo();app:SetStatus("Demo paused");app:SetStatusProgress(nil) end)
 
 
 end
@@ -4745,7 +4785,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.73 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.74 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
