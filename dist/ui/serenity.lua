@@ -2,10 +2,14 @@
 -- Popup isolation also applies to hover events, which Roblox can deliver behind a shield.
 local function serenityInputBlocked(object)
     while object do
-        if object:GetAttribute("SerenityPopupBlocked") then return true end
+        if object:GetAttribute("SerenityPopupBlocked") or object:GetAttribute("SerenityModalBlocked") then return true end
         object=object.Parent
     end
     return false
+end
+local function serenityColor(object,property,tokens,role)
+    object:SetAttribute("ThemeRole_"..property,role)
+    object[property]=tokens.Color[role]
 end
 local modules = {}
 modules["src/core/Runtime.lua"] = (function()
@@ -216,7 +220,7 @@ local function specFor(role, tokens)
         Nav = {sizes.Nav, Typography.Font.Medium},
         Section = {sizes.Section, Typography.Font.Semibold},
         Control = {sizes.Control, Typography.Font.Semibold},
-        Description = {sizes.Description, Typography.Font.Regular},
+        Description = {math.max(12,sizes.Description), Typography.Font.Regular},
         Value = {sizes.Value, Typography.Font.Medium},
         Status = {sizes.Status, Typography.Font.Bold},
         User = {sizes.User, Typography.Font.Semibold},
@@ -228,16 +232,17 @@ local function specFor(role, tokens)
     return map[role] or map.Control
 end
 
-function Typography.Apply(label, role, tokens, color)
+function Typography.Apply(label, role, tokens, color, colorRole)
     local spec = specFor(role, tokens)
     label.TextSize = spec[1] or 12
     label.Font = spec[2] or Typography.Font.Medium
     label.TextColor3 = color or tokens.Color.Text
+    if colorRole or not color then label:SetAttribute("ThemeRole_TextColor3",colorRole or "Text") end
     label.BackgroundTransparency = 1
     return label
 end
 
-function Typography.Label(parent, role, tokens, text, position, size, color)
+function Typography.Label(parent, role, tokens, text, position, size, color, colorRole)
     local label = Instance.new("TextLabel")
     label.Text = text or ""
     label.Position = position or UDim2.new()
@@ -246,7 +251,7 @@ function Typography.Label(parent, role, tokens, text, position, size, color)
     label.TextYAlignment = Enum.TextYAlignment.Center
     label.TextTruncate = Enum.TextTruncate.AtEnd
     label.Parent = parent
-    Typography.Apply(label, role, tokens, color)
+    Typography.Apply(label, role, tokens, color, colorRole)
     return label
 end
 
@@ -313,7 +318,7 @@ end
 
 function Material.Shell(frame, tokens)
     frame:SetAttribute("GlassRole", "Shell")
-    frame.BackgroundColor3 = tokens.Color.Shell
+    serenityColor(frame,"BackgroundColor3",tokens,"Shell")
     frame.BackgroundTransparency = tokens.Material.ShellTransparency
     frame.BorderSizePixel = 0
     corner(frame, tokens.Size.RadiusShell, "ShellCorner")
@@ -343,7 +348,7 @@ end
 
 function Material.Sidebar(frame, tokens)
     frame:SetAttribute("GlassRole", "Sidebar")
-    frame.BackgroundColor3 = tokens.Color.Sidebar
+    serenityColor(frame,"BackgroundColor3",tokens,"Sidebar")
     frame.BackgroundTransparency = tokens.Material.SidebarTransparency
     frame.BorderSizePixel = 0
 
@@ -352,7 +357,7 @@ function Material.Sidebar(frame, tokens)
     divider.AnchorPoint = Vector2.new(1, 0)
     divider.Position = UDim2.new(1, 0, 0, 14)
     divider.Size = UDim2.new(0, 1, 1, -28)
-    divider.BackgroundColor3 = tokens.Color.Divider
+    serenityColor(divider,"BackgroundColor3",tokens,"Divider")
     divider.BackgroundTransparency = 0.34
     divider.BorderSizePixel = 0
     divider.Parent = frame
@@ -365,6 +370,8 @@ function Material.OptionHover(button, tokens, selected, motion)
     local baseTransparency = button.BackgroundTransparency
     local function render()
         local active = pointer or focused
+        button:SetAttribute("ThemeRole_BackgroundColor3",active and "InsetHover" or (selected and "NavActive" or "PanelSoft"))
+        button:SetAttribute("ThemeRole_TextColor3",active and "Text" or (selected and "Text" or "TextMuted"))
         local properties={BackgroundColor3=active and tokens.Color.InsetHover or (selected and tokens.Color.NavActive or tokens.Color.PanelSoft),BackgroundTransparency=active and 0 or baseTransparency}
         if button.Text ~= "" then properties.TextColor3=active and tokens.Color.Text or (selected and tokens.Color.Text or tokens.Color.TextMuted) end
         if motion then motion:Tween(button,"Hover",properties) else for key,value in pairs(properties) do button[key]=value end end
@@ -377,7 +384,7 @@ end
 
 function Material.Topbar(frame, tokens)
     frame:SetAttribute("GlassRole", "Topbar")
-    frame.BackgroundColor3 = tokens.Color.Topbar
+    serenityColor(frame,"BackgroundColor3",tokens,"Topbar")
     frame.BackgroundTransparency = tokens.Material.TopbarTransparency
     frame.BorderSizePixel = 0
 
@@ -385,7 +392,7 @@ function Material.Topbar(frame, tokens)
     divider.AnchorPoint = Vector2.new(0, 1)
     divider.Position = UDim2.new(0, 12, 1, 0)
     divider.Size = UDim2.new(1, -24, 0, 1)
-    divider.BackgroundColor3 = tokens.Color.Divider
+    serenityColor(divider,"BackgroundColor3",tokens,"Divider")
     divider.BackgroundTransparency = 0.42
     divider.BorderSizePixel = 0
     divider.Parent = frame
@@ -405,7 +412,7 @@ function Material.PixelCorners(parent,tokens,inset)
                 local f=Instance.new("Frame");f.BorderSizePixel=0
                 f.Size=UDim2.fromOffset(w,h)
                 f.Position=UDim2.new(right and 1 or 0,right and -(inset+x+w) or inset+x,bottom and 1 or 0,bottom and -(inset+y+h) or inset+y)
-                f.BackgroundColor3=tokens.Color.Lavender;f.BackgroundTransparency=0.72
+                serenityColor(f,"BackgroundColor3",tokens,"Lavender");f.BackgroundTransparency=0.72
                 f.ZIndex=root.ZIndex;f.Parent=root;table.insert(parts,f)
             end
         end
@@ -451,7 +458,7 @@ end
 
 function Material.Section(frame, tokens)
     frame:SetAttribute("GlassRole", "Section")
-    frame.BackgroundColor3 = tokens.Color.Panel
+    serenityColor(frame,"BackgroundColor3",tokens,"Panel")
     frame.BackgroundTransparency = tokens.Material.PanelTransparency
     frame.BorderSizePixel = 0
     corner(frame, 3, "PanelCorner")
@@ -470,7 +477,7 @@ function Material.Section(frame, tokens)
 end
 
 function Material.Control(frame, tokens)
-    frame.BackgroundColor3 = tokens.Color.PanelSoft
+    serenityColor(frame,"BackgroundColor3",tokens,"PanelSoft")
     frame.BackgroundTransparency = 1
     frame.BorderSizePixel = 0
 
@@ -481,7 +488,7 @@ function Material.Control(frame, tokens)
         separator.AnchorPoint = Vector2.new(0, 1)
         separator.Position = UDim2.new(0, 12, 1, 0)
         separator.Size = UDim2.new(1, -24, 0, 1)
-        separator.BackgroundColor3 = tokens.Color.Divider
+        serenityColor(separator,"BackgroundColor3",tokens,"Divider")
         separator.BackgroundTransparency = 0.62
         separator.BorderSizePixel = 0
         separator.Parent = frame
@@ -490,7 +497,7 @@ function Material.Control(frame, tokens)
 end
 
 function Material.Popup(frame, tokens)
-    frame.BackgroundColor3 = tokens.Color.Popup
+    serenityColor(frame,"BackgroundColor3",tokens,"Popup")
     frame.BackgroundTransparency = 0
     frame.Active = true
     frame.BorderSizePixel = 0
@@ -501,7 +508,7 @@ function Material.Popup(frame, tokens)
 end
 
 function Material.NavRow(frame, tokens, selected)
-    frame.BackgroundColor3 = selected and tokens.Color.NavActive or tokens.Color.NavHover
+    serenityColor(frame,"BackgroundColor3",tokens,selected and "NavActive" or "NavHover")
     frame.BackgroundTransparency = selected and 0.04 or 1
     frame.BorderSizePixel = 0
 
@@ -514,7 +521,7 @@ end
 
 function Material.NavTile(frame, tokens, color, selected)
     -- Kept for compatibility. M3 uses the icon itself as the strongest accent.
-    frame.BackgroundColor3 = selected and tokens.Color.InsetHover or tokens.Color.Inset
+    serenityColor(frame,"BackgroundColor3",tokens,selected and "InsetHover" or "Inset")
     frame.BackgroundTransparency = selected and 0.10 or 0.38
     frame.BorderSizePixel = 0
 
@@ -528,7 +535,7 @@ function Material.NavTile(frame, tokens, color, selected)
 end
 
 function Material.Inset(frame, tokens)
-    frame.BackgroundColor3 = tokens.Color.Inset
+    serenityColor(frame,"BackgroundColor3",tokens,"Inset")
     frame.BackgroundTransparency = 0.04
     frame.BorderSizePixel = 0
     corner(frame, 2, "InsetCorner")
@@ -537,7 +544,7 @@ function Material.Inset(frame, tokens)
 end
 
 function Material.Pill(frame, tokens, accent)
-    frame.BackgroundColor3 = tokens.Color.Inset
+    serenityColor(frame,"BackgroundColor3",tokens,"Inset")
     frame.BackgroundTransparency = 0.04
     frame.BorderSizePixel = 0
     corner(frame, 7, "PillCorner")
@@ -546,7 +553,7 @@ function Material.Pill(frame, tokens, accent)
 end
 
 function Material.Hover(frame, tokens, active)
-    frame.BackgroundColor3 = active and tokens.Color.RowHover or tokens.Color.PanelSoft
+    serenityColor(frame,"BackgroundColor3",tokens,active and "RowHover" or "PanelSoft")
     frame.BackgroundTransparency = active and 0.28 or 1
 end
 
@@ -837,7 +844,7 @@ function NavItem.new(parent, deps, props)
     local tile=Instance.new("Frame")
     tile.Name="NavGlassTile";tile.Size=UDim2.fromOffset(28,28)
     tile.AnchorPoint=Vector2.new(0.5,0.5);tile.Position=UDim2.new(0,22,0.5,0)
-    tile.BackgroundColor3=tokens.Color.PanelSoft;tile.BackgroundTransparency=1
+    serenityColor(tile,"BackgroundColor3",tokens,"PanelSoft");tile.BackgroundTransparency=1
     tile.BorderSizePixel=0;tile.Parent=row
     local rounding=Instance.new("UICorner");rounding.CornerRadius=UDim.new(0,8);rounding.Parent=tile
     local rim=Instance.new("UIStroke");rim.Name="NavGlassEdge";rim.Color=Color3.new(1,1,1)
@@ -849,10 +856,10 @@ function NavItem.new(parent, deps, props)
     local scale=Instance.new("UIScale");scale.Parent=tile
     local marker=Instance.new("Frame");marker.Name="SelectionMarker";marker.BorderSizePixel=0
     marker.Size=UDim2.fromOffset(2,10);marker.Position=UDim2.new(0,3,0.5,-5)
-    marker.BackgroundColor3=tokens.Color.Accent;marker.BackgroundTransparency=1;marker.Parent=row;marker.Visible=true
+    serenityColor(marker,"BackgroundColor3",tokens,"Accent");marker.BackgroundTransparency=1;marker.Parent=row;marker.Visible=true
     local markerTip=Instance.new("Frame");markerTip.Name="PixelTip"
     markerTip.Size=UDim2.fromOffset(2,4);markerTip.Position=UDim2.fromOffset(2,3)
-    markerTip.BorderSizePixel=0;markerTip.BackgroundColor3=tokens.Color.Accent
+    markerTip.BorderSizePixel=0;serenityColor(markerTip,"BackgroundColor3",tokens,"Accent")
     markerTip.BackgroundTransparency=1;markerTip.Parent=marker
     local icon = deps.Icons.Create(tile, props.Icon or "info", tokens.Size.NavIcon-2, tokens.Color.TextMuted)
     icon.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -866,7 +873,7 @@ function NavItem.new(parent, deps, props)
         UDim2.fromOffset(44, 0),
         UDim2.new(1, -52, 1, 0),
         tokens.Color.TextMuted
-    )
+    ,"TextMuted")
 
     local self = setmetatable({
         Row = row,
@@ -884,10 +891,10 @@ function NavItem.new(parent, deps, props)
         deps.Motion:Tween(rim,"Hover",{Transparency=0.25})
         deps.Motion:Tween(label,"Hover",{Position=UDim2.fromOffset(deps.Motion.Reduced and 44 or 46,0)})
         if not self.Selected then
-            row.BackgroundColor3 = tokens.Color.NavHover
+            serenityColor(row,"BackgroundColor3",tokens,"NavHover")
             deps.Motion:Tween(row, "Hover", {BackgroundTransparency = 0.34})
-            label.TextColor3 = tokens.Color.Text
-            icon.ImageColor3 = tokens.Color.Text
+            serenityColor(label,"TextColor3",tokens,"Text")
+            serenityColor(icon,"ImageColor3",tokens,"Text")
         end
     end)
 
@@ -898,8 +905,8 @@ function NavItem.new(parent, deps, props)
         deps.Motion:Tween(scale,"Hover",{Scale=1})
         if not self.Selected then
             deps.Motion:Tween(row, "Hover", {BackgroundTransparency = 1})
-            label.TextColor3 = tokens.Color.TextMuted
-            icon.ImageColor3 = tokens.Color.TextMuted
+            serenityColor(label,"TextColor3",tokens,"TextMuted")
+            serenityColor(icon,"ImageColor3",tokens,"TextMuted")
         end
     end)
 
@@ -920,17 +927,17 @@ end
 function NavItem:SetSelected(selected)
     self.Selected = not not selected
     local tokens = self.Deps.Tokens
-    self.Row.BackgroundColor3=tokens.Color.NavActive
+    serenityColor(self.Row,"BackgroundColor3",tokens,"NavActive")
     self.Deps.Motion:Tween(self.Row,"Select",{BackgroundTransparency=self.Selected and 0.18 or 1})
-    self.Tile.BackgroundColor3=tokens.Color.PanelSoft
-    self.Marker.BackgroundColor3=tokens.Color.Accent
-    self.MarkerTip.BackgroundColor3=tokens.Color.Accent
+    serenityColor(self.Tile,"BackgroundColor3",tokens,"PanelSoft")
+    serenityColor(self.Marker,"BackgroundColor3",tokens,"Accent")
+    serenityColor(self.MarkerTip,"BackgroundColor3",tokens,"Accent")
     self.Deps.Motion:Tween(self.Marker,"Select",{BackgroundTransparency=self.Selected and 0.15 or 1,Position=UDim2.new(0,self.Selected and 5 or 3,0.5,-5)})
     self.Deps.Motion:Tween(self.MarkerTip,"Select",{BackgroundTransparency=self.Selected and 0.15 or 1})
     self.Deps.Motion:Tween(self.Tile,"Select",{BackgroundTransparency=1})
     self.Deps.Motion:Tween(self.Rim,"Select",{Transparency=self.Selected and 0.3 or 0.72})
-    self.Icon.ImageColor3 = self.Selected and tokens.Color.Accent or tokens.Color.TextMuted
-    self.Label.TextColor3 = self.Selected and tokens.Color.Text or tokens.Color.TextMuted
+    serenityColor(self.Icon,"ImageColor3",tokens,self.Selected and "Accent" or "TextMuted")
+    serenityColor(self.Label,"TextColor3",tokens,self.Selected and "Text" or "TextMuted")
 end
 
 function NavItem:SetCollapsed(collapsed)
@@ -962,11 +969,11 @@ function Section.new(parent, deps, props)
 
     local header = Instance.new("TextButton")
     header.BackgroundTransparency = 1
-    header.BackgroundColor3 = tokens.Color.PanelSoft
+    serenityColor(header,"BackgroundColor3",tokens,"PanelSoft")
     local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,2);headerCorner.Parent=header
     local headerEdge=Instance.new("UIStroke");headerEdge.Name="SectionHeaderEdge"
     headerEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border;headerEdge.Thickness=1
-    headerEdge.Color=tokens.Color.Stroke;headerEdge.Transparency=1;headerEdge.Parent=header
+    serenityColor(headerEdge,"Color",tokens,"Stroke");headerEdge.Transparency=1;headerEdge.Parent=header
     header.Text = ""
     header.AutoButtonColor = false
     header.Size = UDim2.new(1, 0, 0, 24)
@@ -981,14 +988,14 @@ function Section.new(parent, deps, props)
         UDim2.fromOffset(12, 0),
         UDim2.new(1, props.Status and -122 or -52, 1, 0),
         tokens.Color.TextDim
-    )
+    ,"TextDim")
     title.TextTransparency = 0
     title.Text = props.Title or "Section"
     title.TextSize = 13
     title.Font = deps.Typography.Font.Semibold
     title.TextTruncate = Enum.TextTruncate.AtEnd
     title.Position = UDim2.fromOffset(20,0)
-    title.TextColor3 = tokens.Color.Text
+    serenityColor(title,"TextColor3",tokens,"Text")
     local underline = Instance.new("Frame")
     underline.Name = "SectionAccent"
     underline.Size = UDim2.fromOffset(2, 10)
@@ -1018,14 +1025,14 @@ function Section.new(parent, deps, props)
     local description
     if props.Description then
         title.Text = props.Title or "Section"
-        title.TextColor3 = tokens.Color.Text
+        serenityColor(title,"TextColor3",tokens,"Text")
         title.TextTransparency = 0
         title.Position = UDim2.fromOffset(20, 0)
         title.Size = UDim2.new(1, -45, 1, 0)
         description = deps.Typography.Label(frame, "Description", tokens, props.Description,
-            UDim2.fromOffset(10, 0), UDim2.new(1, -20, 0, 34), tokens.Color.TextMuted)
+            UDim2.fromOffset(10, 0), UDim2.new(1, -20, 0, 34), tokens.Color.TextMuted,"TextMuted")
         description.TextSize = 12
-        description.TextColor3 = tokens.Color.TextMuted
+        serenityColor(description,"TextColor3",tokens,"TextMuted")
         description.TextWrapped = true
         description.TextYAlignment = Enum.TextYAlignment.Center
         description.LayoutOrder = 2
@@ -1040,7 +1047,7 @@ function Section.new(parent, deps, props)
         help.Text = "?"
         help.TextSize = 13
         help.Font = Enum.Font.GothamBold
-        help.TextColor3 = tokens.Color.Accent
+        serenityColor(help,"TextColor3",tokens,"Accent")
         help.BackgroundTransparency = 1
         help.Parent = header
         deps.Help(help, props.Tooltip)
@@ -1158,7 +1165,7 @@ function Toggle.new(parent, deps, props)
         UDim2.fromOffset(13, titleY),
         UDim2.new(1, props.Settings and props.OnSettings and -108 or -68, 0, titleH),
         tokens.Color.Text
-    )
+    ,"Text")
 
     if deps.Mobile then controlTitle.TextSize=13 end
     controlTitle.TextTruncate=Enum.TextTruncate.AtEnd
@@ -1171,11 +1178,11 @@ function Toggle.new(parent, deps, props)
             UDim2.fromOffset(13, 27),
             UDim2.new(1, -108, 0, 15),
             tokens.Color.TextDim
-        )
+        ,"TextDim")
     end
 
     if props.Settings and props.OnSettings then
-        local dots = deps.Typography.Label(row, "Value", tokens, "•••", UDim2.new(1, -96, 0, 0), UDim2.fromOffset(34, height), tokens.Color.TextDim)
+        local dots = deps.Typography.Label(row, "Value", tokens, "•••", UDim2.new(1, -96, 0, 0), UDim2.fromOffset(34, height), tokens.Color.TextDim,"TextDim")
         dots.TextXAlignment = Enum.TextXAlignment.Center
     end
 
@@ -1220,7 +1227,7 @@ function Toggle.new(parent, deps, props)
     }, Toggle)
 
     function self:_render(animate)
-        self.Switch.BackgroundColor3 = self.Value and self.Tokens.Color.Accent or self.Tokens.Color.Disabled
+        serenityColor(self.Switch,"BackgroundColor3",self.Tokens,self.Value and "Accent" or "Disabled")
         local pos = self.Value and UDim2.new(1, -10.5, 0.5, 0) or UDim2.fromOffset(10.5, 10.5)
         if animate then
             self.Motion:Tween(self.Knob, "Toggle", {Position = pos})
@@ -1303,10 +1310,10 @@ function Slider.new(parent, deps, props)
         UDim2.fromOffset(13, 0),
         UDim2.new(1, -86, 0, 29),
         tokens.Color.Text
-    )
+    ,"Text")
 
     if props.Settings and props.OnSettings then
-        local dots = deps.Typography.Label(row, "Value", tokens, "•••", UDim2.new(0.39, 0, 0, 0), UDim2.fromOffset(30, tokens.Size.Slider), tokens.Color.TextDim)
+        local dots = deps.Typography.Label(row, "Value", tokens, "•••", UDim2.new(0.39, 0, 0, 0), UDim2.fromOffset(30, tokens.Size.Slider), tokens.Color.TextDim,"TextDim")
         dots.TextXAlignment = Enum.TextXAlignment.Center
     end
 
@@ -1330,7 +1337,7 @@ function Slider.new(parent, deps, props)
     bar.AnchorPoint = Vector2.new(1, 0.5)
     bar.Position = UDim2.new(1, -16, 0, 42)
     bar.Size = UDim2.new(1, -32, 0, 4)
-    bar.BackgroundColor3 = tokens.Color.Disabled
+    serenityColor(bar,"BackgroundColor3",tokens,"Disabled")
     bar.BackgroundTransparency = 0.34
     bar.BorderSizePixel = 0
     bar.Parent = row
@@ -1339,7 +1346,7 @@ function Slider.new(parent, deps, props)
     barCorner.Parent = bar
 
     local fill = Instance.new("Frame")
-    fill.BackgroundColor3 = tokens.Color.Accent
+    serenityColor(fill,"BackgroundColor3",tokens,"Accent")
     fill.BorderSizePixel = 0
     fill.Parent = bar
     local fillCorner = Instance.new("UICorner")
@@ -1403,6 +1410,7 @@ function Slider.new(parent, deps, props)
 
     local dragging = false
     hit.InputBegan:Connect(function(input)
+        if deps.ModalActive or serenityInputBlocked(hit) then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             self:_setFromX(input.Position.X)
@@ -1410,7 +1418,7 @@ function Slider.new(parent, deps, props)
     end)
 
     deps.Runtime:TrackConnection(deps.UserInputService.InputChanged:Connect(function(input)
-        if dragging and deps.WindowFrame.Visible and deps.WindowFrame.Parent.Visible and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging and not deps.ModalActive and not serenityInputBlocked(hit) and deps.WindowFrame.Visible and deps.WindowFrame.Parent.Visible and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             self:_setFromX(input.Position.X)
         end
     end))
@@ -1503,9 +1511,9 @@ function Select.new(parent, deps, props)
 
     local titleY = 0
     local titleH = 24
-    deps.Typography.Label(row, "Control", tokens, props.Title or "Select", UDim2.fromOffset(13, titleY), UDim2.new(1, -26, 0, titleH), tokens.Color.Text)
+    deps.Typography.Label(row, "Control", tokens, props.Title or "Select", UDim2.fromOffset(13, titleY), UDim2.new(1, -26, 0, titleH), tokens.Color.Text,"Text")
     if hasDescription then
-        deps.Typography.Label(row, "Description", tokens, props.Description, UDim2.fromOffset(13, 27), UDim2.new(0.47, -12, 0, 15), tokens.Color.TextDim)
+        deps.Typography.Label(row, "Description", tokens, props.Description, UDim2.fromOffset(13, 27), UDim2.new(0.47, -12, 0, 15), tokens.Color.TextDim,"TextDim")
     end
 
     local button = Instance.new("TextButton")
@@ -1518,7 +1526,7 @@ function Select.new(parent, deps, props)
     deps.Material.Inset(button, tokens)
     deps.Material.PixelSurface(button,2)
 
-    local valueLabel = deps.Typography.Label(button, "Value", tokens, tostring(props.Default or "Select"), UDim2.fromOffset(10, 0), UDim2.new(1, -34, 1, 0), tokens.Color.TextMuted)
+    local valueLabel = deps.Typography.Label(button, "Value", tokens, tostring(props.Default or "Select"), UDim2.fromOffset(10, 0), UDim2.new(1, -34, 1, 0), tokens.Color.TextMuted,"TextMuted")
     local chevron = deps.Icons.Create(button, "chevron_down", 13, tokens.Color.TextDim)
     chevron.AnchorPoint = Vector2.new(1, 0.5)
     chevron.Position = UDim2.new(1, -9, 0.5, 0)
@@ -1549,7 +1557,7 @@ function Select.new(parent, deps, props)
         if self.Enabled then button.BackgroundColor3 = tokens.Color.InsetHover end
     end)
     button.MouseLeave:Connect(function()
-        button.BackgroundColor3 = tokens.Color.Inset
+        serenityColor(button,"BackgroundColor3",tokens,"Inset")
     end)
 
     button.MouseButton1Click:Connect(function() if serenityInputBlocked(button) then return end;
@@ -1604,9 +1612,9 @@ function Select.new(parent, deps, props)
                 entry.State=state
                 -- Only changed rows animate; keep single-select markers exclusive.
                 for _,part in ipairs(entry.Pixels) do part.BackgroundTransparency=show and 0.15 or 1 end
-                entry.Button.BackgroundColor3=emphasized and tokens.Color.NavActive or tokens.Color.PanelSoft
+                serenityColor(entry.Button,"BackgroundColor3",tokens,emphasized and "NavActive" or "PanelSoft")
                 deps.Motion:Tween(entry.Button,0.1,{BackgroundTransparency=active and 0 or (emphasized and 0.12 or 0.55)})
-                entry.Button.TextColor3=emphasized and tokens.Color.Text or tokens.Color.TextMuted
+                serenityColor(entry.Button,"TextColor3",tokens,emphasized and "Text" or "TextMuted")
                 end
             end
         end
@@ -1618,13 +1626,13 @@ function Select.new(parent, deps, props)
             local selected = isSelected(option)
             local item = Instance.new("TextButton")
             item.Size = UDim2.new(1, -2, 0, 31)
-            item.BackgroundColor3 = selected and tokens.Color.NavActive or tokens.Color.PanelSoft
+            serenityColor(item,"BackgroundColor3",tokens,selected and "NavActive" or "PanelSoft")
             item.BackgroundTransparency = selected and 0.08 or 0.55
             item.BorderSizePixel = 0
             item.Text = tostring(option)
             item.TextXAlignment=Enum.TextXAlignment.Left
             local padding=Instance.new("UIPadding");padding.PaddingLeft=UDim.new(0,26);padding.PaddingRight=UDim.new(0,10);padding.Parent=item
-            item.TextColor3 = selected and tokens.Color.Text or tokens.Color.TextMuted
+            serenityColor(item,"TextColor3",tokens,selected and "Text" or "TextMuted")
             item.TextSize = tokens.Type.Value
             item.Font = selected and deps.Typography.Font.Semibold or deps.Typography.Font.Medium
             item.AutoButtonColor = false
@@ -1635,7 +1643,7 @@ function Select.new(parent, deps, props)
             for _,segment in ipairs(self.Multi and {{0,0,2,2},{2,2,2,2},{4,0,2,2},{6,-2,2,2}} or {{0,-5,2,10},{2,-3,2,6},{4,-1,2,2}}) do
                 local part=Instance.new("Frame");part.BorderSizePixel=0
                 part.Position=UDim2.new(0,-18+segment[1],0.5,segment[2])
-                part.Size=UDim2.fromOffset(segment[3],segment[4]);part.BackgroundColor3=tokens.Color.Accent
+                part.Size=UDim2.fromOffset(segment[3],segment[4]);serenityColor(part,"BackgroundColor3",tokens,"Accent")
                 part.BackgroundTransparency=selected and 0.15 or 1;part.ZIndex=83;part.Parent=item
                 table.insert(pixels,part)
             end
@@ -1657,7 +1665,7 @@ function Select.new(parent, deps, props)
         end
         local empty=Instance.new("TextLabel")
         empty.BackgroundTransparency=1;empty.Size=UDim2.new(1,0,0,34)
-        empty.TextColor3=tokens.Color.TextMuted;empty.TextSize=12;empty.Font=Enum.Font.Gotham
+        serenityColor(empty,"TextColor3",tokens,"TextMuted");empty.TextSize=12;empty.Font=Enum.Font.Gotham
         empty.ZIndex=82;empty.Parent=scroller
         local function filter(query)
             query=string.lower(query or "")
@@ -1677,8 +1685,8 @@ function Select.new(parent, deps, props)
             local search=Instance.new("TextBox")
             search.Name="OptionSearch";search.Text="";search.PlaceholderText="Search options…"
             search.ClearTextOnFocus=false;search.TextSize=12;search.Font=Enum.Font.Gotham
-            search.TextColor3=tokens.Color.Text;search.PlaceholderColor3=tokens.Color.TextMuted
-            search.BackgroundColor3=tokens.Color.Inset;search.BorderSizePixel=0
+            serenityColor(search,"TextColor3",tokens,"Text");serenityColor(search,"PlaceholderColor3",tokens,"TextMuted")
+            serenityColor(search,"BackgroundColor3",tokens,"Inset");search.BorderSizePixel=0
             search.Position=UDim2.fromOffset(6,6);search.Size=UDim2.new(1,-12,0,32)
             search.ZIndex=82;search.Parent=popup
             search:GetPropertyChangedSignal("Text"):Connect(function() filter(search.Text) end)
@@ -1687,7 +1695,7 @@ function Select.new(parent, deps, props)
             local function bulkButton(text,x,callback)
                 local action=Instance.new("TextButton")
                 action.Text=text;action.Font=Enum.Font.GothamMedium;action.TextSize=12
-                action.TextColor3=tokens.Color.Text;action.BackgroundColor3=tokens.Color.Inset
+                serenityColor(action,"TextColor3",tokens,"Text");serenityColor(action,"BackgroundColor3",tokens,"Inset")
                 action.BorderSizePixel=0;action.AutoButtonColor=true;action.ZIndex=82
                 action.Position=UDim2.new(x,x==0 and 6 or 3,1,-34)
                 action.Size=UDim2.new(0.5,-9,0,28);action.Parent=popup
@@ -1905,7 +1913,7 @@ end
 function RankedPets.new(parent,deps,options)
     options=options or {}
     local tokens=deps.Tokens
-    local self=setmetatable({Items={},Mode="Score",Query="",Limit=20,Rows={},Demo=options.Demo==true},RankedPets)
+    local self=setmetatable({Items={},Mode="Score",Query="",Limit=20,Rows={},Demo=options.Demo==true,State="Ready"},RankedPets)
     local function label(parent,text,x,y,w,h,size,color)
         local object=deps.Typography.Label(parent,"Control",tokens,text,UDim2.fromOffset(x,y),UDim2.new(1,w,0,h),color or tokens.Color.Text)
         object.TextSize=size;object.TextTruncate=Enum.TextTruncate.AtEnd
@@ -1914,28 +1922,28 @@ function RankedPets.new(parent,deps,options)
     local root=Instance.new("Frame");root.Name="AvailablePets";root.BackgroundTransparency=1
     root.Size=UDim2.new(1,0,0,0);root.AutomaticSize=Enum.AutomaticSize.Y;root.Parent=parent;self.Frame=root
     local stack=Instance.new("UIListLayout");stack.SortOrder=Enum.SortOrder.LayoutOrder;stack.Padding=UDim.new(0,4);stack.Parent=root
-    local summary=Instance.new("Frame");summary.BackgroundTransparency=1;summary.Size=UDim2.new(1,0,0,30);summary.LayoutOrder=0;summary.Parent=root
-    local summaryText=label(summary,"",12,3,-24,24,11,tokens.Color.TextMuted)
+    local summary=Instance.new("Frame");summary.BackgroundTransparency=1;summary.Size=UDim2.new(1,0,0,48);summary.LayoutOrder=0;summary.Parent=root
+    local summaryText=label(summary,"",12,3,-24,42,12,tokens.Color.TextMuted)
+    summaryText.TextWrapped=true;summaryText.TextYAlignment=Enum.TextYAlignment.Top
     local toolbar=Instance.new("Frame");toolbar.BackgroundTransparency=1;toolbar.Size=UDim2.new(1,0,0,38);toolbar.LayoutOrder=1;toolbar.Parent=root
     local search=Instance.new("TextBox");search.Name="PetSearch";search.Text="";search.PlaceholderText="Search pets…";search.ClearTextOnFocus=false
-    search.TextSize=12;search.Font=Enum.Font.Gotham;search.TextColor3=tokens.Color.Text;search.PlaceholderColor3=tokens.Color.TextMuted
+    search.TextSize=12;search.Font=Enum.Font.Gotham;serenityColor(search,"TextColor3",tokens,"Text");serenityColor(search,"PlaceholderColor3",tokens,"TextMuted")
     search.Position=UDim2.fromOffset(10,0);search.Size=UDim2.new(1,-106,0,32);search.Parent=toolbar;deps.Material.Inset(search,tokens)
     local sort=Instance.new("TextButton");sort.Size=UDim2.fromOffset(80,32);sort.Position=UDim2.new(1,-90,0,0)
-    sort.Text="Score ↓";sort.Font=Enum.Font.GothamMedium;sort.TextSize=11;sort.TextColor3=tokens.Color.Accent
+    sort.Text="Score ↓";sort.Font=Enum.Font.GothamMedium;sort.TextSize=11;serenityColor(sort,"TextColor3",tokens,"Accent")
     sort.AutoButtonColor=false;sort.Parent=toolbar;deps.Material.Inset(sort,tokens)
     local empty=label(root,"No pets available",12,0,-24,48,12,tokens.Color.TextMuted);empty.LayoutOrder=2
-    local selectedInfo=label(root,"Select a pet to see its location",12,0,-24,32,11,tokens.Color.TextMuted);selectedInfo.LayoutOrder=10001
     local more=Instance.new("TextButton");more.Size=UDim2.new(1,-20,0,30);more.BackgroundTransparency=1
-    more.Text="Show 20 more";more.TextSize=12;more.Font=Enum.Font.GothamMedium;more.TextColor3=tokens.Color.Accent;more.LayoutOrder=10000;more.Parent=root
+    more.Text="Show 20 more";more.TextSize=12;more.Font=Enum.Font.GothamMedium;serenityColor(more,"TextColor3",tokens,"Accent");more.LayoutOrder=10000;more.Parent=root
     local function makeRow()
         local row=Instance.new("TextButton");row.Name="PetEntry";row.Size=UDim2.new(1,0,0,56);row.Text="";row.AutoButtonColor=false
-        row.BackgroundColor3=tokens.Color.PanelSoft;row.BackgroundTransparency=0.65;row.BorderSizePixel=0;row.Parent=root
+        serenityColor(row,"BackgroundColor3",tokens,"PanelSoft");row.BackgroundTransparency=0.65;row.BorderSizePixel=0;row.Parent=root
         deps.Material.PixelSurface(row,2)
         local mark=Instance.new("Frame");mark.BorderSizePixel=0;mark.Size=UDim2.fromOffset(2,26);mark.Position=UDim2.fromOffset(1,15)
-        mark.BackgroundColor3=tokens.Color.Accent;mark.Visible=false;mark.Parent=row
+        serenityColor(mark,"BackgroundColor3",tokens,"Accent");mark.Visible=false;mark.Parent=row
         local rank=label(row,"",8,15,0,22,12,tokens.Color.TextMuted);rank.Size=UDim2.fromOffset(24,22)
         local portrait=Instance.new("Frame");portrait.Size=UDim2.fromOffset(36,36);portrait.Position=UDim2.fromOffset(36,10)
-        portrait.BorderSizePixel=0;portrait.BackgroundColor3=tokens.Color.Inset;portrait.Parent=row;deps.Material.PixelSurface(portrait,2)
+        portrait.BorderSizePixel=0;serenityColor(portrait,"BackgroundColor3",tokens,"Inset");portrait.Parent=row;deps.Material.PixelSurface(portrait,2)
         local fallback=Instance.new("Frame");fallback.BackgroundTransparency=1;fallback.Size=UDim2.fromScale(1,1);fallback.Parent=portrait
         local pixels={}
         -- Small native pixel pet: no asset download is required for the fallback.
@@ -1959,7 +1967,9 @@ function RankedPets.new(parent,deps,options)
         local rarity=label(row,"",82,30,-146,18,11,tokens.Color.TextMuted)
         local count=label(row,"",0,8,0,22,13);count.Position=UDim2.new(1,-60,0,8);count.Size=UDim2.fromOffset(48,22);count.TextXAlignment=Enum.TextXAlignment.Right
         local score=label(row,"",0,31,0,16,10,tokens.Color.TextMuted);score.Position=UDim2.new(1,-60,0,31);score.Size=UDim2.fromOffset(48,16);score.TextXAlignment=Enum.TextXAlignment.Right
-        local entry={Frame=row,Mark=mark,Rank=rank,Name=name,Rarity=rarity,Count=count,Score=score,Image=image,Fallback=fallback,Pixels=pixels}
+        local detail=label(row,"",12,58,-24,0,12,tokens.Color.TextMuted)
+        detail.TextWrapped=true;detail.TextYAlignment=Enum.TextYAlignment.Top;detail.TextTruncate=Enum.TextTruncate.None;detail.Visible=false
+        local entry={Detail=detail,Frame=row,Mark=mark,Rank=rank,Name=name,Rarity=rarity,Count=count,Score=score,Image=image,Fallback=fallback,Pixels=pixels}
         local hoverTween
         local function hover(active)
             if hoverTween then hoverTween:Cancel() end
@@ -1969,8 +1979,7 @@ function RankedPets.new(parent,deps,options)
         row.MouseLeave:Connect(function() hover(false) end)
         row.Activated:Connect(function()
             if serenityInputBlocked(row) or not entry.Item then return end
-            self.Selected=entry.Item.Id
-            selectedInfo.Text=entry.Item.Name.." · "..entry.Item.Location
+            if self.Selected==entry.Item.Id then self.Selected=nil else self.Selected=entry.Item.Id end
             self:Render()
         end)
         deps.Runtime:TrackCleanup(function() if hoverTween then hoverTween:Cancel() end end)
@@ -1978,16 +1987,19 @@ function RankedPets.new(parent,deps,options)
     end
     function self:Render()
         if deps.Runtime.Destroyed then return end
-        local ordered=RankedPets.Order(self.Items,self.Mode,self.Query)
+        local ordered=self.State=="Ready" and RankedPets.Order(self.Items,self.Mode,self.Query) or {}
         local total=0;for _,item in ipairs(self.Items) do total=total+item.Count end
         summaryText.Text=(self.Demo and "SAMPLE DATA" or "SERVER PETS").." · "..#self.Items.." types · "..compact(total).." available"
-        empty.Visible=#ordered==0;empty.Text=#self.Items==0 and "No pets available" or "No matching pets"
+        summaryText.Text=summaryText.Text.."\n"..self.Mode.." order"..(self.UpdatedAt and (" · Updated "..os.date("%H:%M:%S",self.UpdatedAt)) or "")
+        empty.Visible=#ordered==0
+        empty.Text=self.State=="Loading" and "Loading available pets…" or (self.State=="Unavailable" and (self.StateMessage or "Pet data unavailable") or (#self.Items==0 and "No pets available" or "No matching pets"))
+        sort.Active=self.State=="Ready";search.TextEditable=self.State=="Ready"
         local shown=math.min(self.Limit,#ordered)
         for i=1,shown do
             local entry=self.Rows[i] or makeRow();self.Rows[i]=entry
             local item=ordered[i];entry.Item=item
             entry.Frame.Visible=true;entry.Frame.LayoutOrder=10+i
-            entry.Rank.Text=string.format("%02d",i);entry.Rank.TextColor3=i==1 and tokens.Color.Accent or tokens.Color.TextMuted
+            entry.Rank.Text=string.format("%02d",i);serenityColor(entry.Rank,"TextColor3",tokens,i==1 and "Accent" or "TextMuted")
             entry.Name.Text=item.Name;entry.Rarity.Text=item.Rarity
             entry.Count.Text="×"..compact(item.Count);entry.Score.Text=compact(item.Score).." pts"
             if entry.Image.Image~=item.Image then entry.Image.Image=item.Image end
@@ -1996,22 +2008,37 @@ function RankedPets.new(parent,deps,options)
             local color=colors[item.Rarity] or tokens.Color.Accent
             for _,pixel in ipairs(entry.Pixels) do pixel.BackgroundColor3=color end
             entry.Mark.Visible=self.Selected==item.Id;entry.Frame.BackgroundTransparency=entry.Mark.Visible and 0.25 or 0.65
+            entry.Detail.Visible=entry.Mark.Visible
+            if entry.Mark.Visible then
+                entry.Detail.Text=item.Name.." · "..item.Rarity.."\nLocation: "..item.Location
+                local width=math.max(100,root.AbsoluteSize.X/math.max(0.001,deps.UIScale and deps.UIScale.Scale or 1)-24)
+                local measured=game:GetService("TextService"):GetTextSize(entry.Detail.Text,12,entry.Detail.Font,Vector2.new(width,10000))
+                local height=math.ceil(measured.Y)+6
+                entry.Detail.Size=UDim2.new(1,-24,0,height);entry.Frame.Size=UDim2.new(1,0,0,58+height+8)
+            else entry.Frame.Size=UDim2.new(1,0,0,56) end
         end
         for i=shown+1,#self.Rows do self.Rows[i].Frame.Visible=false;self.Rows[i].Item=nil end
         more.Visible=shown<#ordered
     end
     function self:SetItems(items,demo)
         if deps.Runtime.Destroyed then return end
-        self.Items=RankedPets.Normalize(items);self.Demo=demo==true
+        self.Items=RankedPets.Normalize(items);self.Demo=demo==true;self.State="Ready";self.StateMessage=nil;self.UpdatedAt=os.time()
         local selected
         for _,item in ipairs(self.Items) do if item.Id==self.Selected then selected=item;break end end
         if not selected then self.Selected=nil end
-        selectedInfo.Text=selected and (selected.Name.." · "..selected.Location) or "Select a pet to see its location"
         self:Render()
     end
+    function self:SetState(state,message)
+        if state~="Ready" and state~="Loading" and state~="Unavailable" then return false end
+        self.State=state;self.StateMessage=message and tostring(message):sub(1,120) or nil;self:Render();return true
+    end
+    local previousWidth
+    deps.Runtime:TrackConnection(root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+        if root.AbsoluteSize.X~=previousWidth then previousWidth=root.AbsoluteSize.X;if self.Selected then self:Render() end end
+    end))
     search:GetPropertyChangedSignal("Text"):Connect(function() self.Query=search.Text;self.Limit=20;self:Render() end)
     sort.Activated:Connect(function()
-        if serenityInputBlocked(sort) then return end
+        if serenityInputBlocked(sort) or self.State~="Ready" then return end
         self.Mode=({Score="Count",Count="Name",Name="Score"})[self.Mode];sort.Text=self.Mode..(self.Mode=="Name" and " A–Z" or " ↓")
         self:Render()
     end)
@@ -2049,13 +2076,14 @@ local function makeDraggable(runtime, frame, handles)
         if ghost then ghost:Destroy();ghost=nil end
     end
     local function begin(input)
-        if dragging or not frame.Visible then return end
+        if dragging or runtime.ModalActive or not frame.Visible or serenityInputBlocked(frame) then return end
         if input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch then return end
         stopTween();destroyGhost()
         dragging=true;pointer=input;press=input.Position;start=frame.Position;target=start
     end
     for _,handle in ipairs(handles) do runtime:TrackConnection(handle.InputBegan:Connect(begin)) end
     runtime:TrackConnection(UIS.InputChanged:Connect(function(input)
+        if runtime.ModalActive then dragging=false;pointer=nil;target=nil;destroyGhost();stopTween();return end
         if not dragging then return end
         if pointer.UserInputType==Enum.UserInputType.Touch then
             if input~=pointer then return end
@@ -2085,7 +2113,7 @@ local function makeDraggable(runtime, frame, handles)
     local function finish()
         if not dragging then return end
         dragging=false;pointer=nil;destroyGhost();stopTween()
-        if target and not runtime.Destroyed then
+        if target and not runtime.Destroyed and not runtime.ModalActive then
             if runtime.ReducedMotion or runtime.DragStyle=="Direct" then frame.Position=target
             else glide=TweenService:Create(frame,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Position=target});glide:Play() end
         end
@@ -2131,10 +2159,12 @@ function Desktop.Mount(deps, options)
     uiScale.Scale = 1
     uiScale.Parent = holder
 
+    local scalePending=false
     local function refreshScale()
         -- Keep an open picker stable while the mobile keyboard changes the viewport.
         local focused=UserInputService:GetFocusedTextBox()
-        if focused and focused:IsDescendantOf(screen) then return end
+        if focused and focused:IsDescendantOf(screen) then scalePending=true;return end
+        scalePending=false
         local camera = workspace.CurrentCamera
         local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
         local inset = GuiService:GetGuiInset()
@@ -2157,6 +2187,9 @@ function Desktop.Mount(deps, options)
         end
         deps.PopupManager:Close()
     end
+    runtime:TrackConnection(UserInputService.TextBoxFocusReleased:Connect(function()
+        if scalePending then task.defer(function() if not runtime.Destroyed then refreshScale() end end) end
+    end))
     local cameraConnection
     local function bindCamera()
         if cameraConnection then cameraConnection:Disconnect() end
@@ -2202,7 +2235,7 @@ function Desktop.Mount(deps, options)
     local logoWrap = Instance.new("Frame")
     logoWrap.Position = UDim2.fromOffset(14, 14)
     logoWrap.Size = UDim2.fromOffset(38, 38)
-    logoWrap.BackgroundColor3 = tokens.Color.Inset
+    serenityColor(logoWrap,"BackgroundColor3",tokens,"Inset")
     logoWrap.BackgroundTransparency = 0.05
     logoWrap.BorderSizePixel = 0
     logoWrap.ZIndex = 5
@@ -2218,8 +2251,8 @@ function Desktop.Mount(deps, options)
     logo.ZIndex = 6
     logo.Parent = logoWrap
 
-    deps.Typography.Label(brand, "Brand", tokens, options.Title or "SERENITY HUB", UDim2.fromOffset(63, 12), UDim2.new(1, -70, 0, 21), tokens.Color.Text).ZIndex = 5
-    local brandSub = deps.Typography.Label(brand, "BrandSub", tokens, options.Subtitle or "Interface Prototype", UDim2.fromOffset(63, 34), UDim2.new(1, -70, 0, 16), tokens.Color.TextDim)
+    deps.Typography.Label(brand, "Brand", tokens, options.Title or "SERENITY HUB", UDim2.fromOffset(63, 12), UDim2.new(1, -70, 0, 21), tokens.Color.Text,"Text").ZIndex = 5
+    local brandSub = deps.Typography.Label(brand, "BrandSub", tokens, options.Subtitle or "Interface Prototype", UDim2.fromOffset(63, 34), UDim2.new(1, -70, 0, 16), tokens.Color.TextDim,"TextDim")
     brandSub.ZIndex = 5
 
     local navHolder = Instance.new("ScrollingFrame")
@@ -2244,7 +2277,7 @@ function Desktop.Mount(deps, options)
     userFrame.AnchorPoint = Vector2.new(0, 1)
     userFrame.Position = UDim2.new(0, 11, 1, -10)
     userFrame.Size = UDim2.new(1, -22, 0, tokens.Size.SidebarUser - 8)
-    userFrame.BackgroundColor3 = tokens.Color.PanelSoft
+    serenityColor(userFrame,"BackgroundColor3",tokens,"PanelSoft")
     userFrame.BackgroundTransparency = 0.62
     userFrame.BorderSizePixel = 0
     userFrame.Text = ""
@@ -2254,7 +2287,7 @@ function Desktop.Mount(deps, options)
     corner(userFrame, 8)
 
     local avatar = Instance.new("ImageLabel")
-    avatar.BackgroundColor3 = tokens.Color.Inset
+    serenityColor(avatar,"BackgroundColor3",tokens,"Inset")
     avatar.BorderSizePixel = 0
     avatar.Position = UDim2.fromOffset(10, 13)
     avatar.Size = UDim2.fromOffset(34, 34)
@@ -2264,9 +2297,9 @@ function Desktop.Mount(deps, options)
     avatar.Parent = userFrame
     corner(avatar, 17)
 
-    local userNameLabel=deps.Typography.Label(userFrame, "User", tokens, localPlayer.DisplayName, UDim2.fromOffset(54, 11), UDim2.new(1, -78, 0, 19), tokens.Color.Text)
+    local userNameLabel=deps.Typography.Label(userFrame, "User", tokens, localPlayer.DisplayName, UDim2.fromOffset(54, 11), UDim2.new(1, -78, 0, 19), tokens.Color.Text,"Text")
     userNameLabel.ZIndex = 6
-    deps.Typography.Label(userFrame, "UserSub", tokens, "UI TESTER", UDim2.fromOffset(54, 31), UDim2.new(1, -78, 0, 16), tokens.Color.TextDim).ZIndex = 6
+    deps.Typography.Label(userFrame, "UserSub", tokens, "UI TESTER", UDim2.fromOffset(54, 31), UDim2.new(1, -78, 0, 16), tokens.Color.TextDim,"TextDim").ZIndex = 6
     local userChevron = deps.Icons.Create(userFrame, "chevron_right", 13, tokens.Color.TextDim)
     userChevron.AnchorPoint = Vector2.new(1, 0.5)
     userChevron.Position = UDim2.new(1, -10, 0.5, 0)
@@ -2285,7 +2318,7 @@ function Desktop.Mount(deps, options)
     local saveTile = Instance.new("Frame")
     saveTile.Position = UDim2.fromOffset(15, 15)
     saveTile.Size = UDim2.fromOffset(32, 32)
-    saveTile.BackgroundColor3 = tokens.Color.Inset
+    serenityColor(saveTile,"BackgroundColor3",tokens,"Inset")
     saveTile.BackgroundTransparency = 0.10
     saveTile.BorderSizePixel = 0
     saveTile.ZIndex = 4
@@ -2300,7 +2333,7 @@ function Desktop.Mount(deps, options)
         local button = Instance.new("TextButton")
         button.Position = UDim2.fromOffset(x, 13)
         button.Size = UDim2.fromOffset(width, 36)
-        button.BackgroundColor3 = tokens.Color.Inset
+        serenityColor(button,"BackgroundColor3",tokens,"Inset")
         button.BackgroundTransparency = 0.34
         button.BorderSizePixel = 0
         button.Text = ""
@@ -2309,7 +2342,7 @@ function Desktop.Mount(deps, options)
         button.Parent = topbar
         corner(button, 7)
 
-        local text = deps.Typography.Label(button, "TopSelect", tokens, initial, UDim2.fromOffset(12, 0), UDim2.new(1, -34, 1, 0), tokens.Color.TextMuted)
+        local text = deps.Typography.Label(button, "TopSelect", tokens, initial, UDim2.fromOffset(12, 0), UDim2.new(1, -34, 1, 0), tokens.Color.TextMuted,"TextMuted")
         text.ZIndex = 5
         local chevron = deps.Icons.Create(button, "chevron_down", 12, tokens.Color.TextDim)
         chevron.AnchorPoint = Vector2.new(1, 0.5)
@@ -2321,7 +2354,7 @@ function Desktop.Mount(deps, options)
     saveTile.Visible = false
     local pageButton, pageText = createTopSelect(252, 112, "Dashboard")
     local star = deps.Material.PixelStar(topbar, UDim2.fromOffset(20, 16), 5)
-    local heading = deps.Typography.Label(topbar, "Brand", tokens, "SERENITY HUB", UDim2.fromOffset(62, 0), UDim2.fromOffset(182, tokens.Size.Topbar), tokens.Color.Text)
+    local heading = deps.Typography.Label(topbar, "Brand", tokens, "SERENITY HUB", UDim2.fromOffset(62, 0), UDim2.fromOffset(182, tokens.Size.Topbar), tokens.Color.Text,"Text")
     heading.Font = Enum.Font.GothamBold
     heading.TextSize = 19
     heading.ZIndex = 5
@@ -2396,7 +2429,7 @@ function Desktop.Mount(deps, options)
     corner(rim,tokens.Size.RadiusShell-2)
     local edge=Instance.new("UIStroke")
     edge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
-    edge.Color=tokens.Color.Stroke
+    serenityColor(edge,"Color",tokens,"Stroke")
     edge.Thickness=1.4
     edge.Transparency=0.22
     edge.Parent=rim
@@ -2436,7 +2469,7 @@ function Desktop.Mount(deps, options)
     local function addGroupLabel(name, order)
         if not name or name == "" or groups[name] then return end
         groups[name] = true
-        local label = deps.Typography.Label(navHolder, "NavGroup", tokens, string.upper(name), UDim2.new(), UDim2.new(1, 0, 0, tokens.Size.NavGroup), tokens.Color.TextDim)
+        local label = deps.Typography.Label(navHolder, "NavGroup", tokens, string.upper(name), UDim2.new(), UDim2.new(1, 0, 0, tokens.Size.NavGroup), tokens.Color.TextDim,"TextDim")
         label.LayoutOrder = order
         label.TextYAlignment = Enum.TextYAlignment.Bottom
         local pad = Instance.new("UIPadding")
@@ -2562,7 +2595,7 @@ function Desktop.Mount(deps, options)
     minimize.BackgroundTransparency = 1
     minimize.Text = "−"
     minimize.TextSize = 24
-    minimize.TextColor3 = tokens.Color.TextMuted
+    serenityColor(minimize,"TextColor3",tokens,"TextMuted")
     minimize.ZIndex = 5
     minimize.Parent = topbar
     local restore = Instance.new("TextButton")
@@ -2572,14 +2605,14 @@ function Desktop.Mount(deps, options)
     restore.Text = ""
     restore.AutoButtonColor = false
     restore.BorderSizePixel = 0
-    restore.BackgroundColor3 = tokens.Color.Inset
+    serenityColor(restore,"BackgroundColor3",tokens,"Inset")
     restore.Visible = true
     restore.ZIndex = 90
     restore.Parent = screen
     local restoreScale=Instance.new("UIScale");restoreScale.Scale=1.155;restoreScale.Parent=restore
     corner(restore, 12)
     local restoreEdge=Instance.new("UIStroke");restoreEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
-    restoreEdge.Color=tokens.Color.Lavender;restoreEdge.Transparency=0.65;restoreEdge.Thickness=1;restoreEdge.Parent=restore
+    serenityColor(restoreEdge,"Color",tokens,"Lavender");restoreEdge.Transparency=0.65;restoreEdge.Thickness=1;restoreEdge.Parent=restore
     local tileSheen=Instance.new("UIGradient");tileSheen.Rotation=65
     tileSheen.Color=ColorSequence.new(Color3.new(1,1,1),Color3.fromRGB(165,165,165));tileSheen.Parent=restore
     local emblem=Instance.new("Frame");emblem.Name="CelestialEmblem"
@@ -2603,7 +2636,7 @@ function Desktop.Mount(deps, options)
     app:RefreshIconMotion()
     local glint=Instance.new("Frame");glint.Name="TileHighlight"
     glint.Size=UDim2.new(1,-22,0,1);glint.Position=UDim2.fromOffset(11,2)
-    glint.ZIndex=91;glint.BackgroundColor3=tokens.Color.Text;glint.BackgroundTransparency=0.82;glint.BorderSizePixel=0;glint.Parent=restore
+    glint.ZIndex=91;serenityColor(glint,"BackgroundColor3",tokens,"Text");glint.BackgroundTransparency=0.82;glint.BorderSizePixel=0;glint.Parent=restore
     local statusDock=Instance.new("TextButton")
     statusDock.Name="SerenityStatusDock"
     statusDock.AnchorPoint=Vector2.new(0.5,0)
@@ -2619,7 +2652,7 @@ function Desktop.Mount(deps, options)
     statusBody.Position=UDim2.fromOffset(46,0);statusBody.Size=UDim2.new(1,-46,1,0)
     statusBody.BackgroundColor3=statusDock.BackgroundColor3;statusBody.BorderSizePixel=0
     statusBody.ZIndex=88;statusBody.Parent=statusDock;corner(statusBody,22)
-    local dockEdge=Instance.new("UIStroke");dockEdge.Color=tokens.Color.Stroke
+    local dockEdge=Instance.new("UIStroke");serenityColor(dockEdge,"Color",tokens,"Stroke")
     dockEdge.Transparency=0.72;dockEdge.Parent=statusBody
     -- Compact live activity: one title, one metric line, and a quiet activity glyph.
     local statusRow=Instance.new("CanvasGroup")
@@ -2631,25 +2664,25 @@ function Desktop.Mount(deps, options)
     activityTile.BorderSizePixel=0;activityTile.Size=UDim2.fromOffset(44,44)
     activityTile.AnchorPoint=Vector2.new(0.5,0.5);activityTile.Position=UDim2.fromOffset(22,26);activityTile.ZIndex=90;activityTile.Parent=statusDock
     corner(activityTile,22)
-    local orbEdge=Instance.new("UIStroke");orbEdge.Color=tokens.Color.Accent
+    local orbEdge=Instance.new("UIStroke");serenityColor(orbEdge,"Color",tokens,"Accent")
     orbEdge.Transparency=0.55;orbEdge.Thickness=1;orbEdge.Parent=activityTile
-    local orbInset=Instance.new("Frame");orbInset.BackgroundColor3=tokens.Color.Accent
+    local orbInset=Instance.new("Frame");serenityColor(orbInset,"BackgroundColor3",tokens,"Accent")
     orbInset.BackgroundTransparency=0.93;orbInset.BorderSizePixel=0
     orbInset.Size=UDim2.new(1,-12,1,-12);orbInset.Position=UDim2.fromOffset(6,6)
     orbInset.ZIndex=90;orbInset.Parent=activityTile;corner(orbInset,17)
     local activityBars={}
     for i=1,4 do
         local bar=Instance.new("Frame");bar.BorderSizePixel=0
-        bar.BackgroundColor3=tokens.Color.Accent;bar.AnchorPoint=Vector2.new(0,0.5)
+        serenityColor(bar,"BackgroundColor3",tokens,"Accent");bar.AnchorPoint=Vector2.new(0,0.5)
         bar.Position=UDim2.new(0.5,-9+(i-1)*5,0.5,0);bar.Size=UDim2.fromOffset(3,6+i*2)
         bar.ZIndex=91;bar.Parent=activityTile;corner(bar,2);activityBars[i]=bar
     end
-    local dockActivity=deps.Typography.Label(statusRow,"Control",tokens,"Auto clicker",UDim2.fromOffset(14,7),UDim2.new(1,-65,0,19),tokens.Color.Text)
+    local dockActivity=deps.Typography.Label(statusRow,"Control",tokens,"Auto clicker",UDim2.fromOffset(14,7),UDim2.new(1,-65,0,19),tokens.Color.Text,"Text")
     dockActivity.TextSize=13;dockActivity.Font=Enum.Font.GothamSemibold
     dockActivity.TextTruncate=Enum.TextTruncate.AtEnd;dockActivity.ZIndex=90
-    local dockMetrics=deps.Typography.Label(statusRow,"Control",tokens,"0 clicks  ·  0 rewards",UDim2.fromOffset(14,27),UDim2.new(1,-50,0,16),tokens.Color.TextMuted)
+    local dockMetrics=deps.Typography.Label(statusRow,"Control",tokens,"0 clicks  ·  0 rewards",UDim2.fromOffset(14,27),UDim2.new(1,-50,0,16),tokens.Color.TextMuted,"TextMuted")
     dockMetrics.TextSize=11;dockMetrics.ZIndex=90;dockMetrics.TextTruncate=Enum.TextTruncate.AtEnd
-    local dockTime=deps.Typography.Label(statusRow,"Control",tokens,"0s",UDim2.new(1,-52,0,8),UDim2.fromOffset(37,17),tokens.Color.Accent)
+    local dockTime=deps.Typography.Label(statusRow,"Control",tokens,"0s",UDim2.new(1,-52,0,8),UDim2.fromOffset(37,17),tokens.Color.Accent,"Accent")
     dockTime.TextSize=11;dockTime.TextXAlignment=Enum.TextXAlignment.Right;dockTime.ZIndex=90
     local statusEvent=Instance.new("CanvasGroup");statusEvent.GroupTransparency=1;statusEvent.BackgroundTransparency=1
     statusEvent.Position=UDim2.fromOffset(46,0);statusEvent.Size=UDim2.new(1,-46,1,0);statusEvent.Visible=false;statusEvent.ZIndex=89;statusEvent.Parent=statusDock
@@ -2661,23 +2694,23 @@ function Desktop.Mount(deps, options)
     restingGlyph.Visible=false;restingGlyph.Parent=activityTile
     local glyphParts={}
     for i=1,2 do
-        local part=Instance.new("Frame");part.BorderSizePixel=0;part.BackgroundColor3=tokens.Color.Accent
+        local part=Instance.new("Frame");part.BorderSizePixel=0;serenityColor(part,"BackgroundColor3",tokens,"Accent")
         part.ZIndex=92;part.Parent=restingGlyph;glyphParts[i]=part;corner(part,1)
     end
-    local eventTitle=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(14,10),UDim2.new(1,-28,0,21),tokens.Color.Text)
+    local eventTitle=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(14,10),UDim2.new(1,-28,0,21),tokens.Color.Text,"Text")
     eventTitle.Font=Enum.Font.GothamBold;eventTitle.TextSize=14;eventTitle.ZIndex=90
-    local eventBody=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(14,36),UDim2.new(1,-28,0,30),tokens.Color.TextMuted)
+    local eventBody=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(14,36),UDim2.new(1,-28,0,30),tokens.Color.TextMuted,"TextMuted")
     eventBody.TextSize=12;eventBody.TextWrapped=true;eventBody.TextYAlignment=Enum.TextYAlignment.Top;eventBody.ZIndex=90
     local statusExpanded=false
     local statusDetails={"No active task", "Start a demo from Playground"}
     local details=Instance.new("Frame");details.BackgroundTransparency=1
     details.Position=UDim2.fromOffset(14,56);details.Size=UDim2.new(1,-28,0,60)
     details.Visible=false;details.ZIndex=90;details.Parent=statusRow
-    local detailText=deps.Typography.Label(details,"Control",tokens,table.concat(statusDetails,"\n"),UDim2.fromOffset(0,0),UDim2.new(1,0,0,37),tokens.Color.TextMuted)
+    local detailText=deps.Typography.Label(details,"Control",tokens,table.concat(statusDetails,"\n"),UDim2.fromOffset(0,0),UDim2.new(1,0,0,37),tokens.Color.TextMuted,"TextMuted")
     detailText.TextSize=12;detailText.TextWrapped=true;detailText.TextYAlignment=Enum.TextYAlignment.Top;detailText.ZIndex=91
     local detailRestore=Instance.new("TextButton");detailRestore.Size=UDim2.fromOffset(96,23)
     detailRestore.Position=UDim2.new(1,-96,0,37);detailRestore.Text="Open main UI  ›";detailRestore.TextSize=11
-    detailRestore.Font=Enum.Font.GothamMedium;detailRestore.TextColor3=tokens.Color.Accent
+    detailRestore.Font=Enum.Font.GothamMedium;serenityColor(detailRestore,"TextColor3",tokens,"Accent")
     detailRestore.BackgroundTransparency=1;detailRestore.AutoButtonColor=false
     detailRestore.ZIndex=92;detailRestore.Parent=details
     local detailToggle=Instance.new("TextButton");detailToggle.Text="";detailToggle.BackgroundTransparency=1
@@ -2688,16 +2721,16 @@ function Desktop.Mount(deps, options)
     for i=1,2 do
         local bar=Instance.new("Frame");bar.BorderSizePixel=0;bar.Size=UDim2.fromOffset(6,2)
         bar.Position=UDim2.fromOffset((i-1)*4,2);bar.Rotation=i==1 and 40 or -40
-        bar.BackgroundColor3=tokens.Color.TextMuted;bar.ZIndex=93;bar.Parent=chevron
+        serenityColor(bar,"BackgroundColor3",tokens,"TextMuted");bar.ZIndex=93;bar.Parent=chevron
     end
     dockMetrics.Size=UDim2.new(1,-50,0,16)
     local progressTrack=Instance.new("Frame");progressTrack.Name="StatusProgress"
-    progressTrack.BackgroundColor3=tokens.Color.Stroke;progressTrack.BackgroundTransparency=0.83
+    serenityColor(progressTrack,"BackgroundColor3",tokens,"Stroke");progressTrack.BackgroundTransparency=0.83
     progressTrack.BorderSizePixel=0;progressTrack.Position=UDim2.new(0,14,0,47)
     progressTrack.Size=UDim2.new(1,-28,0,2);progressTrack.Visible=false
     progressTrack.ZIndex=90;progressTrack.Parent=statusRow;corner(progressTrack,1)
     local progressFill=Instance.new("Frame");progressFill.BorderSizePixel=0
-    progressFill.BackgroundColor3=tokens.Color.Accent;progressFill.BackgroundTransparency=0.18
+    serenityColor(progressFill,"BackgroundColor3",tokens,"Accent");progressFill.BackgroundTransparency=0.18
     progressFill.Size=UDim2.fromScale(0,1);progressFill.ZIndex=91;progressFill.Parent=progressTrack
     corner(progressFill,1)
     local progressTween
@@ -2807,7 +2840,7 @@ function Desktop.Mount(deps, options)
     detailRestore.Activated:Connect(function() app:SetVisible(true) end)
     local petsShortcut=Instance.new("TextButton");petsShortcut.BackgroundTransparency=1
     petsShortcut.Text="Server pets  ›";petsShortcut.TextSize=11;petsShortcut.Font=Enum.Font.GothamMedium
-    petsShortcut.TextColor3=tokens.Color.Accent;petsShortcut.Size=UDim2.fromOffset(90,23)
+    serenityColor(petsShortcut,"TextColor3",tokens,"Accent");petsShortcut.Size=UDim2.fromOffset(90,23)
     petsShortcut.Position=UDim2.fromOffset(0,37);petsShortcut.ZIndex=92;petsShortcut.Parent=details
     petsShortcut.Activated:Connect(function() app:SetVisible(true);app:SelectPage("Server") end)
 
@@ -2907,6 +2940,7 @@ function Desktop.Mount(deps, options)
     statusDragHandle.Active=true;statusDragHandle.ZIndex=94;statusDragHandle.Parent=statusDock
     local statusRestoreGate=0
     local function activateStatus()
+        if deps.ModalActive then return end
         if app.StatusClickSuppressed and app:StatusClickSuppressed() then return end
         if os.clock()<statusRestoreGate then return end
         statusRestoreGate=os.clock()+0.2
@@ -2943,6 +2977,7 @@ function Desktop.Mount(deps, options)
             deps.Motion:Tween(dockEdge,0.15,{Transparency=0.72})
         end
         local function beginStatusDrag(input)
+            if deps.ModalActive then return end
             if pointer or (input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch) then return end
             pointer=input;press=input.Position;dragging=false
             holdTimer=task.delay(0.35,function()
@@ -3004,6 +3039,7 @@ function Desktop.Mount(deps, options)
         restore.Position=UDim2.fromOffset(position.X,position.Y)
     end
     runtime:TrackConnection(restore.InputBegan:Connect(function(input)
+        if deps.ModalActive then return end
         if iconPointer or (input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch) then return end
         iconPointer=input;iconPress=input.Position;iconDragged=false
         iconStart=restore.AbsolutePosition-screen.AbsolutePosition
@@ -3074,10 +3110,11 @@ function Desktop.Mount(deps, options)
             action.Panel.Visible=action.PanelEnabled
             action.Caption.Text=action.Busy and "Applying change…" or (action.Value and "On · drag to move" or "Off · ready to enable")
             action.KeyButton.Text=capturing==action and "Press key" or (action.KeyCode and action.KeyCode.Name or "Bind key")
-            action.Switch.BackgroundColor3=action.Value and tokens.Color.Accent or tokens.Color.Inset
+            serenityColor(action.Switch,"BackgroundColor3",tokens,action.Value and "Accent" or "Inset")
             action.Dot.Position=UDim2.fromOffset(action.Value and 16 or 3,3)
             action.Switch.Active=not action.Busy
             for _,fn in ipairs(observers[action.Id] or {}) do pcall(fn,action) end
+            if app.OnViewChanged then app.OnViewChanged() end
         end
         function app:SetQuickPanelEnabled(id,value)
             local action=actions[id];if not action or action.Busy then return false end
@@ -3098,7 +3135,7 @@ function Desktop.Mount(deps, options)
                     if actions[id]~=action and actions[id].KeyCode==key then return false,"Already assigned" end
                 end
             end
-            action.KeyCode=key;render(action);return true
+            action.KeyCode=key;render(action);if app.OnViewChanged then app.OnViewChanged() end;return true
         end
         function app:SetQuickActionKey(id,key)
             local action=actions[id];if not action then return false,"Unknown action" end
@@ -3106,7 +3143,12 @@ function Desktop.Mount(deps, options)
         end
         function app:SetQuickPanelMinimized(id,value)
             local action=actions[id];if not action then return false end
-            action.Minimized=value==true;sizePanel(action);return true
+            action.Minimized=value==true;sizePanel(action);if app.OnViewChanged then app.OnViewChanged() end;return true
+        end
+        function app:CancelQuickKeyCapture()
+            local previous=capturing;capturing=nil
+            if captureTimer then pcall(task.cancel,captureTimer);captureTimer=nil end
+            if previous then render(previous) end
         end
         function app:GetQuickAction(id) return actions[id] end
         function app:ObserveQuickAction(id,fn)
@@ -3142,56 +3184,61 @@ function Desktop.Mount(deps, options)
             local action={Id=options.Id,Title=options.Title or options.Id,Value=options.Default==true,Callback=options.Callback,Busy=false,PanelEnabled=options.PanelEnabled==true,Minimized=false,PanelBuilder=options.Panel}
             local panel=Instance.new("Frame");panel.Name="FeaturePanel_"..action.Id
             panel.Position=UDim2.new(0,14,0.5,(#order)*72-110);panel.Size=UDim2.fromOffset(272,64)
-            panel.BackgroundColor3=tokens.Color.ShellDeep;panel.BackgroundTransparency=0.02
+            serenityColor(panel,"BackgroundColor3",tokens,"ShellDeep");panel.BackgroundTransparency=0.02
             panel.BorderSizePixel=0;panel.Active=true;panel.ZIndex=100;panel.Parent=screen
             corner(panel,7)
-            local edge=Instance.new("UIStroke");edge.Color=tokens.Color.Stroke;edge.Transparency=0.4;edge.Parent=panel
+            local edge=Instance.new("UIStroke");serenityColor(edge,"Color",tokens,"Stroke");edge.Transparency=0.4;edge.Parent=panel
             local accent=Instance.new("Frame");accent.Size=UDim2.fromOffset(3,16);accent.Position=UDim2.fromOffset(0,10)
-            accent.BorderSizePixel=0;accent.BackgroundColor3=tokens.Color.Accent;accent.ZIndex=101;accent.Parent=panel
-            local title=deps.Typography.Label(panel,"Control",tokens,action.Title,UDim2.fromOffset(13,0),UDim2.new(1,-100,0,36),tokens.Color.Text)
+            accent.BorderSizePixel=0;serenityColor(accent,"BackgroundColor3",tokens,"Accent");accent.ZIndex=101;accent.Parent=panel
+            local title=deps.Typography.Label(panel,"Control",tokens,action.Title,UDim2.fromOffset(13,0),UDim2.new(1,-100,0,36),tokens.Color.Text,"Text")
             title.TextSize=13;title.Font=Enum.Font.GothamSemibold;title.Active=true;title.ZIndex=101;title.TextTruncate=Enum.TextTruncate.AtEnd
-            local caption=deps.Typography.Label(panel,"Control",tokens,"Enabled · drag to move",UDim2.fromOffset(13,35),UDim2.new(1,-105,0,21),tokens.Color.TextMuted)
+            local caption=deps.Typography.Label(panel,"Control",tokens,"Enabled · drag to move",UDim2.fromOffset(13,35),UDim2.new(1,-105,0,21),tokens.Color.TextMuted,"TextMuted")
             caption.TextSize=11;caption.ZIndex=101
             local collapse=Instance.new("TextButton");collapse.Text="−";collapse.TextSize=19
-            collapse.BackgroundTransparency=1;collapse.TextColor3=tokens.Color.TextMuted;collapse.AutoButtonColor=false
+            collapse.BackgroundTransparency=1;serenityColor(collapse,"TextColor3",tokens,"TextMuted");collapse.AutoButtonColor=false
             collapse.Size=UDim2.fromOffset(28,30);collapse.Position=UDim2.new(1,-83,0,3);collapse.ZIndex=102;collapse.Parent=panel
             local switch=Instance.new("TextButton");switch.Text="";switch.AutoButtonColor=false
             switch.Size=UDim2.fromOffset(32,19);switch.Position=UDim2.new(1,-44,0,9)
             switch.BorderSizePixel=0;switch.ZIndex=102;switch.Parent=panel;corner(switch,4)
-            local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(13,13);dot.BackgroundColor3=tokens.Color.Text
+            local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(13,13);serenityColor(dot,"BackgroundColor3",tokens,"Text")
             dot.BorderSizePixel=0;dot.ZIndex=103;dot.Parent=switch;corner(dot,2)
             local body=Instance.new("Frame");body.BackgroundTransparency=1
             body.Position=UDim2.fromOffset(12,62);body.Size=UDim2.new(1,-24,0,36);body.ZIndex=101;body.Parent=panel
             local keyButton=Instance.new("TextButton");keyButton.Size=UDim2.fromOffset(76,22)
-            keyButton.Position=UDim2.new(1,-88,0,35);keyButton.BackgroundColor3=tokens.Color.PanelSoft
+            keyButton.Position=UDim2.new(1,-88,0,35);serenityColor(keyButton,"BackgroundColor3",tokens,"PanelSoft")
             keyButton.BorderSizePixel=0;keyButton.TextSize=10;keyButton.Font=Enum.Font.GothamMedium
-            keyButton.TextColor3=tokens.Color.TextMuted;keyButton.AutoButtonColor=false
+            serenityColor(keyButton,"TextColor3",tokens,"TextMuted");keyButton.AutoButtonColor=false
             keyButton.ZIndex=102;keyButton.Parent=panel;corner(keyButton,4)
             action.KeyButton=keyButton
             keyButton.Activated:Connect(function()
+                if deps.ModalActive or serenityInputBlocked(keyButton) then return end
                 if captureTimer then pcall(task.cancel,captureTimer);captureTimer=nil end
                 local previous=capturing;capturing=action
                 if previous then render(previous) end
                 render(action)
                 captureTimer=task.delay(8,function() capturing=nil;captureTimer=nil;if not runtime.Destroyed then render(action) end end)
             end)
+            runtime:TrackConnection(panel:GetPropertyChangedSignal("Position"):Connect(function() if app.OnViewChanged then app.OnViewChanged() end end))
             action.Panel=panel;action.Body=body;action.Caption=caption;action.Collapse=collapse;action.Switch=switch;action.Dot=dot
             if options.Panel then
                 local ok,err=pcall(options.Panel,body,self,action)
                 if not ok then panel:Destroy();error("Quick action panel failed: "..tostring(err)) end
             end
             actions[action.Id]=action;table.insert(order,action.Id)
-            switch.Activated:Connect(function() app:SetQuickAction(action.Id,not action.Value) end)
+            switch.Activated:Connect(function() if deps.ModalActive or serenityInputBlocked(switch) then return end; app:SetQuickAction(action.Id,not action.Value) end)
             collapse.Activated:Connect(function()
+                if deps.ModalActive or serenityInputBlocked(collapse) then return end
                 app:SetQuickPanelMinimized(action.Id,not action.Minimized)
             end)
             local dragInput,origin,start
             runtime:TrackConnection(title.InputBegan:Connect(function(input)
+                if deps.ModalActive or serenityInputBlocked(title) then return end
                 if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
                     dragInput=input;origin=input.Position;start=panel.AbsolutePosition-screen.AbsolutePosition
                 end
             end))
             runtime:TrackConnection(UserInputService.InputChanged:Connect(function(input)
+                if deps.ModalActive then dragInput=nil;return end
                 if not dragInput then return end
                 if dragInput.UserInputType==Enum.UserInputType.Touch and input~=dragInput then return end
                 if dragInput.UserInputType==Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.MouseMovement then return end
@@ -3204,6 +3251,58 @@ function Desktop.Mount(deps, options)
             end
             sizePanel(action);render(action);return action
         end
+        local function packPosition(object)
+            local size=screen.AbsoluteSize
+            return {X=object.Position.X.Scale+object.Position.X.Offset/math.max(1,size.X),Y=object.Position.Y.Scale+object.Position.Y.Offset/math.max(1,size.Y)}
+        end
+        local function restorePosition(object,data)
+            if type(data)~="table" then return end
+            local x,y=data.X,data.Y
+            if type(x)=="number" and type(y)=="number" and x==x and y==y and math.abs(x)<100 and math.abs(y)<100 then
+                object.Position=UDim2.fromScale(x,y)
+            end
+        end
+        function app:GetUIPreferences()
+            local data={Window=packPosition(holder),Status=packPosition(statusDock),Icon=packPosition(restore),Actions={}}
+            -- The visible window may currently be morphing into the status capsule.
+            if self._Minimizing or not holder.Visible then
+                data.Window={X=expandedPosition.X.Scale+expandedPosition.X.Offset/math.max(1,screen.AbsoluteSize.X),Y=expandedPosition.Y.Scale+expandedPosition.Y.Offset/math.max(1,screen.AbsoluteSize.Y)}
+            end
+            for _,id in ipairs(order) do
+                local action=actions[id]
+                data.Actions[id]={Key=action.KeyCode and action.KeyCode.Name or false,Minimized=action.Minimized,PanelEnabled=action.PanelEnabled,Position=packPosition(action.Panel)}
+            end
+            return data
+        end
+        function app:RestoreUIPreferences(data)
+            if type(data)~="table" then return end
+            restorePosition(holder,data.Window);expandedPosition=holder.Position
+            restorePosition(statusDock,data.Status);restorePosition(restore,data.Icon)
+            local pending={}
+            for _,id in ipairs(order) do
+                local action=actions[id];local entry=type(data.Actions)=="table" and data.Actions[id]
+                if type(entry)=="table" then
+                    restorePosition(action.Panel,entry.Position)
+                    action.Minimized=entry.Minimized==true
+                    action.PanelEnabled=entry.PanelEnabled==true
+                    -- Restore panel availability only; never invoke a game feature callback.
+                    sizePanel(action);render(action)
+                    local key=entry.Key
+                    if key==false then pending[id]={}
+                    elseif type(key)=="string" then
+                        local ok,value=pcall(function() return Enum.KeyCode[key] end)
+                        if ok and value and value~=Enum.KeyCode.Unknown and value~=Enum.KeyCode.Escape and value~=Enum.KeyCode.RightControl then pending[id]={Key=value} end
+                    end
+                end
+            end
+            for id in pairs(pending) do actions[id].KeyCode=nil end
+            for _,id in ipairs(order) do if pending[id] then setKey(actions[id],pending[id].Key) end end
+        end
+        for _,object in ipairs({holder,statusDock,restore}) do
+            runtime:TrackConnection(object:GetPropertyChangedSignal("Position"):Connect(function()
+                if app.OnViewChanged then app.OnViewChanged() end
+            end))
+        end
         function app:ResetQuickPanelPositions()
             for index,id in ipairs(order) do
                 actions[id].Panel.Position=UDim2.new(0,14,0.5,(index-1)*72-110)
@@ -3214,6 +3313,7 @@ function Desktop.Mount(deps, options)
         end))
         runtime:TrackCleanup(function() if captureTimer then pcall(task.cancel,captureTimer) end end)
         runtime:TrackConnection(UserInputService.InputBegan:Connect(function(input,processed)
+            if deps.ModalActive then return end
             if capturing then
                 if input.UserInputType~=Enum.UserInputType.Keyboard then return end
                 local action=capturing
@@ -3252,10 +3352,10 @@ function Desktop.Mount(deps, options)
         popup.Parent = overlay
         deps.Material.Popup(popup, tokens)
 
-        local caption=deps.Typography.Label(popup,"Value",tokens,categoriesOnly and "Categories" or "All features",UDim2.fromOffset(12,6),UDim2.new(1,-60,0,30),tokens.Color.Text)
+        local caption=deps.Typography.Label(popup,"Value",tokens,categoriesOnly and "Categories" or "All features",UDim2.fromOffset(12,6),UDim2.new(1,-60,0,30),tokens.Color.Text,"Text")
         caption.ZIndex=81
         local close=Instance.new("TextButton")
-        close.Text="×";close.TextSize=22;close.TextColor3=tokens.Color.TextMuted
+        close.Text="×";close.TextSize=22;serenityColor(close,"TextColor3",tokens,"TextMuted")
         close.BackgroundTransparency=1;close.Size=UDim2.fromOffset(40,36)
         close.Position=UDim2.new(1,-44,0,2);close.ZIndex=82;close.Parent=popup
         close.Activated:Connect(function() if serenityInputBlocked(close) then return end; deps.PopupManager:Close() end)
@@ -3264,8 +3364,8 @@ function Desktop.Mount(deps, options)
         input.Size = UDim2.new(1, -16, 0, 34)
         input.Text = ""
         input.PlaceholderText = categoriesOnly and "Filter categories..." or "Search all features..."
-        input.PlaceholderColor3 = tokens.Color.TextDim
-        input.TextColor3 = tokens.Color.Text
+        serenityColor(input,"PlaceholderColor3",tokens,"TextDim")
+        serenityColor(input,"TextColor3",tokens,"Text")
         input.TextSize = tokens.Type.Value
         input.Font = deps.Typography.Font.Medium
         input.TextXAlignment = Enum.TextXAlignment.Left
@@ -3319,7 +3419,7 @@ function Desktop.Mount(deps, options)
                 page.CanvasPosition=Vector2.new(0,math.clamp(y,0,math.max(0,page.AbsoluteCanvasSize.Y-page.AbsoluteWindowSize.Y)))
                 local outline=Instance.new("UIStroke")
                 outline.Name="SearchHighlight";outline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
-                outline.Color=tokens.Color.Accent;outline.Thickness=2;outline.Parent=target
+                serenityColor(outline,"Color",tokens,"Accent");outline.Thickness=2;outline.Parent=target
                 task.delay(1.5,function() if outline.Parent then outline:Destroy() end end)
             end)
         end
@@ -3329,17 +3429,17 @@ function Desktop.Mount(deps, options)
             row.BackgroundColor3=(categoriesOnly and match.Entry.Id==currentPage) and tokens.Color.Accent or tokens.Color.PanelSoft;row.BackgroundTransparency=0.12
             row.BorderSizePixel=0;row.Text="";row.AutoButtonColor=false;row.ZIndex=82;row.Parent=listFrame
             corner(row,6)
-            local title=deps.Typography.Label(row,"Value",tokens,match.Title,UDim2.fromOffset(10,4),UDim2.new(1,-20,0,25),tokens.Color.Text)
+            local title=deps.Typography.Label(row,"Value",tokens,match.Title,UDim2.fromOffset(10,4),UDim2.new(1,-20,0,25),tokens.Color.Text,"Text")
             title.ZIndex=83
             if not categoriesOnly then
-                local subtitle=deps.Typography.Label(row,"Description",tokens,match.Entry.Title,UDim2.fromOffset(10,28),UDim2.new(1,-20,0,15),tokens.Color.TextMuted)
+                local subtitle=deps.Typography.Label(row,"Description",tokens,match.Entry.Title,UDim2.fromOffset(10,28),UDim2.new(1,-20,0,15),tokens.Color.TextMuted,"TextMuted")
                 subtitle.ZIndex=83
             end
             table.insert(rows,{Frame=row,Match=match,Search=string.lower(match.Title.." "..match.Entry.Title.." "..(match.Description or ""))})
             deps.Material.OptionHover(row, tokens, categoriesOnly and match.Entry.Id==currentPage, deps.Motion)
             row.Activated:Connect(function() if serenityInputBlocked(row) then return end; jump(match) end)
         end
-        local empty=deps.Typography.Label(listFrame,"Value",tokens,categoriesOnly and "No matching categories" or "No matching features",UDim2.new(),UDim2.new(1,-10,0,40),tokens.Color.TextMuted)
+        local empty=deps.Typography.Label(listFrame,"Value",tokens,categoriesOnly and "No matching categories" or "No matching features",UDim2.new(),UDim2.new(1,-10,0,40),tokens.Color.TextMuted,"TextMuted")
         empty.ZIndex=83;empty.Visible=false
         input:GetPropertyChangedSignal("Text"):Connect(function()
             local q=string.lower(input.Text or "")
@@ -3382,7 +3482,7 @@ function Desktop.Mount(deps, options)
         for _, name in ipairs({"Global", "Session", "Safe"}) do
             local item = Instance.new("TextButton")
             item.Size = UDim2.new(1, 0, 0, 30)
-            item.BackgroundColor3 = tokens.Color.PanelSoft
+            serenityColor(item,"BackgroundColor3",tokens,"PanelSoft")
             item.BackgroundTransparency = name == scopeText.Text and 0.14 or 0.56
             item.BorderSizePixel = 0
             item.Text = name
@@ -3407,6 +3507,7 @@ function Desktop.Mount(deps, options)
     scopeButton.MouseButton1Click:Connect(createScopePopup)
 
     runtime:TrackConnection(UserInputService.InputBegan:Connect(function(input, processed)
+        if deps.ModalActive then return end
         if input.KeyCode==Enum.KeyCode.Escape and deps.PopupManager.Active then
             deps.PopupManager:Close()
             return
@@ -3457,7 +3558,7 @@ function Desktop.Mount(deps, options)
         brandSub.TextSize=10
     end
     pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(deps.Mobile and 160 or 190,40)
-    pageButton.BackgroundTransparency=1;pageText.TextSize=17;pageText.TextColor3=tokens.Color.Text
+    pageButton.BackgroundTransparency=1;pageText.TextSize=17;serenityColor(pageText,"TextColor3",tokens,"Text")
     navHolder.Position=UDim2.fromOffset(10,66)
     navHolder.Size=UDim2.new(1,-20,1,-(66+tokens.Size.SidebarUser+8))
     content.Position=UDim2.fromOffset(tokens.Size.Sidebar+(deps.Mobile and 12 or 20),tokens.Size.Topbar+4)
@@ -3465,7 +3566,7 @@ function Desktop.Mount(deps, options)
     -- A static divider replaces the bright full-window glass rim.
     local divider=Instance.new("Frame");divider.BorderSizePixel=0
     divider.Position=UDim2.fromOffset(tokens.Size.Sidebar,0);divider.Size=UDim2.new(0,1,1,0)
-    divider.BackgroundColor3=tokens.Color.Divider;divider.Parent=shell
+    serenityColor(divider,"BackgroundColor3",tokens,"Divider");divider.Parent=shell
     edge.Transparency=0.7;edge.Thickness=1
     -- Small branded motion, suspended with the window and cleaned up on reload.
     star.AnchorPoint=Vector2.new(0.5,0.5)
@@ -3504,7 +3605,7 @@ function Desktop.Mount(deps, options)
             while not runtime.Destroyed and holder.Visible and not deps.Motion.Reduced do
                 task.wait(9)
                 if runtime.Destroyed or not holder.Visible or deps.Motion.Reduced then break end
-                echoA.TextColor3=tokens.Color.Accent;echoB.TextColor3=tokens.Color.Lavender
+                serenityColor(echoA,"TextColor3",tokens,"Accent");serenityColor(echoB,"TextColor3",tokens,"Lavender")
                 echoA.Position=heading.Position+UDim2.fromOffset(1,0)
                 echoB.Position=heading.Position+UDim2.fromOffset(-1,1)
                 echoA.TextTransparency=0.88;echoB.TextTransparency=0.93
@@ -3654,6 +3755,7 @@ do
     end
     function app:SetMusicReactive(value)
         enabled=value==true
+        self.MusicReactive=enabled
         stop()
         if not enabled or runtime.Destroyed then return end
         -- Automatic fallback is scoped to SoundService, avoiding world-wide polling.
@@ -3709,6 +3811,26 @@ do
     local guiService = game:GetService("GuiService")
     local tweens = {}
     local activeDialog, activeTip
+    local modalBlocked={}
+    local function modalLock(value)
+        deps.ModalActive=value;runtime.ModalActive=value
+        if value then
+            if app.CancelQuickKeyCapture then app:CancelQuickKeyCapture() end
+            local objects={app.Shell}
+            for _,object in ipairs(app.ScreenGui:GetChildren()) do
+                if object~=app.Holder and object:IsA("GuiObject") then table.insert(objects,object) end
+            end
+            for _,object in ipairs(objects) do
+                modalBlocked[object]=object:GetAttribute("SerenityModalBlocked") or false
+                object:SetAttribute("SerenityModalBlocked",true)
+            end
+        else
+            for object,previous in pairs(modalBlocked) do
+                if object.Parent then object:SetAttribute("SerenityModalBlocked",previous) end
+            end
+            table.clear(modalBlocked)
+        end
+    end
     local function animate(object, properties)
         if tweens[object] then tweens[object]:Cancel() end
         tweens[object] = Motion:Tween(object, "Modal", properties)
@@ -3737,11 +3859,11 @@ do
         card.Parent = app.Holder
         rounded(card)
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Tokens.Color.Accent; stroke.Transparency = 0.5; stroke.Parent = card
+        serenityColor(stroke,"Color",Tokens,"Accent"); stroke.Transparency = 0.5; stroke.Parent = card
         local label = Instance.new("TextLabel")
         label.BackgroundTransparency = 1; label.Text = message
         label.Font = Enum.Font.Gotham; label.TextSize = 12
-        label.TextColor3 = Tokens.Color.Text; label.TextWrapped = true
+        serenityColor(label,"TextColor3",Tokens,"Text"); label.TextWrapped = true
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Position = UDim2.fromOffset(12, 10)
         label.Size = UDim2.new(1, -24, 1, -20); label.Parent = card
@@ -3804,15 +3926,15 @@ do
         card.AnchorPoint = Vector2.new(0.5, 0.5)
         card.Position = UDim2.new(0.5, 0, 0.5, 12)
         card.Size = UDim2.fromOffset(math.min(330, Tokens.Size.Window.X - 32), 170)
-        card.BackgroundColor3 = Tokens.Color.Panel
+        serenityColor(card,"BackgroundColor3",Tokens,"Panel")
         card.GroupTransparency = 1; card.Parent = overlay; rounded(card, 9)
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Tokens.Color.Stroke; stroke.Transparency = 0.25; stroke.Parent = card
+        serenityColor(stroke,"Color",Tokens,"Stroke"); stroke.Transparency = 0.25; stroke.Parent = card
         local title = Typography.Label(card, "Control", Tokens, options.Title or "Confirm action",
-            UDim2.fromOffset(16, 14), UDim2.new(1, -32, 0, 40), Tokens.Color.Text)
+            UDim2.fromOffset(16, 14), UDim2.new(1, -32, 0, 40), Tokens.Color.Text,"Text")
         title.TextSize = 16; title.Font = Enum.Font.GothamBold; title.TextWrapped = true
         local message = Typography.Label(card, "Control", Tokens, options.Message or "Continue with this action?",
-            UDim2.fromOffset(16, 59), UDim2.new(1, -32, 0, 50), Tokens.Color.TextMuted)
+            UDim2.fromOffset(16, 59), UDim2.new(1, -32, 0, 50), Tokens.Color.TextMuted,"TextMuted")
         message.TextSize = 12; message.TextWrapped = true; message.TextYAlignment = Enum.TextYAlignment.Top
         local function action(text, primary, x)
             local b = Instance.new("TextButton")
@@ -3820,7 +3942,7 @@ do
             b.Position = UDim2.new(x, x == 0 and 16 or 4, 1, -48)
             b.Text = text; b.TextSize = 12; b.Font = Enum.Font.GothamBold
             b.AutoButtonColor = false
-            b.BackgroundColor3 = primary and Tokens.Color.Accent or Tokens.Color.Inset
+            serenityColor(b,"BackgroundColor3",Tokens,primary and "Accent" or "Inset")
             b.TextColor3 = primary and Color3.fromRGB(8, 24, 38) or Tokens.Color.Text
             b.Parent = card; rounded(b, 8)
             local resting=b.BackgroundColor3
@@ -3837,7 +3959,7 @@ do
         local function resolve(confirmed)
             if settled then return end
             settled = true
-            if activeDialog == resolve then activeDialog = nil end
+            if activeDialog == resolve then activeDialog = nil;modalLock(false) end
             if guiService.SelectedObject == cancel or guiService.SelectedObject == accept then
                 guiService.SelectedObject = previousFocus and previousFocus.Parent and previousFocus or nil
             end
@@ -3852,6 +3974,7 @@ do
             if not runtime.Destroyed and options.Callback then options.Callback(confirmed) end
         end
         activeDialog = resolve
+        modalLock(true)
         if deps.PlayUISound then deps.PlayUISound() end
         cancel.Activated:Connect(function() if serenityInputBlocked(cancel) then return end;
             if deps.PlayUISound then deps.PlayUISound() end
@@ -3870,6 +3993,7 @@ do
     runtime:TrackCleanup(function()
         hideTip()
         if activeDialog then activeDialog(false) end
+        modalLock(false)
         for object,tween in pairs(tweens) do tween:Cancel(); tweens[object] = nil end
     end)
 end
@@ -3930,22 +4054,22 @@ do
             local data=table.remove(queue,1)
             local card=Instance.new("CanvasGroup");card.AnchorPoint=Vector2.new(1,1)
             card.Size=UDim2.fromOffset(306,78);card.Position=UDim2.new(1,330,1,-12)
-            card.GroupTransparency=1;card.BackgroundColor3=Tokens.Color.PanelSoft
+            card.GroupTransparency=1;serenityColor(card,"BackgroundColor3",Tokens,"PanelSoft")
             card.BackgroundTransparency=0.02;card.BorderSizePixel=0;card.Parent=root
             local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,3);corner.Parent=card
             local color=({Success=Tokens.Color.Mint,Warning=Tokens.Color.Amber,Error=Tokens.Color.Red})[data.Kind] or Tokens.Color.Accent
-            local stroke=Instance.new("UIStroke");stroke.Color=Tokens.Color.Stroke;stroke.Transparency=0.35;stroke.Thickness=1;stroke.Parent=card
+            local stroke=Instance.new("UIStroke");serenityColor(stroke,"Color",Tokens,"Stroke");stroke.Transparency=0.35;stroke.Thickness=1;stroke.Parent=card
             local mark=Instance.new("Frame");mark.Size=UDim2.fromOffset(13,2);mark.Position=UDim2.fromOffset(16,12)
             mark.BorderSizePixel=0;mark.BackgroundColor3=color;mark.Parent=card
             local notch=Instance.new("Frame");notch.Size=UDim2.fromOffset(3,3);notch.Position=UDim2.fromOffset(16,16)
             notch.BorderSizePixel=0;notch.BackgroundColor3=color;notch.BackgroundTransparency=0.3;notch.Parent=card
-            local title=Typography.Label(card,"Control",Tokens,data.Title,UDim2.fromOffset(37,9),UDim2.new(1,-76,0,23),Tokens.Color.Text)
+            local title=Typography.Label(card,"Control",Tokens,data.Title,UDim2.fromOffset(37,9),UDim2.new(1,-76,0,23),Tokens.Color.Text,"Text")
             title.Font=Enum.Font.GothamBold;title.TextSize=14;title.TextTruncate=Enum.TextTruncate.AtEnd
-            local body=Typography.Label(card,"Control",Tokens,data.Message,UDim2.fromOffset(16,34),UDim2.new(1,-48,0,29),Tokens.Color.TextMuted)
+            local body=Typography.Label(card,"Control",Tokens,data.Message,UDim2.fromOffset(16,34),UDim2.new(1,-48,0,29),Tokens.Color.TextMuted,"TextMuted")
             body.TextWrapped=true;body.TextYAlignment=Enum.TextYAlignment.Top;body.TextSize=12;body.TextTruncate=Enum.TextTruncate.AtEnd
             local dismiss=Instance.new("TextButton");dismiss.Size=UDim2.fromOffset(30,30)
             dismiss.Position=UDim2.new(1,-34,0,5);dismiss.BackgroundTransparency=1;dismiss.AutoButtonColor=false
-            dismiss.Text="×";dismiss.Font=Enum.Font.GothamMedium;dismiss.TextColor3=Tokens.Color.TextMuted;dismiss.TextSize=18;dismiss.Parent=card
+            dismiss.Text="×";dismiss.Font=Enum.Font.GothamMedium;serenityColor(dismiss,"TextColor3",Tokens,"TextMuted");dismiss.TextSize=18;dismiss.Parent=card
             dismiss.MouseEnter:Connect(function() if serenityInputBlocked(dismiss) then return end; dismiss.TextColor3=Tokens.Color.Text end)
             dismiss.MouseLeave:Connect(function() dismiss.TextColor3=Tokens.Color.TextMuted end)
             local track=Instance.new("Frame");track.Size=UDim2.new(1,-32,0,1);track.Position=UDim2.new(0,16,1,-7)
@@ -4090,6 +4214,7 @@ do
         list:SetItems(items,options and options.Demo==true)
         if update then update.Visible=list.Demo end
     end
+    function app:SetServerPetState(state,message) return list:SetState(state,message) end
     local alternate=false
     local function preview()
         app:SetServerPets({
@@ -4103,7 +4228,7 @@ do
     end
     preview()
     update=Instance.new("TextButton");update.Size=UDim2.new(1,0,0,32);update.Text="Simulate availability update"
-    update.Font=Enum.Font.GothamMedium;update.TextSize=12;update.TextColor3=Tokens.Color.Accent
+    update.Font=Enum.Font.GothamMedium;update.TextSize=12;serenityColor(update,"TextColor3",Tokens,"Accent")
     update.BackgroundTransparency=1;update.LayoutOrder=2;update.Parent=petsSection.Body
     update.Activated:Connect(function() if serenityInputBlocked(update) then return end;alternate=not alternate;preview() end)
 end
@@ -4177,6 +4302,7 @@ local function markCustom()
     selectedPreset="Custom"
     if presetControl then presetControl:Set("Custom",true) end
     if app.RefreshPresetGallery then app.RefreshPresetGallery() end
+    saveAppearance()
 end
 -- Complete low-saturation palettes: surfaces, typography, states and accents.
 local themeSpecs={
@@ -4207,7 +4333,7 @@ local function completePalette(name)
         Shell=rgb(base),Topbar=rgb(base),ShellDeep=rgb(base,-5),ShellSoft=rgb(base,3),Sidebar=rgb(base,1),
         Panel=rgb(base,7),PanelSoft=rgb(base,14),Surface=rgb(base,2),SurfaceSoft=rgb(base,5),Control=rgb(base,5),
         ControlHover=rgb(base,20),RowHover=rgb(base,20),Inset=rgb(base,12),InsetHover=rgb(base,23),Popup=rgb(base,4),
-        NavActive=rgb(base,26),NavHover=rgb(base,17),Text=rgb(text),TextMuted=rgb(text,-49),TextDim=rgb(text,-68),
+        NavActive=rgb(base,26),NavHover=rgb(base,17),Text=rgb(text),TextMuted=rgb(text,-42),TextDim=rgb(text,-58),
         Divider=rgb(base,27),Stroke=rgb(base,43),StrokeBright=rgb(trim),Disabled=rgb(base,43),
         Accent=rgb(accent),Blue=rgb(accent),AccentBright=rgb(accent,15),Cyan=rgb(accent,8),Lavender=rgb(trim),
     }
@@ -4231,12 +4357,13 @@ local function applyTheme(name)
             -- Gallery swatches preview their own preset, independent of the active theme.
         elseif object:IsA("GuiObject") then table.insert(props,"BackgroundColor3") end
         if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then table.insert(props,"TextColor3") end
+        if object:IsA("TextBox") then table.insert(props,"PlaceholderColor3") end
         if object:IsA("UIStroke") then table.insert(props,"Color") end
         if object:IsA("ImageLabel") or object:IsA("ImageButton") then table.insert(props,"ImageColor3") end
         if object:GetAttribute("FixedPresetColor") then props={} end
         for _,prop in ipairs(props) do
             themeBindings[object]=themeBindings[object] or {}
-            local binding=themeBindings[object][prop]
+            local binding=object:GetAttribute("ThemeRole_"..prop) or themeBindings[object][prop]
             if not binding then
                 local original=object[prop]
                 for key,color in pairs(previousColors) do
@@ -4259,18 +4386,26 @@ local materialState={Mode="Basic",Opacity=100,Edge=30,Palette="Match theme",Blur
 local appearancePath="Serenity_UI_Test_Appearance_v3.json"
 local HttpService=game:GetService("HttpService")
 local saveRevision=0
+local saveTimer
 local uiSoundsEnabled=true
 local uiSoundVolume=60
 saveAppearance=function()
+    if runtime.Destroyed or restoringAppearance then return end
+    if saveTimer then pcall(task.cancel,saveTimer);saveTimer=nil end
     saveRevision=saveRevision+1
     local revision=saveRevision
-    task.delay(0.7,function()
-        if revision~=saveRevision or type(writefile)~="function" then return end
+    saveTimer=task.delay(0.7,function()
+        saveTimer=nil
+        if runtime.Destroyed or revision~=saveRevision or type(writefile)~="function" then return end
         pcall(function()
-            writefile(appearancePath,HttpService:JSONEncode({Version=1,MotionVersion=1,HideDashboardName=hideDashboardName,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,View=app:GetViewState()}))
+            writefile(appearancePath,HttpService:JSONEncode({Version=1,MotionVersion=1,HideDashboardName=hideDashboardName,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,MusicReactive=app.MusicReactive==true,UI=app:GetUIPreferences(),View=app:GetViewState()}))
         end)
     end)
 end
+runtime:TrackCleanup(function()
+    saveRevision=saveRevision+1
+    if saveTimer then pcall(task.cancel,saveTimer);saveTimer=nil end
+end)
 local savedAppearance
 if type(readfile)=="function" then
     local ok,data=pcall(function() return HttpService:JSONDecode(readfile(appearancePath)) end)
@@ -4383,7 +4518,7 @@ refreshMaterials=function()
         end
         if object:IsA("UIStroke") and (object.Name=="PanelStroke" or object.Name=="ShellEdge" or object.Parent.Name=="GlassRim") then
             local outer=object.Parent.Name=="GlassRim"
-            object.Color=Tokens.Color.Stroke
+            serenityColor(object,"Color",Tokens,"Stroke")
             object.Thickness=outer and 1.7 or 1
             object.Transparency=1-(materialState.Edge/100)*(outer and 1 or 0.57)
             local g=object:FindFirstChildOfClass("UIGradient") or Instance.new("UIGradient")
@@ -4448,7 +4583,7 @@ local function restoreAppearance(data)
 end
 local reset=Instance.new("TextButton")
 reset.Size=UDim2.new(1,0,0,36);reset.Text="Restore preferred appearance"
-reset.Font=Enum.Font.GothamMedium;reset.TextSize=12;reset.TextColor3=Tokens.Color.Text
+reset.Font=Enum.Font.GothamMedium;reset.TextSize=12;serenityColor(reset,"TextColor3",Tokens,"Text")
 reset.Parent=appearance.Body;Material.Inset(reset,Tokens)
 reset.Activated:Connect(function() if serenityInputBlocked(reset) then return end; restoreAppearance(nil) end)
 local presets={
@@ -4498,12 +4633,12 @@ reducedMotionToggle(dragSection.Body)
 do
     local reset=Instance.new("TextButton");reset.Size=UDim2.new(1,0,0,34)
     reset.Text="Reset all floating positions";reset.TextSize=12;reset.Font=Enum.Font.GothamMedium
-    reset.TextColor3=Tokens.Color.Text;reset.BackgroundColor3=Tokens.Color.PanelSoft
+    serenityColor(reset,"TextColor3",Tokens,"Text");serenityColor(reset,"BackgroundColor3",Tokens,"PanelSoft")
     reset.BorderSizePixel=0;reset.AutoButtonColor=false;reset.Parent=dragSection.Body
     reset.Activated:Connect(function() app:ResetFloatingPositions() end)
 end
 local soundSection=Section.new(settingsCols.Left,deps,{Title="Interface sounds",Description="Gentle cues for categories, confirmations and window controls."})
-Toggle.new(soundSection.Body,deps,{Title="Music-reactive runes",Default=false,Description="Softly follow game music. Supports Sound tracks; stops with Reduced motion.",Callback=function(v) app:SetMusicReactive(v) end})
+Toggle.new(soundSection.Body,deps,{Title="Music-reactive runes",Default=savedAppearance and savedAppearance.MusicReactive==true or false,Description="Softly follow game music. Supports Sound tracks; stops with Reduced motion.",Callback=function(v) app:SetMusicReactive(v);saveAppearance() end})
 Toggle.new(soundSection.Body,deps,{Title="Interface sounds",Default=uiSoundsEnabled,Callback=function(v) uiSoundsEnabled=v;saveAppearance() end})
 Slider.new(soundSection.Body,deps,{Title="Sound volume",Min=0,Max=100,Step=5,Default=uiSoundVolume,Suffix="%",Callback=function(v) uiSoundVolume=v;saveAppearance() end})
 previewSound=Instance.new("TextButton")
@@ -4512,7 +4647,7 @@ previewSound.Size=UDim2.new(1,0,0,36)
 updateSoundPreview()
 previewSound.Font=Enum.Font.GothamMedium
 previewSound.TextSize=12
-previewSound.TextColor3=Tokens.Color.Text
+serenityColor(previewSound,"TextColor3",Tokens,"Text")
 previewSound.AutoButtonColor=true
 previewSound.Parent=soundSection.Body
 Material.Inset(previewSound,Tokens)
@@ -4523,13 +4658,13 @@ local layout=Instance.new("UIGridLayout");layout.CellSize=UDim2.new(0.5,-5,0,65)
 layout.SortOrder=Enum.SortOrder.LayoutOrder;layout.FillDirectionMaxCells=2;layout.Parent=grid
 for i,preset in ipairs(presets) do
     local tile=Instance.new("TextButton");tile.Name=preset.Name;tile.Text="";tile.AutoButtonColor=false
-    tile.BackgroundColor3=Tokens.Color.PanelSoft;tile.BackgroundTransparency=0.05;tile.LayoutOrder=i;tile.Parent=grid
+    serenityColor(tile,"BackgroundColor3",Tokens,"PanelSoft");tile.BackgroundTransparency=0.05;tile.LayoutOrder=i;tile.Parent=grid
     local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,8);corner.Parent=tile
     local stroke=Instance.new("UIStroke");stroke.Color=preset.Color;stroke.Transparency=0.72;stroke:SetAttribute("FixedPresetColor",true);stroke.Parent=tile
     local strip=Instance.new("Frame");strip.BorderSizePixel=0;strip.BackgroundColor3=preset.Color;strip:SetAttribute("FixedPresetColor",true)
     strip.Position=UDim2.fromOffset(10,11);strip.Size=UDim2.new(1,-20,0,5);strip.Parent=tile
     local round=Instance.new("UICorner");round.CornerRadius=UDim.new(1,0);round.Parent=strip
-    local name=Typography.Label(tile,"Control",Tokens,preset.Name,UDim2.fromOffset(10,24),UDim2.new(1,-31,0,20),Tokens.Color.Text)
+    local name=Typography.Label(tile,"Control",Tokens,preset.Name,UDim2.fromOffset(10,24),UDim2.new(1,-31,0,20),Tokens.Color.Text,"Text")
     name.TextSize=11;name.TextTruncate=Enum.TextTruncate.AtEnd
     local badge=Typography.Label(tile,"Control",Tokens,"",UDim2.new(1,-21,0,24),UDim2.fromOffset(16,20),preset.Color)
     badge:SetAttribute("FixedPresetColor",true)
@@ -4570,7 +4705,7 @@ do
     end
     local function button(parent,message,callback)
         local b=Instance.new("TextButton");b.Text=message;b.AutoButtonColor=false
-        b.Font=Enum.Font.GothamMedium;b.TextSize=12;b.TextColor3=Tokens.Color.Text
+        b.Font=Enum.Font.GothamMedium;b.TextSize=12;serenityColor(b,"TextColor3",Tokens,"Text")
         b.Parent=parent;Material.Inset(b,Tokens)
         runtime:TrackConnection(b.Activated:Connect(callback))
         local normal=b.BackgroundTransparency
@@ -4584,8 +4719,8 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.76";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
-    badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
+    badge.Text="UI TEST  ·  M4.77";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    serenityColor(badge,"TextColor3",Tokens,"Accent");badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
         badge.Visible=wide
@@ -4606,11 +4741,11 @@ do
     local portrait=Instance.new("ImageLabel");portrait.Name="DashboardAvatar"
     portrait.AnchorPoint=Vector2.new(1,0);portrait.Position=UDim2.new(1,-18,0,19)
     portrait.Size=UDim2.fromOffset(68,68);portrait.BackgroundTransparency=0.2
-    portrait.BackgroundColor3=Tokens.Color.PanelSoft;portrait.ScaleType=Enum.ScaleType.Fit
+    serenityColor(portrait,"BackgroundColor3",Tokens,"PanelSoft");portrait.ScaleType=Enum.ScaleType.Fit
     portrait.ImageTransparency=0
     portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420";portrait.Parent=hero
     local curve=Instance.new("UICorner");curve.CornerRadius=UDim.new(1,0);curve.Parent=portrait
-    local ring=Instance.new("UIStroke");ring.Color=Tokens.Color.Accent;ring.Transparency=0.5;ring.Parent=portrait
+    local ring=Instance.new("UIStroke");serenityColor(ring,"Color",Tokens,"Accent");ring.Transparency=0.5;ring.Parent=portrait
     registerIdentity(portrait,"ImageTransparency",0,1)
     -- Show the thumbnail directly; executor load flags can remain false after rendering.
     local explore=button(hero,"Explore components  ›",function() app:SelectPage("Playground") end)
@@ -4685,12 +4820,12 @@ do
         switch.Position=UDim2.new(1,-42,0,12);switch.BorderSizePixel=0;switch.Parent=b
         local round=Instance.new("UICorner");round.CornerRadius=UDim.new(0,4);round.Parent=switch
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(13,13);dot.BorderSizePixel=0
-        dot.BackgroundColor3=Tokens.Color.Text;dot.Parent=switch
+        serenityColor(dot,"BackgroundColor3",Tokens,"Text");dot.Parent=switch
         local dotCorner=Instance.new("UICorner");dotCorner.CornerRadius=UDim.new(0,2);dotCorner.Parent=dot
         app:ObserveQuickAction(data[4],function(action)
             sub.Text=action.Busy and "Applying…" or (action.PanelEnabled and "Panel enabled" or "Panel disabled")
-            sub.TextColor3=action.PanelEnabled and Tokens.Color.Accent or Tokens.Color.TextMuted
-            switch.BackgroundColor3=action.PanelEnabled and Tokens.Color.Accent or Tokens.Color.Inset
+            serenityColor(sub,"TextColor3",Tokens,action.PanelEnabled and "Accent" or "TextMuted")
+            serenityColor(switch,"BackgroundColor3",Tokens,action.PanelEnabled and "Accent" or "Inset")
             dot.Position=UDim2.fromOffset(action.PanelEnabled and 16 or 3,3)
         end)
     end
@@ -4717,8 +4852,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.76"})
-    for i,data in ipairs({{"Available pets ranking","Server now previews ranked pets, rarity, counts and locations."},{"Search and sort","Find a pet and compare score, availability or name."},{"Optional pet pictures","Asset images are supported; native pixel portraits work without them."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.77"})
+    for i,data in ipairs({{"Safer dialogs and reloads","Confirmations block shortcuts; pending saves stop on reload."},{"Remember your workspace","Keybinds, floating positions and music preference now save."},{"Readable inline pet details","Expand a pet in place; loading and update states are available."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4752,7 +4887,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.76",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.77",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4762,10 +4897,10 @@ end
 do
     local player=game:GetService("Players").LocalPlayer
     local profile=app:AddPage({Id="Profile",Title="Profile",Icon="info",Group="System",Order=8})
-    app.ProfileButton.Activated:Connect(function() if serenityInputBlocked(ProfileButton) then return end; app:SelectPage("Profile") end)
+    app.ProfileButton.Activated:Connect(function() if serenityInputBlocked(app.ProfileButton) then return end; app:SelectPage("Profile") end)
     local lab=app:AddPage({Id="Playground",Title="Playground",Icon="settings",Group="System",Order=9})
     local function text(parent,message,height)
-        local label=Typography.Label(parent,"Control",Tokens,message,UDim2.new(),UDim2.new(1,-20,0,height or 32),Tokens.Color.Text)
+        local label=Typography.Label(parent,"Control",Tokens,message,UDim2.new(),UDim2.new(1,-20,0,height or 32),Tokens.Color.Text,"Text")
         label.TextWrapped=true
         return label
     end
@@ -4773,7 +4908,7 @@ do
         local b=Instance.new("TextButton")
         b.Size=UDim2.new(1,0,0,34)
         b.Text=title;b.TextSize=12;b.Font=Enum.Font.GothamMedium
-        b.TextColor3=Tokens.Color.Text;b.Parent=parent
+        serenityColor(b,"TextColor3",Tokens,"Text");b.Parent=parent
         Material.Inset(b,Tokens)
         b.AutoButtonColor=false
         Material.OptionHover(b,Tokens,false,Motion)
@@ -4831,7 +4966,7 @@ do
     local input=Instance.new("TextBox")
     input.Size=UDim2.new(1,0,0,34);input.Text="";input.PlaceholderText="Type here, then press Enter"
     input.ClearTextOnFocus=false;input.TextSize=12;input.Font=Enum.Font.GothamMedium
-    input.TextColor3=Tokens.Color.Text;input.PlaceholderColor3=Tokens.Color.TextMuted
+    serenityColor(input,"TextColor3",Tokens,"Text");serenityColor(input,"PlaceholderColor3",Tokens,"TextMuted")
     input.Parent=inputs.Body;Material.Inset(input,Tokens)
     input.FocusLost:Connect(function(enter) if enter then report("Submitted: "..input.Text:sub(1,100)) end end)
     local list=Section.new(columns.Right,deps,{Title="Searchable scrolling list"})
@@ -4914,16 +5049,16 @@ do
     local media=app:AddPage({Id="Media",Title="Image & Viewport",Icon="inventory",Group="System",Order=10})
     local imageSection=Section.new(media,deps,{Title="Image",Description="Current experience artwork with a readable fallback."})
     local image=Instance.new("ImageLabel");image.Size=UDim2.new(1,0,0,150)
-    image.BackgroundColor3=Tokens.Color.PanelSoft;image.ScaleType=Enum.ScaleType.Crop
+    serenityColor(image,"BackgroundColor3",Tokens,"PanelSoft");image.ScaleType=Enum.ScaleType.Crop
     image.Image="rbxthumb://type=GameIcon&id="..game.GameId.."&w=512&h=512";image.Parent=imageSection.Body
     local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,8);c.Parent=image
-    local fallback=Typography.Label(image,"Control",Tokens,"Experience artwork",UDim2.new(),UDim2.fromScale(1,1),Tokens.Color.TextMuted)
+    local fallback=Typography.Label(image,"Control",Tokens,"Experience artwork",UDim2.new(),UDim2.fromScale(1,1),Tokens.Color.TextMuted,"TextMuted")
     fallback.TextXAlignment=Enum.TextXAlignment.Center
     runtime:TrackConnection(image:GetPropertyChangedSignal("IsLoaded"):Connect(function() fallback.Visible=not image.IsLoaded end))
     fallback.Visible=not image.IsLoaded
     local section=Section.new(media,deps,{Title="Viewport",Description="Your avatar · drag to rotate"})
     local viewport=Instance.new("ViewportFrame");viewport.Size=UDim2.new(1,0,0,245)
-    viewport.BackgroundColor3=Tokens.Color.PanelSoft;viewport.BorderSizePixel=0;viewport.Active=true
+    serenityColor(viewport,"BackgroundColor3",Tokens,"PanelSoft");viewport.BorderSizePixel=0;viewport.Active=true
     viewport.Ambient=Color3.fromRGB(190,190,200);viewport.LightColor=Color3.fromRGB(255,255,255)
     viewport.Parent=section.Body
     local world=Instance.new("WorldModel");world.Parent=viewport
@@ -4981,7 +5116,7 @@ do
     local intro=Instance.new("TextLabel");intro.AnchorPoint=Vector2.new(0.5,0.5)
     intro.Position=UDim2.fromScale(0.5,0.5);intro.Size=UDim2.fromOffset(230,65)
     intro.Text="SERENITY HUB";intro.Font=Enum.Font.GothamBold;intro.TextSize=18
-    intro.TextColor3=Tokens.Color.Text;intro.BackgroundColor3=Tokens.Color.Panel;intro.ZIndex=90
+    serenityColor(intro,"TextColor3",Tokens,"Text");serenityColor(intro,"BackgroundColor3",Tokens,"Panel");intro.ZIndex=90
     intro.Parent=app.Holder
     local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,12);corner.Parent=intro
     local finished=false
@@ -5004,7 +5139,11 @@ end
 app:SelectPage("Dashboard")
 if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.DragStyle="Outline" end
 restoreAppearance(savedAppearance)
-if savedAppearance then app:RestoreViewState(savedAppearance.View) end
+if savedAppearance then
+    app:RestoreViewState(savedAppearance.View)
+    app:RestoreUIPreferences(savedAppearance.UI)
+    app:SetMusicReactive(savedAppearance.MusicReactive==true)
+end
 app.OnViewChanged=saveAppearance
 -- One pair of input handlers per button; no heartbeat or idle work for ordinary icons.
 do
@@ -5035,7 +5174,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.76 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.77 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
