@@ -1853,6 +1853,175 @@ end
 return ColumnLayout
 
 end)()
+modules["src/components/RankedPets.lua"] = (function()
+local RankedPets={}
+RankedPets.__index=RankedPets
+local function finite(value,fallback)
+    value=tonumber(value)
+    return value and value==value and math.abs(value)<math.huge and value or fallback
+end
+function RankedPets.Normalize(items)
+    local result,seen={},{}
+    for _,item in ipairs(type(items)=="table" and items or {}) do
+        if type(item)=="table" then
+            local name=tostring(item.Name or "Unknown pet"):sub(1,80)
+            local id=tostring(item.Id or name)
+            local count=math.max(0,math.floor(finite(item.Count,1)))
+            if count>0 and not seen[id] then
+                seen[id]=true
+                local icon=tostring(item.Image or "")
+                if icon:match("^%d+$") then icon="rbxassetid://"..icon end
+                if not icon:match("^rbxassetid://%d+$") then icon="" end
+                table.insert(result,{Id=id,Name=name,Rarity=tostring(item.Rarity or "Unknown"):sub(1,32),Count=count,
+                    Score=math.max(0,finite(item.Score,0)),Location=tostring(item.Location or "Location unavailable"):sub(1,100),Image=icon})
+            end
+        end
+    end
+    return result
+end
+function RankedPets.Order(items,mode,query)
+    local result={};query=string.lower(query or "")
+    for _,item in ipairs(items) do
+        if string.find(string.lower(item.Name.." "..item.Rarity.." "..item.Location),query,1,true) then table.insert(result,item) end
+    end
+    table.sort(result,function(a,b)
+        if mode=="Name" then
+            if a.Name~=b.Name then return a.Name<b.Name end
+        else
+            local av,bv=mode=="Count" and a.Count or a.Score,mode=="Count" and b.Count or b.Score
+            if av~=bv then return av>bv end
+            if a.Name~=b.Name then return a.Name<b.Name end
+        end
+        return a.Id<b.Id
+    end)
+    return result
+end
+local function compact(n)
+    if n>=1e9 then return string.format("%.1fB",n/1e9) end
+    if n>=1e6 then return string.format("%.1fM",n/1e6) end
+    if n>=1e3 then return string.format("%.1fk",n/1e3) end
+    return tostring(math.floor(n))
+end
+function RankedPets.new(parent,deps,options)
+    options=options or {}
+    local tokens=deps.Tokens
+    local self=setmetatable({Items={},Mode="Score",Query="",Limit=20,Rows={},Demo=options.Demo==true},RankedPets)
+    local function label(parent,text,x,y,w,h,size,color)
+        local object=deps.Typography.Label(parent,"Control",tokens,text,UDim2.fromOffset(x,y),UDim2.new(1,w,0,h),color or tokens.Color.Text)
+        object.TextSize=size;object.TextTruncate=Enum.TextTruncate.AtEnd
+        return object
+    end
+    local root=Instance.new("Frame");root.Name="AvailablePets";root.BackgroundTransparency=1
+    root.Size=UDim2.new(1,0,0,0);root.AutomaticSize=Enum.AutomaticSize.Y;root.Parent=parent;self.Frame=root
+    local stack=Instance.new("UIListLayout");stack.SortOrder=Enum.SortOrder.LayoutOrder;stack.Padding=UDim.new(0,4);stack.Parent=root
+    local summary=Instance.new("Frame");summary.BackgroundTransparency=1;summary.Size=UDim2.new(1,0,0,30);summary.LayoutOrder=0;summary.Parent=root
+    local summaryText=label(summary,"",12,3,-24,24,11,tokens.Color.TextMuted)
+    local toolbar=Instance.new("Frame");toolbar.BackgroundTransparency=1;toolbar.Size=UDim2.new(1,0,0,38);toolbar.LayoutOrder=1;toolbar.Parent=root
+    local search=Instance.new("TextBox");search.Name="PetSearch";search.Text="";search.PlaceholderText="Search pets…";search.ClearTextOnFocus=false
+    search.TextSize=12;search.Font=Enum.Font.Gotham;search.TextColor3=tokens.Color.Text;search.PlaceholderColor3=tokens.Color.TextMuted
+    search.Position=UDim2.fromOffset(10,0);search.Size=UDim2.new(1,-106,0,32);search.Parent=toolbar;deps.Material.Inset(search,tokens)
+    local sort=Instance.new("TextButton");sort.Size=UDim2.fromOffset(80,32);sort.Position=UDim2.new(1,-90,0,0)
+    sort.Text="Score ↓";sort.Font=Enum.Font.GothamMedium;sort.TextSize=11;sort.TextColor3=tokens.Color.Accent
+    sort.AutoButtonColor=false;sort.Parent=toolbar;deps.Material.Inset(sort,tokens)
+    local empty=label(root,"No pets available",12,0,-24,48,12,tokens.Color.TextMuted);empty.LayoutOrder=2
+    local selectedInfo=label(root,"Select a pet to see its location",12,0,-24,32,11,tokens.Color.TextMuted);selectedInfo.LayoutOrder=10001
+    local more=Instance.new("TextButton");more.Size=UDim2.new(1,-20,0,30);more.BackgroundTransparency=1
+    more.Text="Show 20 more";more.TextSize=12;more.Font=Enum.Font.GothamMedium;more.TextColor3=tokens.Color.Accent;more.LayoutOrder=10000;more.Parent=root
+    local function makeRow()
+        local row=Instance.new("TextButton");row.Name="PetEntry";row.Size=UDim2.new(1,0,0,56);row.Text="";row.AutoButtonColor=false
+        row.BackgroundColor3=tokens.Color.PanelSoft;row.BackgroundTransparency=0.65;row.BorderSizePixel=0;row.Parent=root
+        deps.Material.PixelSurface(row,2)
+        local mark=Instance.new("Frame");mark.BorderSizePixel=0;mark.Size=UDim2.fromOffset(2,26);mark.Position=UDim2.fromOffset(1,15)
+        mark.BackgroundColor3=tokens.Color.Accent;mark.Visible=false;mark.Parent=row
+        local rank=label(row,"",8,15,0,22,12,tokens.Color.TextMuted);rank.Size=UDim2.fromOffset(24,22)
+        local portrait=Instance.new("Frame");portrait.Size=UDim2.fromOffset(36,36);portrait.Position=UDim2.fromOffset(36,10)
+        portrait.BorderSizePixel=0;portrait.BackgroundColor3=tokens.Color.Inset;portrait.Parent=row;deps.Material.PixelSurface(portrait,2)
+        local fallback=Instance.new("Frame");fallback.BackgroundTransparency=1;fallback.Size=UDim2.fromScale(1,1);fallback.Parent=portrait
+        local pixels={}
+        -- Small native pixel pet: no asset download is required for the fallback.
+        for y,line in ipairs({"XX   XX","XXX XXX","XXXXXXX","XoXXXoX","XXXXXXX"," XXoXX ","  XXX  "}) do
+            local x=1
+            while x<=#line do
+                local tone=line:sub(x,x)
+                if tone==" " then x=x+1 else
+                    local last=x;while last<#line and line:sub(last+1,last+1)==tone do last=last+1 end
+                    local pixel=Instance.new("Frame");pixel.BorderSizePixel=0
+                    pixel.Position=UDim2.fromOffset(4+(x-1)*4,4+(y-1)*4);pixel.Size=UDim2.fromOffset((last-x+1)*4,4)
+                    pixel.BackgroundColor3=tone=="o" and tokens.Color.ShellDeep or tokens.Color.Accent;pixel.Parent=fallback
+                    if tone~="o" then table.insert(pixels,pixel) end
+                    x=last+1
+                end
+            end
+        end
+        local image=Instance.new("ImageLabel");image.BackgroundTransparency=1;image.Size=UDim2.fromScale(1,1);image.ScaleType=Enum.ScaleType.Fit;image.Parent=portrait
+        image:GetPropertyChangedSignal("IsLoaded"):Connect(function() fallback.Visible=image.Image=="" or not image.IsLoaded end)
+        local name=label(row,"",82,7,-146,23,13);name.Font=Enum.Font.GothamSemibold
+        local rarity=label(row,"",82,30,-146,18,11,tokens.Color.TextMuted)
+        local count=label(row,"",0,8,0,22,13);count.Position=UDim2.new(1,-60,0,8);count.Size=UDim2.fromOffset(48,22);count.TextXAlignment=Enum.TextXAlignment.Right
+        local score=label(row,"",0,31,0,16,10,tokens.Color.TextMuted);score.Position=UDim2.new(1,-60,0,31);score.Size=UDim2.fromOffset(48,16);score.TextXAlignment=Enum.TextXAlignment.Right
+        local entry={Frame=row,Mark=mark,Rank=rank,Name=name,Rarity=rarity,Count=count,Score=score,Image=image,Fallback=fallback,Pixels=pixels}
+        local hoverTween
+        local function hover(active)
+            if hoverTween then hoverTween:Cancel() end
+            hoverTween=deps.Motion:Tween(row,"Hover",{BackgroundTransparency=active and 0.1 or (entry.Item and self.Selected==entry.Item.Id and 0.25 or 0.65)})
+        end
+        row.MouseEnter:Connect(function() if not serenityInputBlocked(row) then hover(true) end end)
+        row.MouseLeave:Connect(function() hover(false) end)
+        row.Activated:Connect(function()
+            if serenityInputBlocked(row) or not entry.Item then return end
+            self.Selected=entry.Item.Id
+            selectedInfo.Text=entry.Item.Name.." · "..entry.Item.Location
+            self:Render()
+        end)
+        deps.Runtime:TrackCleanup(function() if hoverTween then hoverTween:Cancel() end end)
+        return entry
+    end
+    function self:Render()
+        if deps.Runtime.Destroyed then return end
+        local ordered=RankedPets.Order(self.Items,self.Mode,self.Query)
+        local total=0;for _,item in ipairs(self.Items) do total=total+item.Count end
+        summaryText.Text=(self.Demo and "SAMPLE DATA" or "SERVER PETS").." · "..#self.Items.." types · "..compact(total).." available"
+        empty.Visible=#ordered==0;empty.Text=#self.Items==0 and "No pets available" or "No matching pets"
+        local shown=math.min(self.Limit,#ordered)
+        for i=1,shown do
+            local entry=self.Rows[i] or makeRow();self.Rows[i]=entry
+            local item=ordered[i];entry.Item=item
+            entry.Frame.Visible=true;entry.Frame.LayoutOrder=10+i
+            entry.Rank.Text=string.format("%02d",i);entry.Rank.TextColor3=i==1 and tokens.Color.Accent or tokens.Color.TextMuted
+            entry.Name.Text=item.Name;entry.Rarity.Text=item.Rarity
+            entry.Count.Text="×"..compact(item.Count);entry.Score.Text=compact(item.Score).." pts"
+            if entry.Image.Image~=item.Image then entry.Image.Image=item.Image end
+            entry.Fallback.Visible=item.Image=="" or not entry.Image.IsLoaded
+            local colors={Mythic=tokens.Color.Lavender,Legendary=tokens.Color.Amber,Epic=tokens.Color.Pink,Rare=tokens.Color.Cyan,Common=tokens.Color.Mint}
+            local color=colors[item.Rarity] or tokens.Color.Accent
+            for _,pixel in ipairs(entry.Pixels) do pixel.BackgroundColor3=color end
+            entry.Mark.Visible=self.Selected==item.Id;entry.Frame.BackgroundTransparency=entry.Mark.Visible and 0.25 or 0.65
+        end
+        for i=shown+1,#self.Rows do self.Rows[i].Frame.Visible=false;self.Rows[i].Item=nil end
+        more.Visible=shown<#ordered
+    end
+    function self:SetItems(items,demo)
+        if deps.Runtime.Destroyed then return end
+        self.Items=RankedPets.Normalize(items);self.Demo=demo==true
+        local selected
+        for _,item in ipairs(self.Items) do if item.Id==self.Selected then selected=item;break end end
+        if not selected then self.Selected=nil end
+        selectedInfo.Text=selected and (selected.Name.." · "..selected.Location) or "Select a pet to see its location"
+        self:Render()
+    end
+    search:GetPropertyChangedSignal("Text"):Connect(function() self.Query=search.Text;self.Limit=20;self:Render() end)
+    sort.Activated:Connect(function()
+        if serenityInputBlocked(sort) then return end
+        self.Mode=({Score="Count",Count="Name",Name="Score"})[self.Mode];sort.Text=self.Mode..(self.Mode=="Name" and " A–Z" or " ↓")
+        self:Render()
+    end)
+    more.Activated:Connect(function() if serenityInputBlocked(more) then return end;self.Limit=self.Limit+20;self:Render() end)
+    self:Render()
+    return self
+end
+return RankedPets
+end)()
+
 modules["src/renderers/Desktop.lua"] = (function()
 local Players = game:GetService("Players")
 local GuiService = game:GetService("GuiService")
@@ -2636,6 +2805,12 @@ function Desktop.Mount(deps, options)
     end
     detailToggle.Activated:Connect(function() expandStatus(not statusExpanded) end)
     detailRestore.Activated:Connect(function() app:SetVisible(true) end)
+    local petsShortcut=Instance.new("TextButton");petsShortcut.BackgroundTransparency=1
+    petsShortcut.Text="Server pets  ›";petsShortcut.TextSize=11;petsShortcut.Font=Enum.Font.GothamMedium
+    petsShortcut.TextColor3=tokens.Color.Accent;petsShortcut.Size=UDim2.fromOffset(90,23)
+    petsShortcut.Position=UDim2.fromOffset(0,37);petsShortcut.ZIndex=92;petsShortcut.Parent=details
+    petsShortcut.Activated:Connect(function() app:SetVisible(true);app:SelectPage("Server") end)
+
     function app:StatusNotice(title,message,duration)
         if runtime.Destroyed then return end
         if statusNoticeTimer then pcall(task.cancel,statusNoticeTimer) end
@@ -3906,6 +4081,32 @@ Slider.new(limits.Body, deps, {Title="Reserve Currency", Min=0, Max=100000, Step
 Toggle.new(limits.Body, deps, {Title="Pause When Low", Default=true})
 
 -- SERVER -------------------------------------------------------------------
+do
+    local petsSection=Section.new(server,deps,{Title="Available pets",Tooltip="Ranks the supplied available pets by score. Demo entries are sample data; each game supplies its real pet list."})
+    petsSection.Frame.LayoutOrder=-10
+    local list=loadModule("src/components/RankedPets.lua").new(petsSection.Body,deps,{Demo=true})
+    local update
+    function app:SetServerPets(items,options)
+        list:SetItems(items,options and options.Demo==true)
+        if update then update.Visible=list.Demo end
+    end
+    local alternate=false
+    local function preview()
+        app:SetServerPets({
+            {Id="dragon",Name="Moon Dragon",Rarity="Mythic",Count=alternate and 1 or 2,Score=alternate and 800 or 980,Location="Crystal ridge"},
+            {Id="phoenix",Name="Ember Phoenix",Rarity="Legendary",Count=1,Score=920,Location="Volcanic nest"},
+            {Id="fox",Name="Astral Fox",Rarity="Epic",Count=3,Score=640,Location="Moonlit grove"},
+            {Id="wolf",Name="Frost Wolf",Rarity="Rare",Count=alternate and 0 or 4,Score=420,Location="Frozen valley"},
+            {Id="owl",Name="Rune Owl",Rarity="Rare",Count=2,Score=310,Location="Ancient ruins"},
+            {Id="cat",Name="Moss Cat",Rarity="Common",Count=6,Score=125,Location="Forest clearing"},
+        },{Demo=true})
+    end
+    preview()
+    update=Instance.new("TextButton");update.Size=UDim2.new(1,0,0,32);update.Text="Simulate availability update"
+    update.Font=Enum.Font.GothamMedium;update.TextSize=12;update.TextColor3=Tokens.Color.Accent
+    update.BackgroundTransparency=1;update.LayoutOrder=2;update.Parent=petsSection.Body
+    update.Activated:Connect(function() if serenityInputBlocked(update) then return end;alternate=not alternate;preview() end)
+end
 local serverCols = ColumnLayout.new(server, deps, {Gap=12, RowGap=12})
 local session = Section.new(serverCols.Left, deps, {Title="Session"})
 Toggle.new(session.Body, deps, {Title="Reconnect", Default=false})
@@ -4383,7 +4584,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.75";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.76";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     badge.TextColor3=Tokens.Color.Accent;badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4516,8 +4717,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.75"})
-    for i,data in ipairs({{"Fluid status capsule","Close-set circle merges into the capsule when expanded."},{"Contextual activity symbols","Live bars, pause, completion and reward states change in place."},{"Smoother status transitions","Content crossfades and completed tasks clear the progress line."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.76"})
+    for i,data in ipairs({{"Available pets ranking","Server now previews ranked pets, rarity, counts and locations."},{"Search and sort","Find a pet and compare score, availability or name."},{"Optional pet pictures","Asset images are supported; native pixel portraits work without them."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4551,7 +4752,7 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     local info=card(about,110)
-    label(info,"Serenity preview · M4.75",14,12,-28,26,18)
+    label(info,"Serenity preview · M4.76",14,12,-28,26,18)
     local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
     body.TextWrapped=true
 end
@@ -4834,7 +5035,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.75 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.76 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
