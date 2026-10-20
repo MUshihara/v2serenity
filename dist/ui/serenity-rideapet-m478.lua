@@ -4244,6 +4244,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                         if self.Widget and type(self.Widget.Set)=="function" then
                             self.Widget:Set(value,true)
                         end
+                        if self.QuickId then app:SetQuickAction(self.QuickId,value,true) end
                         if not silent then sendChanged(self.Descriptor,value) end
                     end
                     function proxy:Refresh(options,preserve)
@@ -4294,7 +4295,9 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                     Id=desc.Id,Title=desc.Title,Description=desc.Description,
                     Default=proxy.Value==true,
                     Callback=function(value)
-                        proxy.Value=value;sendChanged(desc,value)
+                        proxy.Value=value
+                        if proxy.QuickId then app:SetQuickAction(proxy.QuickId,value,true) end
+                        sendChanged(desc,value)
                     end,
                 })
                 proxy.Widget=widget;proxy.Frame=widget.Frame
@@ -4305,7 +4308,9 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                     Default=tonumber(proxy.Value) or tonumber(desc.Min) or 0,
                     Suffix=desc.Suffix or "",
                     Callback=function(value)
-                        proxy.Value=value;sendChanged(desc,value)
+                        proxy.Value=value
+                        if proxy.QuickId then app:SetQuickAction(proxy.QuickId,value,true) end
+                        sendChanged(desc,value)
                     end,
                 })
                 proxy.Widget=widget;proxy.Frame=widget.Frame
@@ -4315,7 +4320,9 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                     Options=options,Default=proxy.Value,
                     Multi=typ=="MultiSelect",Searchable=#options>5,
                     Callback=function(value)
-                        proxy.Value=value;sendChanged(desc,value)
+                        proxy.Value=value
+                        if proxy.QuickId then app:SetQuickAction(proxy.QuickId,value,true) end
+                        sendChanged(desc,value)
                     end,
                 })
                 proxy.Widget=widget;proxy.Frame=widget.Frame
@@ -4467,6 +4474,40 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             return oldSelect(self,pageId)
         end
         fillPage(rapManifest.Pages[1])
+        -- Live Quick Menu panels: availability is independent of gameplay state.
+        local quickSetup={
+            {"steal","Auto Steal","Eggs.Steal.Enabled"},
+            {"fusion","Auto Fusion","Fuse.AutoFuse.Enabled"},
+            {"candy","Auto Candy","Event.Halloween.AutoCollectCandy"},
+        }
+        local quickOptions=Section.new(pageEntries["Dashboard"].Page,deps,{
+            Title="Quick Menu · optional panels",
+            Description="Show or hide a floating panel without changing automation.",
+        })
+        for _,setting in ipairs(quickSetup) do
+            local id,title,path=setting[1],setting[2],setting[3]
+            local proxy=window.Controls[path]
+            if proxy and type(proxy.Descriptor.Changed)=="function" then
+                proxy.QuickId=id
+                app:RegisterQuickAction({
+                    Id=id,Title=title,Default=proxy.Value==true,
+                    PanelEnabled=false,
+                    Callback=function(value)
+                        proxy.Value=value
+                        if proxy.Widget then proxy.Widget:Set(value,true) end
+                        sendChanged(proxy.Descriptor,value)
+                        return true
+                    end,
+                })
+                Toggle.new(quickOptions.Body,deps,{
+                    Title="Show "..title.." panel",Default=false,
+                    Description="Only controls floating panel visibility.",
+                    Callback=function(value)
+                        app:SetQuickPanelEnabled(id,value)
+                    end,
+                })
+            end
+        end
         app:SelectPage("Dashboard")
 
         -- No gameplay state is written by presentation restores.
