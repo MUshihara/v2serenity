@@ -4485,12 +4485,20 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         local persistUI
         local appearanceOptions={
             ["Serenity Grimoire"]=Tokens.Color.Accent,
-            ["Ocean"]=Color3.fromRGB(76,176,222),
+            ["Aurora"]=Color3.fromRGB(104,194,186),
+            ["Deep Ocean"]=Color3.fromRGB(76,176,222),
+            ["Moonstone"]=Color3.fromRGB(182,183,237),
             ["Violet"]=Color3.fromRGB(171,136,241),
+            ["Rose Quartz"]=Color3.fromRGB(235,158,190),
             ["Jade"]=Color3.fromRGB(101,196,156),
             ["Ember"]=Color3.fromRGB(238,155,102),
             ["Frost"]=Color3.fromRGB(167,206,248),
-            ["Rose"]=Color3.fromRGB(235,158,190),
+            ["Graphite"]=Color3.fromRGB(164,179,199),
+            ["Garnet"]=Color3.fromRGB(207,105,119),
+            ["Antique Gold"]=Color3.fromRGB(216,179,118),
+            ["Petrol"]=Color3.fromRGB(84,170,169),
+            ["Dusk"]=Color3.fromRGB(158,153,196),
+            ["Espresso"]=Color3.fromRGB(184,154,129),
         }
         local settingsEntry
         local settingsWidgets={}
@@ -4535,8 +4543,10 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                 Description="Personalize Serenity without changing your Ride A Pet automation.",
             })
             settingsWidgets.Accent=Select.new(appearance.Body,deps,{
-                Title="Color accent",
-                Options={"Serenity Grimoire","Ocean","Violet","Jade","Ember","Frost","Rose"},
+                Title="Color theme accent",
+                Options={"Serenity Grimoire","Aurora","Deep Ocean","Moonstone","Violet",
+                    "Rose Quartz","Jade","Ember","Frost","Graphite","Garnet",
+                    "Antique Gold","Petrol","Dusk","Espresso"},
                 Default=selectedAccent,
                 Callback=function(value)
                     applyAccent(value)
@@ -4565,7 +4575,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                 end,
             })
             local privacy=Section.new(columns.Right,deps,{
-                Title="Privacy & recovery",
+                Title="Identity & layout",
                 Description="Appearance changes are local. Gameplay config is untouched.",
             })
             settingsWidgets.Privacy=Toggle.new(privacy.Body,deps,{
@@ -4593,6 +4603,41 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                 app:ResetFloatingPositions()
                 if persistUI then persistUI() end
                 app:Notify("Layout restored","Floating controls moved back to their default positions.",4,"Success")
+            end))
+            local appearanceReset=Instance.new("TextButton")
+            appearanceReset.Name="RestoreSerenityAppearance"
+            appearanceReset.Text="Restore Serenity appearance"
+            appearanceReset.Size=UDim2.new(1,0,0,39)
+            appearanceReset.Font=Enum.Font.GothamMedium
+            appearanceReset.TextSize=12
+            appearanceReset.AutoButtonColor=false
+            serenityColor(appearanceReset,"TextColor3",Tokens,"Text")
+            appearanceReset.Parent=appearance.Body
+            Material.Control(appearanceReset,Tokens)
+            runtime:TrackConnection(appearanceReset.Activated:Connect(function()
+                if runtime.Destroyed or serenityInputBlocked(appearanceReset) then return end
+                app:Confirm({
+                    Title="Restore appearance",
+                    Message="Reset theme accent, glass, reduced motion and privacy? Game settings are not affected.",
+                    ConfirmText="Restore",
+                    Callback=function(ok)
+                        if not ok then return end
+                        applyAccent("Serenity Grimoire")
+                        preferredGlass="Basic"
+                        app:SetGlassQuality("Basic")
+                        preferredMotion=false
+                        Motion.Reduced=false
+                        runtime.ReducedMotion=false
+                        if app.RefreshIconMotion then app:RefreshIconMotion() end
+                        applyPrivacy(false)
+                        settingsWidgets.Accent:Set("Serenity Grimoire",true)
+                        settingsWidgets.Glass:Set("Basic",true)
+                        settingsWidgets.Motion:Set(false,true)
+                        settingsWidgets.Privacy:Set(false,true)
+                        if persistUI then persistUI() end
+                        app:Notify("Appearance restored","Your game automation settings were not changed.",4,"Success")
+                    end,
+                })
             end))
             local session=Section.new(columns.Right,deps,{Title="UI information"})
             textLabel(session.Body,
