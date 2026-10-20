@@ -4460,6 +4460,129 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         end
 
 
+        -- Presentation preferences only. Never alter or reset game configs.
+        local dashboardGreeting,dashboardPortrait
+        local privacyEnabled=false
+        local selectedAccent="Serenity Grimoire"
+        local preferredGlass="Basic"
+        local preferredMotion=false
+        local persistUI
+        local appearanceOptions={
+            ["Serenity Grimoire"]=Tokens.Color.Accent,
+            ["Ocean"]=Color3.fromRGB(76,176,222),
+            ["Violet"]=Color3.fromRGB(171,136,241),
+            ["Jade"]=Color3.fromRGB(101,196,156),
+            ["Ember"]=Color3.fromRGB(238,155,102),
+            ["Frost"]=Color3.fromRGB(167,206,248),
+            ["Rose"]=Color3.fromRGB(235,158,190),
+        }
+        local settingsEntry
+        local settingsWidgets={}
+        local function applyAccent(name)
+            if not appearanceOptions[name] then return end
+            selectedAccent=name
+            local color=appearanceOptions[name]
+            Tokens.Color.Accent=color
+            for _,node in ipairs(app.ScreenGui:GetDescendants()) do
+                for _,prop in ipairs({"BackgroundColor3","TextColor3","ImageColor3","Color"}) do
+                    if node:GetAttribute("ThemeRole_"..prop)=="Accent" then
+                        pcall(function() node[prop]=color end)
+                    end
+                end
+            end
+        end
+        local function applyPrivacy(value)
+            privacyEnabled=value==true
+            local identity=app.IdentityName
+            if identity then
+                identity.Text=privacyEnabled and "Private profile" or player.DisplayName
+            end
+            local avatar=app.IdentityAvatar
+            if avatar then avatar.ImageTransparency=privacyEnabled and 1 or 0 end
+            if dashboardGreeting then
+                dashboardGreeting.Text=privacyEnabled and "Welcome back" or
+                    ("Welcome back, "..player.DisplayName)
+            end
+            if dashboardPortrait then
+                dashboardPortrait.ImageTransparency=privacyEnabled and 1 or 0
+            end
+        end
+        local function buildSettings()
+            if not settingsEntry or built["Settings"] then return end
+            built["Settings"]=true
+            local page=settingsEntry
+            local columns=ColumnLayout.new(page,deps,{
+                Gap=12,RowGap=10,MinColumnWidth=250,
+            })
+            local appearance=Section.new(columns.Left,deps,{
+                Title="Appearance",
+                Description="M4.79 accents and glass. Keeps the accepted grimoire layout.",
+            })
+            settingsWidgets.Accent=Select.new(appearance.Body,deps,{
+                Title="Color accent",
+                Options={"Serenity Grimoire","Ocean","Violet","Jade","Ember","Frost","Rose"},
+                Default=selectedAccent,
+                Callback=function(value)
+                    applyAccent(value)
+                    if persistUI then persistUI() end
+                end,
+            })
+            settingsWidgets.Glass=Select.new(appearance.Body,deps,{
+                Title="Glass material",Options={"Off","Basic","Enhanced"},
+                Default=preferredGlass,
+                Callback=function(value)
+                    preferredGlass=value
+                    app:SetGlassQuality(value)
+                    if persistUI then persistUI() end
+                end,
+            })
+            settingsWidgets.Motion=Toggle.new(appearance.Body,deps,{
+                Title="Reduced motion",
+                Description="Stops optional UI animations for low-end/mobile devices.",
+                Default=preferredMotion,
+                Callback=function(value)
+                    preferredMotion=value
+                    Motion.Reduced=value
+                    runtime.ReducedMotion=value
+                    if app.RefreshIconMotion then app:RefreshIconMotion() end
+                    if persistUI then persistUI() end
+                end,
+            })
+            local privacy=Section.new(columns.Right,deps,{
+                Title="Privacy & recovery",
+                Description="Appearance changes are local. Gameplay config is untouched.",
+            })
+            settingsWidgets.Privacy=Toggle.new(privacy.Body,deps,{
+                Title="Hide player identity",
+                Description="Hide your name and avatar on the new UI.",
+                Default=privacyEnabled,
+                Callback=function(value)
+                    applyPrivacy(value)
+                    if persistUI then persistUI() end
+                end,
+            })
+            local reset=Instance.new("TextButton")
+            reset.Name="ResetFloatingPositions"
+            reset.Text="Reset floating star / status / Quick Menu positions"
+            reset.TextWrapped=true
+            reset.Size=UDim2.new(1,0,0,46)
+            reset.Font=Enum.Font.GothamMedium
+            reset.TextSize=12
+            reset.AutoButtonColor=false
+            serenityColor(reset,"TextColor3",Tokens,"Text")
+            reset.Parent=privacy.Body
+            Material.Control(reset,Tokens)
+            runtime:TrackConnection(reset.Activated:Connect(function()
+                if runtime.Destroyed or serenityInputBlocked(reset) then return end
+                app:ResetFloatingPositions()
+                if persistUI then persistUI() end
+                app:Notify("Layout restored","Floating controls moved back to their default positions.",4,"Success")
+            end))
+            local session=Section.new(columns.Right,deps,{Title="UI information"})
+            textLabel(session.Body,
+                "Serenity M4.79 for Ride A Pet. Modern visuals with original gameplay callbacks. This is a readable test build.",
+                65,Tokens.Color.TextMuted,12)
+        end
         -- New About directory, isolated from gameplay. A configured loader route
         -- is not a guarantee that its payload is healthy.
         local aboutEntry
@@ -4523,14 +4646,18 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                 btn.AutoButtonColor=false
                 btn.Parent=results.Body
                 Material.Control(btn,Tokens)
+                Icons.Create(btn,record[2] and "world" or "info",17,Tokens.Color.Accent,
+                    UDim2.fromOffset(10,13))
                 local txt=textLabel(btn,record[1],23,Tokens.Color.Text,12)
-                txt.Position=UDim2.fromOffset(12,4)
+                txt.Position=UDim2.fromOffset(35,4)
+                txt.Size=UDim2.new(1,-47,0,23)
                 txt.TextTruncate=Enum.TextTruncate.AtEnd
                 local current=record[2]==game.PlaceId
                 local sub=textLabel(btn,current and "CURRENT GAME  ·  Route configured"
                   or (record[2] and "ROUTED  ·  Tap to copy game link"
                   or "README ONLY  ·  Route unverified"),16,Tokens.Color.TextMuted,10)
-                sub.Position=UDim2.fromOffset(12,26)
+                sub.Position=UDim2.fromOffset(35,26)
+                sub.Size=UDim2.new(1,-47,0,16)
                 runtime:TrackConnection(btn.Activated:Connect(function()
                     if serenityInputBlocked(btn) or runtime.Destroyed then return end
                     if not record[2] then
@@ -4555,11 +4682,15 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             textLabel(footer.Body,"M4.78 Ride A Pet UI · Directory snapshot 2026-10-20. Configured route is not live support verification.",56,Tokens.Color.TextMuted,11)
         end
         aboutEntry=app:AddPage({Id="About",Title="About",Icon="info",Order=19})
+        settingsEntry=app:AddPage({
+            Id="Settings",Title="Settings",Icon="settings",Order=20,Group="System",
+        })
         -- Build dashboard immediately; other pages only when selected.
         local oldSelect=app.SelectPage
         function app:SelectPage(pageId)
             local entry=pageEntries[pageId]
             if pageId=="About" then buildAbout() end
+            if pageId=="Settings" then buildSettings() end
             if entry then fillPage(entry.Descriptor) end
             return oldSelect(self,pageId)
         end
@@ -4627,6 +4758,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         hero.Name="DashboardHero"
         hero.ClipsDescendants=true
         local greeting=headline(hero,"Welcome back, "..player.DisplayName,18,14,-125,28,20)
+        dashboardGreeting=greeting
         local guide=headline(hero,"Steal, fuse and collect with the original Ride A Pet controls.",18,46,-127,34,12,"TextMuted")
         guide.TextWrapped=true
         local portrait=Instance.new("ImageLabel")
@@ -4638,6 +4770,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         portrait.Image="rbxthumb://type=AvatarHeadShot&id="..tostring(player.UserId).."&w=420&h=420"
         portrait.Parent=hero
         serenityColor(portrait,"BackgroundColor3",Tokens,"PanelSoft")
+        dashboardPortrait=portrait
         local cir=Instance.new("UICorner")
         cir.CornerRadius=UDim.new(1,0)
         cir.Parent=portrait
@@ -4646,7 +4779,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         avatarEdge.Transparency=0.48
         avatarEdge.Parent=portrait
         local openEggs=button(hero,"Manage eggs  ›",18,94,150,function() app:SelectPage("Eggs") end)
-        local openFusion=button(hero,"Auto Fusion  ›",178,94,142,function() app:SelectPage("Fuse") end)
+        local openFusion=button(hero,"Customize  ›",178,94,142,function() app:SelectPage("Settings") end)
         local function arrangeHero()
             local w=widthOf(hero)
             portrait.Visible=w>=380
@@ -4879,8 +5012,19 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             local ok,data=pcall(function()
                 return isfile(prefsPath) and http:JSONDecode(readfile(prefsPath)) or nil
             end)
-            if ok and type(data)=="table" and type(data.View)=="table" then
-                app:RestoreViewState(data.View)
+            if ok and type(data)=="table" then
+                if type(data.View)=="table" then app:RestoreViewState(data.View) end
+                if type(data.Appearance)=="table" then
+                    local a=data.Appearance
+                    if appearanceOptions[a.Accent] then applyAccent(a.Accent) end
+                    if a.Glass=="Off" or a.Glass=="Basic" or a.Glass=="Enhanced" then
+                        preferredGlass=a.Glass;app:SetGlassQuality(preferredGlass)
+                    end
+                    preferredMotion=a.ReducedMotion==true
+                    Motion.Reduced=preferredMotion
+                    runtime.ReducedMotion=preferredMotion
+                    applyPrivacy(a.HideIdentity==true)
+                end
             end
         end
         local saveThread
@@ -4892,10 +5036,17 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                 if runtime.Destroyed then return end
                 pcall(function()
                     if type(makefolder)=="function" then makefolder("SerenityHub") end
-                    writefile(prefsPath,http:JSONEncode({View=app:GetViewState()}))
+                    writefile(prefsPath,http:JSONEncode({
+                        View=app:GetViewState(),
+                        Appearance={
+                            Accent=selectedAccent,Glass=preferredGlass,
+                            ReducedMotion=preferredMotion,HideIdentity=privacyEnabled,
+                        },
+                    }))
                 end)
             end)
         end
+        persistUI=saveView
         app.OnViewChanged=saveView
         runtime:TrackCleanup(function()
             activeCallbacks=false
