@@ -4425,7 +4425,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             -- One-section pages take full available width. Other pages balance
             -- estimated rendered control heights, then stack on narrow screens.
             local columns= #features>1 and ColumnLayout.new(page,deps,{
-                Gap=12,RowGap=10,MinColumnWidth=262,
+                Gap=12,RowGap=10,MinColumnWidth=238,
             }) or nil
             local leftWeight,rightWeight=0,0
             for i,feature in ipairs(features) do
@@ -4532,7 +4532,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             })
             local appearance=Section.new(columns.Left,deps,{
                 Title="Appearance",
-                Description="M4.79 accents and glass. Keeps the accepted grimoire layout.",
+                Description="Personalize Serenity without changing your Ride A Pet automation.",
             })
             settingsWidgets.Accent=Select.new(appearance.Body,deps,{
                 Title="Color accent",
@@ -4596,7 +4596,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             end))
             local session=Section.new(columns.Right,deps,{Title="UI information"})
             textLabel(session.Body,
-                "Serenity M4.79 for Ride A Pet. Modern visuals with original gameplay callbacks. This is a readable test build.",
+                "Serenity Hub for Ride A Pet · Official UI. Display settings are separate from your gameplay configuration.",
                 65,Tokens.Color.TextMuted,12)
         end
         -- New About directory, isolated from gameplay. A configured loader route
@@ -4763,7 +4763,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         heroHeading.Parent=dashboard
         headline(heroHeading,"Dashboard",0,0,-118,27,23)
         headline(heroHeading,"Your Ride A Pet grimoire",0,27,-118,19,12,"TextMuted")
-        local testBadge=headline(heroHeading,"M4.79  ·  RIDE A PET",-120,9,-4,20,10,"Accent")
+        local testBadge=headline(heroHeading,"OFFICIAL · v152",-120,9,-4,20,10,"Accent")
         testBadge.AnchorPoint=Vector2.new(1,0)
         testBadge.Position=UDim2.new(1,0,0,7)
         testBadge.Size=UDim2.fromOffset(117,24)
@@ -4775,7 +4775,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         hero.ClipsDescendants=true
         local greeting=headline(hero,"Welcome back, "..player.DisplayName,18,14,-125,28,20)
         dashboardGreeting=greeting
-        local guide=headline(hero,"Steal, fuse and collect with the original Ride A Pet controls.",18,46,-127,34,12,"TextMuted")
+        local guide=headline(hero,"Auto Steal, Fusion and Halloween in one workspace.",18,46,-127,34,12,"TextMuted")
         guide.TextWrapped=true
         local portrait=Instance.new("ImageLabel")
         portrait.Name="DashboardAvatar"
@@ -4916,32 +4916,23 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         end
         local function updateClock()
             clockThread=nil
-            if runtime.Destroyed or not dashboard.Visible or not app.Holder.Visible then return end
+            if runtime.Destroyed then return end
             local t=math.floor(os.clock()-sessionStart)
             local displayTime=string.format("%02d:%02d",math.floor(t/60),t%60)
-            metricValues[1].Text=displayTime
             local liveTitle,liveDetail,enabledCount=updateActivity()
             app:SetStatusSummary(tostring(enabledCount).." enabled",displayTime)
-            local flags={"Auto Steal","Auto Fusion","Auto Candy"}
-            local keys={"Eggs.Steal.Enabled","Fuse.AutoFuse.Enabled","Event.Halloween.AutoCollectCandy"}
-            local enabled={}
-            for i,key in ipairs(keys) do
-                local p=window.Controls[key]
-                if p and p.Value==true then enabled[#enabled+1]=flags[i] end
+            -- Do not stop status when minimized. Only visible dashboard
+            -- widgets are refreshed, while one shared 1 Hz clock stays alive.
+            if dashboard.Visible and app.Holder.Visible then
+                metricValues[1].Text=displayTime
+                metricValues[3].Text=liveTitle
             end
-            metricValues[3].Text=liveTitle
             clockThread=task.delay(1,updateClock)
         end
-        local function refreshClock()
-            if clockThread then pcall(task.cancel,clockThread);clockThread=nil end
-            updateClock()
-        end
-        runtime:TrackConnection(dashboard:GetPropertyChangedSignal("Visible"):Connect(refreshClock))
-        runtime:TrackConnection(app.Holder:GetPropertyChangedSignal("Visible"):Connect(refreshClock))
         runtime:TrackCleanup(function()
-            if clockThread then pcall(task.cancel,clockThread) end
+            if clockThread then pcall(task.cancel,clockThread);clockThread=nil end
         end)
-        refreshClock()
+        updateClock()
 
         local quick=card(dashboard,122,4)
         quick.Name="QuickMenuDashboard"
@@ -5043,13 +5034,13 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         end))
         updateActivity()
 
-        local news=Section.new(dashboard,deps,{Title="What's New · M4.79"})
+        local news=Section.new(dashboard,deps,{Title="What's New · v152"})
         news.Frame.LayoutOrder=6
         decorateSection(news,"What's New")
         for _,item in ipairs({
-            {"Original dashboard restored","Greeting, Quick Menu, session cards and community tiles."},
-            {"Game controls, correctly fitted","10 game categories retain their original IDs and live callbacks."},
-            {"Visual consistency","Unique sidebar icons, readable sections and mobile stacking."},
+            {"Live activity","Status stays current even when the window is minimized."},
+            {"Responsive game pages","Your existing game controls now fit desktop and mobile layouts."},
+            {"Refined Serenity interface","New icons, themed settings and saved Quick Menu positions."},
         }) do
             local itemFrame=Instance.new("Frame")
             itemFrame.Size=UDim2.new(1,0,0,44)
