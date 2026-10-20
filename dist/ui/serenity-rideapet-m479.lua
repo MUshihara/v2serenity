@@ -4461,6 +4461,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
 
 
         -- Presentation preferences only. Never alter or reset game configs.
+        local player=game:GetService("Players").LocalPlayer
         local dashboardGreeting,dashboardPortrait
         local privacyEnabled=false
         local selectedAccent="Serenity Grimoire"
@@ -5013,7 +5014,6 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                 return isfile(prefsPath) and http:JSONDecode(readfile(prefsPath)) or nil
             end)
             if ok and type(data)=="table" then
-                if type(data.View)=="table" then app:RestoreViewState(data.View) end
                 if type(data.Appearance)=="table" then
                     local a=data.Appearance
                     if appearanceOptions[a.Accent] then applyAccent(a.Accent) end
@@ -5025,6 +5025,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                     runtime.ReducedMotion=preferredMotion
                     applyPrivacy(a.HideIdentity==true)
                 end
+                if type(data.View)=="table" then app:RestoreViewState(data.View) end
             end
         end
         local saveThread
