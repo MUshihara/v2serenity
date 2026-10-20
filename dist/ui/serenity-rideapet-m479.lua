@@ -4185,7 +4185,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             return proxy
         end
         local function makeParagraph(parent,desc,proxy)
-            local body=tostring(desc.Text or "")
+            local body=tostring(proxy.Value~=nil and proxy.Value or desc.Text or "")
             local lines=select(2,body:gsub("\n","\n"))+1
             local height=math.max(75,48+math.min(160,math.ceil(#body/55)*15+lines*9))
             local frame=container(parent,"Paragraph_"..tostring(desc.Id),height)
@@ -4196,7 +4196,13 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             label.Position=UDim2.fromOffset(12,33)
             function proxy:Set(value)
                 self.Value=tostring(value or "")
-                if label.Parent then label.Text=self.Value end
+                if not label.Parent then return end
+                label.Text=self.Value
+                local count=select(2,self.Value:gsub("\n","\n"))+1
+                local updated=math.max(75,48+math.min(160,
+                    math.ceil(#self.Value/55)*15+count*9))
+                frame.Size=UDim2.new(1,0,0,updated)
+                label.Size=UDim2.new(1,-24,0,updated-37)
             end
             proxy.Label=label
             proxy.Frame=frame
