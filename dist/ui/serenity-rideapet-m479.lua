@@ -4391,9 +4391,16 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         end
         local function decorateControl(proxy,desc)
             local frame=proxy and proxy.Frame
-            if not frame or (desc.Type~="Switch" and desc.Type~="Slider" and
-                    desc.Type~="Select" and desc.Type~="MultiSelect") then return end
+            if not frame then return end
             local title=tostring(desc.Title or "")
+            if desc.Type=="Action" then
+                local btn=frame:FindFirstChild("RunAction")
+                if btn then
+                    Icons.Create(btn,iconForTitle(title),15,Tokens.Color.Accent,
+                        UDim2.fromOffset(12,9))
+                end
+                return
+            end
             local label
             for _,child in ipairs(frame:GetChildren()) do
                 if child:IsA("TextLabel") and child.Text==title then
@@ -4402,7 +4409,9 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             end
             if not label then return end
             Icons.Create(frame,iconForTitle(title),13,Tokens.Color.TextMuted,
-                UDim2.fromOffset(10,desc.Description and 9 or 13))
+                UDim2.fromOffset(10,
+                    (desc.Type=="Input" or desc.Type=="Paragraph") and 10 or
+                    (desc.Description and 9 or 13)))
             label.Position=UDim2.new(0,32,0,label.Position.Y.Offset)
             label.Size=UDim2.new(label.Size.X.Scale,label.Size.X.Offset-21,
                 label.Size.Y.Scale,label.Size.Y.Offset)
