@@ -4951,12 +4951,13 @@ do
     searchPadding.Parent=search
 
     local selectedFilter="All"
+    local refreshDirectory
     local filterButtons={}
     for i,kind in ipairs({"All","Routed","Listed"}) do
         local b=button(directoryControls,kind,function()
             if serenityInputBlocked(directoryControls) then return end
             selectedFilter=kind
-            if directoryControls.Refresh then directoryControls.Refresh() end
+            if refreshDirectory then refreshDirectory() end
         end)
         b.Name="Filter"..kind
         b.Position=UDim2.new((i-1)/3,10,0,80)
@@ -5064,7 +5065,7 @@ do
         rows[#rows+1]={Frame=row,Data=data,Thumb=iconImage}
     end
 
-    local function refreshDirectory()
+    refreshDirectory=function()
         if runtime.Destroyed then return end
         local query=string.lower((search.Text or ""):match("^%s*(.-)%s*$"))
         local shown=0
@@ -5090,7 +5091,7 @@ do
              "Route configured; feature health not verified" or
              "Mentioned in README; matching route not confirmed")
     end
-    directoryControls.Refresh=refreshDirectory
+    -- Filter refresh remains local to this preview, not an Instance property.
     runtime:TrackConnection(search:GetPropertyChangedSignal("Text"):Connect(refreshDirectory))
     runtime:TrackConnection(about:GetPropertyChangedSignal("Visible"):Connect(function()
         if not about.Visible or thumbnailsLoaded or runtime.Destroyed then return end
