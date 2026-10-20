@@ -4719,7 +4719,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.77";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.78";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     serenityColor(badge,"TextColor3",Tokens,"Accent");badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4852,8 +4852,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.77"})
-    for i,data in ipairs({{"Safer dialogs and reloads","Confirmations block shortcuts; pending saves stop on reload."},{"Remember your workspace","Keybinds, floating positions and music preference now save."},{"Readable inline pet details","Expand a pet in place; loading and update states are available."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · M4.78"})
+    for i,data in ipairs({{"Supported-games directory","About now searches repository-backed game entries with clear route labels."},{"Remember your workspace","Keybinds, floating positions and music preference now save."},{"Readable inline pet details","Expand a pet in place; loading and update states are available."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4886,10 +4886,229 @@ do
         join.Position=wide and UDim2.new(1,-144,0.5,-18) or UDim2.fromOffset(14,80)
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
-    local info=card(about,110)
-    label(info,"Serenity preview · M4.77",14,12,-28,26,18)
-    local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
-    body.TextWrapped=true
+
+    -- M4.78: About is the supported-game directory. This is an evidence snapshot,
+    -- not a network checker or a claim that every routed payload is working.
+    -- The router/README inventory was reconciled on 2026-10-20.
+    local gameDirectory={
+        {"Steal A Seed",122216176958450,10764328008,"Routed"},
+        {"Lift a Cube",109530157755211,10759860151,"Routed"},
+        {"Steal An Anime Egg",76377501906469,10747748563,"Routed"},
+        {"Break and Steal an Egg",114326934417838,10765288803,"Routed"},
+        {"Ride A Pet",124216119978534,10035204815,"Routed"},
+        {"+1 Strength to Grow Your Arm",86259628805375,10310999762,"Routed"},
+        {"Anime Dice",113290951185459,10708913337,"Routed"},
+        {"+1 Loot to Forge",118805555015549,10684750879,"Routed"},
+        {"Lift Rock for Eggs",76731343328034,10768316438,"Routed"},
+        {"+1 Drain Water Per Click",103883942725157,10561352230,"Routed"},
+        {"Sell Ores",122572082932179,10336278580,"Routed"},
+        {"+1 Cut Grass Adventure",90086669327265,10410945205,"Routed"},
+        {"Greedy Growers",74102906764176,10440833423,"Routed"},
+        {"Chicken Farm",137233438285284,10209534490,"Routed"},
+        {"+1 Monkey Evolution",91701030914075,10605939914,"Routed"},
+        {"+1 Superhero Evolution",97824450589417,10577588270,"Routed"},
+        {"Heroes RNG",108307565942574,10153098880,"Routed"},
+        {"Throw a Coin",115681808123944,10131390815,"Routed"},
+        {"Cheating During Testing",98894876188248,9780429221,"Routed"},
+        {"Roll Anime to Fight",107653945083776,10298144467,"Routed"},
+        {"+1 Dino Evolution",103138601755519,10664667515,"Routed"},
+        {"+1 Phonk Evolution",104809044319701,10544327471,"Routed"},
+        {"Unscathed RNG",122951224417794,8959257868,"Routed"},
+        {"Mine a Mountain",125927821145949,10187294555,"Routed"},
+        {"Search for the Needle",77108422251420,10756011174,"Routed"},
+        {"+1 Tongue Escape",122245938604556,10681914462,"Routed"},
+        {"Collect All the Leaves",nil,nil,"Listed"},
+        {"Jump To Steal Soccer Players",nil,nil,"Listed"},
+    }
+    local aboutHeading=Instance.new("Frame")
+    aboutHeading.Name="SupportedGamesHeading"
+    aboutHeading.Size=UDim2.new(1,-4,0,54)
+    aboutHeading.BackgroundTransparency=1
+    aboutHeading.LayoutOrder=1
+    aboutHeading.Parent=about
+    label(aboutHeading,"Supported Games",0,2,0,29,22)
+    label(aboutHeading,"Your Serenity game directory",0,31,0,18,11,Tokens.Color.TextMuted)
+
+    local directoryControls=card(about,124,2)
+    label(directoryControls,"Find a game",14,7,-28,23,14)
+    local search=Instance.new("TextBox")
+    search.Name="DirectorySearch"
+    search.Size=UDim2.new(1,-28,0,35)
+    search.Position=UDim2.fromOffset(14,35)
+    search.ClearTextOnFocus=false
+    search.Text=""
+    search.PlaceholderText="Search game titles..."
+    search.Font=Enum.Font.Gotham
+    search.TextSize=12
+    search.TextXAlignment=Enum.TextXAlignment.Left
+    serenityColor(search,"TextColor3",Tokens,"Text")
+    serenityColor(search,"PlaceholderColor3",Tokens,"TextMuted")
+    search.Parent=directoryControls
+    Material.Inset(search,Tokens)
+    local searchPadding=Instance.new("UIPadding")
+    searchPadding.PaddingLeft=UDim.new(0,10)
+    searchPadding.PaddingRight=UDim.new(0,8)
+    searchPadding.Parent=search
+
+    local selectedFilter="All"
+    local filterButtons={}
+    for i,kind in ipairs({"All","Routed","Listed"}) do
+        local b=button(directoryControls,kind,function()
+            if serenityInputBlocked(directoryControls) then return end
+            selectedFilter=kind
+            if directoryControls.Refresh then directoryControls.Refresh() end
+        end)
+        b.Name="Filter"..kind
+        b.Position=UDim2.new((i-1)/3,10,0,80)
+        b.Size=UDim2.new(1/3,-14,0,30)
+        b.TextSize=11
+        filterButtons[kind]=b
+    end
+
+    local directoryPanel=card(about,106,3)
+    directoryPanel.Name="SupportedGameResults"
+    local resultTitle=label(directoryPanel,"28 catalog entries",14,8,-28,22,14)
+    local resultMeta=label(directoryPanel,"26 loader routes  ·  2 README-only entries",14,30,-28,17,10,Tokens.Color.TextMuted)
+    resultMeta.TextTruncate=Enum.TextTruncate.AtEnd
+    local rowsContainer=Instance.new("Frame")
+    rowsContainer.Name="Rows"
+    rowsContainer.BackgroundTransparency=1
+    rowsContainer.Position=UDim2.fromOffset(12,56)
+    rowsContainer.Size=UDim2.new(1,-24,0,40)
+    rowsContainer.Parent=directoryPanel
+    local rowsLayout=Instance.new("UIListLayout")
+    rowsLayout.SortOrder=Enum.SortOrder.LayoutOrder
+    rowsLayout.Padding=UDim.new(0,5)
+    rowsLayout.Parent=rowsContainer
+    local empty=label(rowsContainer,"No matching games. Try another search or filter.",8,4,-16,38,12,Tokens.Color.TextMuted)
+    empty.Name="EmptyState"
+    empty.Visible=false
+    local rows={}
+    local thumbnailsLoaded=false
+    for i,data in ipairs(gameDirectory) do
+        local placeId=data[2]
+        local isCurrent=placeId~=nil and (game.PlaceId==placeId or game.GameId==data[3])
+        local row=Instance.new("TextButton")
+        row.Name="Game_"..i
+        row.Text=""
+        row.LayoutOrder=i
+        row.Size=UDim2.new(1,0,0,58)
+        row.AutoButtonColor=false
+        row.Parent=rowsContainer
+        Material.Inset(row,Tokens)
+        local iconShell=Instance.new("Frame")
+        iconShell.Name="GameIcon"
+        iconShell.Position=UDim2.fromOffset(9,8)
+        iconShell.Size=UDim2.fromOffset(42,42)
+        iconShell.BorderSizePixel=0
+        serenityColor(iconShell,"BackgroundColor3",Tokens,"PanelSoft")
+        iconShell.Parent=row
+        local iconCorner=Instance.new("UICorner")
+        iconCorner.CornerRadius=UDim.new(0,7)
+        iconCorner.Parent=iconShell
+        local fallback=Typography.Label(iconShell,"Control",Tokens,"S",
+            UDim2.fromOffset(0,0),UDim2.fromScale(1,1),Tokens.Color.Accent,"Accent")
+        fallback.TextXAlignment=Enum.TextXAlignment.Center
+        fallback.TextYAlignment=Enum.TextYAlignment.Center
+        fallback.TextSize=17
+        local iconImage=Instance.new("ImageLabel")
+        iconImage.Name="RobloxIcon"
+        iconImage.Size=UDim2.fromScale(1,1)
+        iconImage.BackgroundTransparency=1
+        iconImage.ScaleType=Enum.ScaleType.Fit
+        iconImage.Parent=iconShell
+        local corner=Instance.new("UICorner")
+        corner.CornerRadius=UDim.new(0,7)
+        corner.Parent=iconImage
+        local name=label(row,data[1],61,7,-157,23,12)
+        name.Font=Enum.Font.GothamMedium
+        name.TextTruncate=Enum.TextTruncate.AtEnd
+        local subtext=isCurrent and "CURRENT GAME  ·  Loader route" or
+            (placeId and "Loader route  ·  Tap to copy game link" or
+            "README listing  ·  Route not verified")
+        local detail=label(row,subtext,61,32,-157,18,10,Tokens.Color.TextMuted)
+        detail.TextTruncate=Enum.TextTruncate.AtEnd
+        local tag=Instance.new("TextLabel")
+        tag.Name="SupportEvidence"
+        tag.AnchorPoint=Vector2.new(1,0)
+        tag.Position=UDim2.new(1,-10,0,13)
+        tag.Size=UDim2.fromOffset(77,24)
+        tag.Text=isCurrent and "CURRENT" or (placeId and "ROUTED" or "LISTED")
+        tag.TextSize=10
+        tag.Font=Enum.Font.GothamMedium
+        tag.TextXAlignment=Enum.TextXAlignment.Center
+        tag.BackgroundTransparency=0
+        serenityColor(tag,"TextColor3",Tokens,isCurrent and "Accent" or "TextMuted")
+        serenityColor(tag,"BackgroundColor3",Tokens,"PanelSoft")
+        tag.Parent=row
+        local tagCorner=Instance.new("UICorner")
+        tagCorner.CornerRadius=UDim.new(0,5)
+        tagCorner.Parent=tag
+        runtime:TrackConnection(row.Activated:Connect(function()
+            if serenityInputBlocked(row) then return end
+            if not placeId then
+                app:Notify("Listing unverified",
+                    "The README names this game, but no game link was verified in the inspected routes.",
+                    5,"Info")
+                return
+            end
+            local url="https://www.roblox.com/games/"..tostring(placeId)
+            local copy=setclipboard or toclipboard
+            local ok=type(copy)=="function" and pcall(copy,url)
+            if ok then
+                app:Notify("Game link copied",data[1].." — paste the link into your browser.",4,"Success")
+            else
+                app:Notify("Game link",url,7,"Info")
+            end
+        end))
+        rows[#rows+1]={Frame=row,Data=data,Thumb=iconImage}
+    end
+
+    local function refreshDirectory()
+        if runtime.Destroyed then return end
+        local query=string.lower((search.Text or ""):match("^%s*(.-)%s*$"))
+        local shown=0
+        for _,entry in ipairs(rows) do
+            local item=entry.Data
+            local matches=(query=="" or string.find(string.lower(item[1]),query,1,true)~=nil)
+                and (selectedFilter=="All" or item[4]==selectedFilter)
+            entry.Frame.Visible=matches
+            if matches then shown=shown+1 end
+        end
+        for kind,b in pairs(filterButtons) do
+            serenityColor(b,"BackgroundColor3",Tokens,kind==selectedFilter and "PanelSoft" or "Inset")
+            serenityColor(b,"TextColor3",Tokens,kind==selectedFilter and "Accent" or "TextMuted")
+        end
+        empty.Visible=shown==0
+        local rowsHeight=shown>0 and (shown*58+(shown-1)*5) or 44
+        rowsContainer.Size=UDim2.new(1,-24,0,rowsHeight)
+        directoryPanel.Size=UDim2.new(1,-4,0,56+rowsHeight+14)
+        resultTitle.Text=tostring(shown).." of "..tostring(#gameDirectory).." games"
+        resultMeta.Text=selectedFilter=="All" and
+            "26 routed  ·  2 README listings  ·  Support not live-verified" or
+            (selectedFilter=="Routed" and
+             "Route configured; feature health not verified" or
+             "Mentioned in README; matching route not confirmed")
+    end
+    directoryControls.Refresh=refreshDirectory
+    runtime:TrackConnection(search:GetPropertyChangedSignal("Text"):Connect(refreshDirectory))
+    runtime:TrackConnection(about:GetPropertyChangedSignal("Visible"):Connect(function()
+        if not about.Visible or thumbnailsLoaded or runtime.Destroyed then return end
+        thumbnailsLoaded=true
+        for _,entry in ipairs(rows) do
+            if entry.Data[3] then
+                entry.Thumb.Image="rbxthumb://type=GameIcon&id="..tostring(entry.Data[3]).."&w=150&h=150"
+            end
+        end
+    end))
+    refreshDirectory()
+    local directoryFooter=card(about,82,4)
+    label(directoryFooter,"SERENITY  ·  UI TEST M4.78",14,9,-28,21,12)
+    local directoryNote=label(directoryFooter,
+        "Directory snapshot: October 20, 2026. No live support checks. Game controls elsewhere are demonstrations.",
+        14,31,-28,44,11,Tokens.Color.TextMuted)
+    directoryNote.TextWrapped=true
+    directoryNote.TextYAlignment=Enum.TextYAlignment.Top
 end
 
 
