@@ -4842,11 +4842,86 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         runtime:TrackConnection(metrics:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeMetrics))
         arrangeMetrics()
         local clockThread
+        -- Status comes from the same shared runtime as the game workers.
+        local function getLiveActivity()
+            local hub=shared and shared.SerenityRideAPet
+            local cfg=hub and hub.Config or {}
+            local fusion=hub and hub.AutoFusionFeature
+            local steal=hub and hub.StealActionRuntime
+            local busy=type(steal)=="table" and steal.Busy==true
+            if hub and type(hub.IsStealActionBusy)=="function" then
+                local ok,value=pcall(hub.IsStealActionBusy)
+                if ok and value then busy=true end
+            end
+            local recollect=hub and type(hub.ForcedRecollectRuntime)=="table"
+                and hub.ForcedRecollectRuntime.Active==true
+            local fBusy=fusion and fusion.Busy==true
+            local fPending=fusion and fusion.PriorityPending==true
+            local eventEnabled=cfg.AutoCollectHalloweenCandy==true or
+                cfg.AutoHalloweenRitual==true or cfg.AutoBuyHalloweenEgg==true
+            local inHalloween=player:GetAttribute("InHalloweenZone")==true
+            local count=0
+            for _,flag in ipairs({
+                cfg.AutoSteal,cfg.AutoFusion,cfg.AutoCollectHalloweenCandy,
+                cfg.AutoHalloweenRitual,cfg.AutoBuyHalloweenEgg,cfg.AutoSell,
+            }) do if flag==true then count=count+1 end end
+            if busy or recollect then
+                return "Auto Steal · Working",
+                    recollect and "Recovering selected egg" or "Pickup / claim in progress",count
+            end
+            if fBusy then
+                return "Auto Fusion · Working",
+                    tostring(fusion.LastStatus or "Fusion transaction in progress"),count
+            end
+            if inHalloween and eventEnabled then
+                return "Halloween Event · Active","Inside Halloween event",count
+            end
+            if fPending then
+                return "Auto Fusion · Pending",
+                    tostring(fusion.LastStatus or "Waiting for priority"),count
+            end
+            if cfg.AutoSteal==true then
+                return "Auto Steal · Watching eggs","Waiting for eligible eggs",count
+            end
+            if cfg.AutoFusion==true then
+                return "Auto Fusion · Waiting",
+                    tostring(fusion and fusion.LastStatus or "Waiting for four matching pets"),count
+            end
+            if eventEnabled then
+                return "Halloween Event · Waiting","Waiting for available Halloween activities",count
+            end
+            if cfg.AutoSell==true then
+                return "Auto Sell · Waiting","Waiting for eligible selling action",count
+            end
+            return "Ride A Pet · Idle","Main automations are turned off",count
+        end
+        local activityLabel
+        local activityDetailLabel
+        local lastTitle,lastDetail
+        local function updateActivity()
+            local title,detail,count=getLiveActivity()
+            if title~=lastTitle then
+                lastTitle=title
+                app:SetStatus(title)
+                if activityLabel and activityLabel.Parent then activityLabel.Text=title end
+            end
+            if detail~=lastDetail then
+                lastDetail=detail
+                if activityDetailLabel and activityDetailLabel.Parent then
+                    activityDetailLabel.Text=detail
+                end
+                app:SetStatusDetails({detail,"Steal → Fusion → Halloween → Sell"})
+            end
+            return title,detail,count
+        end
         local function updateClock()
             clockThread=nil
             if runtime.Destroyed or not dashboard.Visible or not app.Holder.Visible then return end
             local t=math.floor(os.clock()-sessionStart)
-            metricValues[1].Text=string.format("%02d:%02d",math.floor(t/60),t%60)
+            local displayTime=string.format("%02d:%02d",math.floor(t/60),t%60)
+            metricValues[1].Text=displayTime
+            local liveTitle,liveDetail,enabledCount=updateActivity()
+            app:SetStatusSummary(tostring(enabledCount).." enabled",displayTime)
             local flags={"Auto Steal","Auto Fusion","Auto Candy"}
             local keys={"Eggs.Steal.Enabled","Fuse.AutoFuse.Enabled","Event.Halloween.AutoCollectCandy"}
             local enabled={}
@@ -4854,7 +4929,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                 local p=window.Controls[key]
                 if p and p.Value==true then enabled[#enabled+1]=flags[i] end
             end
-            metricValues[3].Text=#enabled==0 and "All idle" or table.concat(enabled,", ")
+            metricValues[3].Text=liveTitle
             clockThread=task.delay(1,updateClock)
         end
         local function refreshClock()
@@ -4940,28 +5015,33 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
         runtime:TrackConnection(quick:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeQuick))
         arrangeQuick()
 
-        local status=Section.new(dashboard,deps,{
-            Title="Automation status",
-            Description="Live toggles reflect current Ride A Pet settings, not simulated preview actions.",
-        })
-        status.Frame.LayoutOrder=5
-        decorateSection(status,"Automation status")
-        textLabel(status.Body,"Auto Steal → Auto Fusion → Halloween Event → Auto Sell → Base Return",33,
-            Tokens.Color.TextMuted,12)
+        local activityPanel=card(dashboard,154,5)
+        activityPanel.Name="RideAPetLiveStatus"
+        Icons.Create(activityPanel,"activity",18,Tokens.Color.Accent,UDim2.fromOffset(14,12))
+        headline(activityPanel,"Live Activity",42,8,-56,23,15)
+        activityLabel=headline(activityPanel,"Ride A Pet · Ready",14,39,-28,29,19)
+        activityLabel.Name="RideAPetStatusText"
+        activityDetailLabel=headline(activityPanel,"Connecting to game runtime",14,72,-28,23,12,"TextMuted")
+        headline(activityPanel,"PRIORITY   STEAL   →   FUSION   →   HALLOWEEN",14,101,-28,20,10,"TextMuted")
         local statusButtons=Instance.new("Frame")
-        statusButtons.Size=UDim2.new(1,0,0,40)
+        statusButtons.Size=UDim2.new(1,-24,0,36)
+        statusButtons.Position=UDim2.fromOffset(12,123)
         statusButtons.BackgroundTransparency=1
-        statusButtons.Parent=status.Body
-        local goEvent=button(statusButtons,"Halloween Event  ›",0,1,151,
-            function() app:SelectPage("Event") end)
-        local goPets=button(statusButtons,"Pets  ›",160,1,101,
-            function() app:SelectPage("Pets") end)
+        statusButtons.Parent=activityPanel
+        local eggs=button(statusButtons,"Eggs  ›",0,1,98,function() app:SelectPage("Eggs") end)
+        local fuse=button(statusButtons,"Fusion  ›",106,1,98,function() app:SelectPage("Fuse") end)
+        local event=button(statusButtons,"Event  ›",212,1,98,function() app:SelectPage("Event") end)
+        activityPanel.Size=UDim2.new(1,-4,0,168)
         runtime:TrackConnection(statusButtons:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
             local w=widthOf(statusButtons)
-            goEvent.Size=UDim2.fromOffset(math.min(151,math.max(105,(w-14)/2)),34)
-            goPets.Position=UDim2.fromOffset(goEvent.Size.X.Offset+8,1)
-            goPets.Size=UDim2.fromOffset(math.min(112,math.max(78,(w-14)/2)),34)
+            local gap=7
+            local tileWidth=(w-2*gap)/3
+            for i,b in ipairs({eggs,fuse,event}) do
+                b.Size=UDim2.fromOffset(tileWidth,34)
+                b.Position=UDim2.fromOffset((i-1)*(tileWidth+gap),1)
+            end
         end))
+        updateActivity()
 
         local news=Section.new(dashboard,deps,{Title="What's New · M4.79"})
         news.Frame.LayoutOrder=6
@@ -5017,7 +5097,8 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
 
         -- Keep the original Dashboard manifest help/status data as a real
         -- full-width section at the bottom, rather than a half-width ghost.
-        fillPage(rapManifest.Pages[1])
+        -- The Dashboard is purpose-built, not a stack of static V3 paragraphs.
+        built["Dashboard"]=true
         app:SelectPage("Dashboard")
 
         -- No gameplay state is written by presentation restores.
