@@ -4362,10 +4362,107 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
             pageEntries[pageDesc.Id]={Page=page,Descriptor=pageDesc}
         end
 
+
+        -- New About directory, isolated from gameplay. A configured loader route
+        -- is not a guarantee that its payload is healthy.
+        local aboutEntry
+        local function buildAbout()
+            if not aboutEntry or built["About"] then return end
+            built["About"]=true
+            local page=aboutEntry
+            local head=Section.new(page,deps,{Title="Supported Games"})
+            textLabel(head.Body,"Serenity Hub game directory. Search configured routes and README listings.",40,Tokens.Color.TextMuted,11)
+            local search=Instance.new("TextBox")
+            search.Name="SearchSupportedGames"
+            search.Size=UDim2.new(1,0,0,38)
+            search.Text=""
+            search.ClearTextOnFocus=false
+            search.TextXAlignment=Enum.TextXAlignment.Left
+            search.PlaceholderText="Search 28 games..."
+            search.TextSize=12;search.Font=Enum.Font.Gotham
+            serenityColor(search,"TextColor3",Tokens,"Text")
+            serenityColor(search,"PlaceholderColor3",Tokens,"TextDim")
+            search.Parent=head.Body
+            Material.Inset(search,Tokens)
+            local pad=Instance.new("UIPadding");pad.PaddingLeft=UDim.new(0,10);pad.Parent=search
+            local results=Section.new(page,deps,{Title="Game Directory"})
+            local names={
+                {"Steal A Seed",122216176958450},
+                {"Lift a Cube",109530157755211},
+                {"Steal An Anime Egg",76377501906469},
+                {"Break and Steal an Egg",114326934417838},
+                {"Ride A Pet",124216119978534},
+                {"+1 Strength to Grow Your Arm",86259628805375},
+                {"Anime Dice",113290951185459},
+                {"+1 Loot to Forge",118805555015549},
+                {"Lift Rock for Eggs",76731343328034},
+                {"+1 Drain Water Per Click",103883942725157},
+                {"Sell Ores",122572082932179},
+                {"+1 Cut Grass Adventure",90086669327265},
+                {"Greedy Growers",74102906764176},
+                {"Chicken Farm",137233438285284},
+                {"+1 Monkey Evolution",91701030914075},
+                {"+1 Superhero Evolution",97824450589417},
+                {"Heroes RNG",108307565942574},
+                {"Throw a Coin",115681808123944},
+                {"Cheating During Testing",98894876188248},
+                {"Roll Anime to Fight",107653945083776},
+                {"+1 Dino Evolution",103138601755519},
+                {"+1 Phonk Evolution",104809044319701},
+                {"Unscathed RNG",122951224417794},
+                {"Mine a Mountain",125927821145949},
+                {"Search for the Needle",77108422251420},
+                {"+1 Tongue Escape",122245938604556},
+                {"Collect All the Leaves",nil},
+                {"Jump To Steal Soccer Players",nil},
+            }
+            local rows={}
+            for i,record in ipairs(names) do
+                local btn=Instance.new("TextButton")
+                btn.Name="Game"..i
+                btn.Text=""
+                btn.Size=UDim2.new(1,0,0,46)
+                btn.LayoutOrder=i
+                btn.AutoButtonColor=false
+                btn.Parent=results.Body
+                Material.Control(btn,Tokens)
+                local txt=textLabel(btn,record[1],23,Tokens.Color.Text,12)
+                txt.Position=UDim2.fromOffset(12,4)
+                txt.TextTruncate=Enum.TextTruncate.AtEnd
+                local current=record[2]==game.PlaceId
+                local sub=textLabel(btn,current and "CURRENT GAME  ·  Route configured"
+                  or (record[2] and "ROUTED  ·  Tap to copy game link"
+                  or "README ONLY  ·  Route unverified"),16,Tokens.Color.TextMuted,10)
+                sub.Position=UDim2.fromOffset(12,26)
+                runtime:TrackConnection(btn.Activated:Connect(function()
+                    if serenityInputBlocked(btn) or runtime.Destroyed then return end
+                    if not record[2] then
+                        app:Notify("Route unverified","This README listing has no confirmed link in inspected loaders.",5,"Info")
+                        return
+                    end
+                    local url="https://www.roblox.com/games/"..tostring(record[2])
+                    local copy=setclipboard or toclipboard
+                    if type(copy)=="function" and pcall(copy,url) then
+                        app:Notify("Game link copied",record[1],4,"Success")
+                    else app:Notify("Game URL",url,7,"Info") end
+                end))
+                rows[#rows+1]={btn,record[1]}
+            end
+            runtime:TrackConnection(search:GetPropertyChangedSignal("Text"):Connect(function()
+                local query=string.lower(search.Text or "")
+                for _,entry in ipairs(rows) do
+                    entry[1].Visible=query=="" or string.find(string.lower(entry[2]),query,1,true)~=nil
+                end
+            end))
+            local footer=Section.new(page,deps,{Title="About Serenity"})
+            textLabel(footer.Body,"M4.78 Ride A Pet UI · Directory snapshot 2026-10-20. Configured route is not live support verification.",56,Tokens.Color.TextMuted,11)
+        end
+        aboutEntry=app:AddPage({Id="About",Title="About",Icon="info",Order=19})
         -- Build dashboard immediately; other pages only when selected.
         local oldSelect=app.SelectPage
         function app:SelectPage(pageId)
             local entry=pageEntries[pageId]
+            if pageId=="About" then buildAbout() end
             if entry then fillPage(entry.Descriptor) end
             return oldSelect(self,pageId)
         end
