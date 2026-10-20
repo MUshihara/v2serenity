@@ -5040,6 +5040,9 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                     runtime.ReducedMotion=preferredMotion
                     applyPrivacy(a.HideIdentity==true)
                 end
+                if type(data.UI)=="table" then
+                    app:RestoreUIPreferences(data.UI)
+                end
                 if type(data.View)=="table" then app:RestoreViewState(data.View) end
             end
         end
@@ -5054,6 +5057,7 @@ if type(rapManifest)=="table" and type(rapManifest.Pages)=="table" then
                     if type(makefolder)=="function" then makefolder("SerenityHub") end
                     writefile(prefsPath,http:JSONEncode({
                         View=app:GetViewState(),
+                        UI=app:GetUIPreferences(),
                         Appearance={
                             Accent=selectedAccent,Glass=preferredGlass,
                             ReducedMotion=preferredMotion,HideIdentity=privacyEnabled,
