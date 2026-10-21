@@ -4719,7 +4719,7 @@ do
     local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.77";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="UI TEST  ·  M4.78";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     serenityColor(badge,"TextColor3",Tokens,"Accent");badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -5084,6 +5084,11 @@ do
         for name,control in pairs(filterButtons) do
             serenityColor(control,"TextColor3",Tokens,name==filter and "Accent" or "TextMuted")
             control:SetAttribute("SelectedDirectoryFilter",name==filter)
+            local outline=control:FindFirstChild("InsetStroke")
+            if outline then
+                serenityColor(outline,"Color",Tokens,name==filter and "Accent" or "Stroke")
+                outline.Transparency=name==filter and 0.35 or 0.88
+            end
         end
     end
     local function buildDirectory()
@@ -5391,7 +5396,7 @@ do
     runtime:TrackCleanup(function() for _,tween in pairs(pending) do tween:Cancel() end end)
 end
 
-print("SERENITY M4.77 STATUS + NOTIFICATION TEST | Playground: status & confirmation | RightCtrl: toggle | Ctrl+K: search")
+print("SERENITY M4.78 ABOUT DIRECTORY TEST | M4.77 dashboard/settings preserved | RightCtrl: toggle | Ctrl+K: search")
 
 return app
 
