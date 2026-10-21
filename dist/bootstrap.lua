@@ -1,11 +1,11 @@
--- M4.78 test UI opens keyless; About contains the searchable game directory.
+-- Test UI opens keyless while design work continues.
 do
     local environment = type(getgenv) == "function" and getgenv() or _G
     local previous = environment.__SerenityKeyWindowTest
     if type(previous) == "table" and type(previous.Destroy) == "function" then
         pcall(function() previous:Destroy() end)
     end
-    local source = game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/9fba3b606ba5f2a0e8c14d231786d13268f80644/dist/ui/serenity.lua")
+    local source = game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/bda02e76eed478c8458f6926ea9dd00609c2dbd6/dist/ui/serenity.lua")
     local chunk, err = loadstring(source)
     if not chunk then error(err) end
     return chunk()
