@@ -4886,10 +4886,227 @@ do
         join.Position=wide and UDim2.new(1,-144,0.5,-18) or UDim2.fromOffset(14,80)
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
-    local info=card(about,110)
-    label(info,"Serenity preview · M4.77",14,12,-28,26,18)
-    local body=label(info,"Gameplay controls are demonstrations. This UI test is separate from the production library and key window.",14,43,-28,54,12,Tokens.Color.TextMuted)
-    body.TextWrapped=true
+    -- ABOUT / M4.78: grounded supported-games directory.
+    -- Route = a loader rule, NOT proof of a healthy or tested payload.
+    -- Snapshot: root loader + dist/loader.lua + README (2026-10-21).
+    -- Keep this independent of the preserved Dashboard and Settings.
+    local aboutGames={
+        -- Name, UniverseId, launch PlaceId, route state
+        {"MM2",66654135,142823291,"Routed"},
+        {"Steal A Seed",10764328008,122216176958450,"Routed"},
+        {"Lift a Cube",10759860151,109530157755211,"Routed"},
+        {"Steal An Anime Egg",10747748563,76377501906469,"Routed"},
+        {"Break and Steal an Egg",10765288803,114326934417838,"Routed"},
+        {"Ride A Pet",10035204815,124216119978534,"Routed"},
+        {"+1 Strength to Grow Your Arm",10310999762,86259628805375,"Routed"},
+        {"Anime Dice",10708913337,113290951185459,"Routed"},
+        {"+1 Loot to Forge",10684750879,118805555015549,"Routed"},
+        {"Lift Rock for Eggs",10768316438,76731343328034,"Routed"},
+        {"+1 Drain Water Per Click",10561352230,103883942725157,"Routed"},
+        {"Sell Ores",10336278580,122572082932179,"Routed"},
+        {"+1 Cut Grass Adventure",10410945205,90086669327265,"Routed"},
+        {"Greedy Growers",10440833423,74102906764176,"Routed"},
+        {"Chicken Farm",10209534490,137233438285284,"Routed"},
+        {"+1 Monkey Evolution",10605939914,91701030914075,"Routed"},
+        {"+1 Superhero Evolution",10577588270,97824450589417,"Routed"},
+        {"Heroes RNG",10153098880,108307565942574,"Routed"},
+        {"Throw a Coin",10131390815,115681808123944,"Routed"},
+        {"Cheating During Testing",9780429221,98894876188248,"Routed"},
+        {"Roll Anime to Fight",10298144467,107653945083776,"Routed"},
+        {"+1 Dino Evolution",10664667515,103138601755519,"Routed"},
+        {"+1 Phonk Evolution",10544327471,104809044319701,"Routed"},
+        {"Unscathed RNG",8959257868,122951224417794,"Routed"},
+        {"Mine a Mountain",10187294555,125927821145949,"Routed"},
+        {"Search for the Needle",10756011174,77108422251420,"Routed"},
+        {"+1 Tongue Escape",10681914462,122245938604556,"Routed"},
+        {"Collect All the Leaves",nil,nil,"Listed"},
+        {"Jump To Steal Soccer Players",nil,nil,"Listed"},
+    }
+
+    local intro=card(about,100,1)
+    Icons.Create(intro,"about",21,Tokens.Color.Accent,UDim2.fromOffset(14,12))
+    label(intro,"Supported Games",44,8,-60,26,18)
+    local introSub=label(intro,"Explore Serenity Hub experiences. Routes are configured, not necessarily live-tested.",14,42,-28,35,12,Tokens.Color.TextMuted)
+    introSub.TextWrapped=true
+    label(intro,"27 ROUTED   /   2 LISTED",14,80,-28,16,10,Tokens.Color.Cyan)
+
+    local directorySearch=card(about,105,2)
+    local findInput=Instance.new("TextBox")
+    findInput.Name="SearchSupportedGames"
+    findInput.Position=UDim2.fromOffset(12,10)
+    findInput.Size=UDim2.new(1,-24,0,34)
+    findInput.Text=""
+    findInput.PlaceholderText="Search supported games..."
+    findInput.ClearTextOnFocus=false
+    findInput.Font=Enum.Font.Gotham
+    findInput.TextSize=12
+    findInput.TextXAlignment=Enum.TextXAlignment.Left
+    serenityColor(findInput,"TextColor3",Tokens,"Text")
+    serenityColor(findInput,"PlaceholderColor3",Tokens,"TextDim")
+    findInput.Parent=directorySearch
+    Material.Inset(findInput,Tokens)
+    local searchPadding=Instance.new("UIPadding")
+    searchPadding.PaddingLeft=UDim.new(0,11)
+    searchPadding.PaddingRight=UDim.new(0,9)
+    searchPadding.Parent=findInput
+    local filterWrap=Instance.new("Frame")
+    filterWrap.Name="DirectoryFilters"
+    filterWrap.BackgroundTransparency=1
+    filterWrap.Size=UDim2.new(1,-24,0,37)
+    filterWrap.Position=UDim2.fromOffset(12,55)
+    filterWrap.Parent=directorySearch
+
+    local filter="All"
+    local filterButtons={}
+    local refreshDirectory
+    for i,name in ipairs({"All","Routed","Listed"}) do
+        local filterButton=Instance.new("TextButton")
+        filterButton.Name="Filter"..name
+        filterButton.Text=name
+        filterButton.TextSize=12
+        filterButton.Font=Enum.Font.GothamSemibold
+        filterButton.AutoButtonColor=false
+        filterButton.Position=UDim2.new((i-1)/3,(i==1 and 0 or i==2 and 3 or 6),0,0)
+        filterButton.Size=UDim2.new(1/3,-7,0,32)
+        serenityColor(filterButton,"TextColor3",Tokens,"Text")
+        filterButton.Parent=filterWrap
+        Material.Inset(filterButton,Tokens)
+        Material.OptionHover(filterButton,Tokens,false,Motion)
+        filterButtons[name]=filterButton
+        runtime:TrackConnection(filterButton.Activated:Connect(function()
+            if serenityInputBlocked(filterButton) then return end
+            filter=name
+            if refreshDirectory then refreshDirectory() end
+        end))
+    end
+
+    local directoryHeader=Instance.new("Frame")
+    directoryHeader.Name="DirectoryHeading"
+    directoryHeader.Size=UDim2.new(1,-4,0,25)
+    directoryHeader.BackgroundTransparency=1
+    directoryHeader.LayoutOrder=3
+    directoryHeader.Parent=about
+    local directoryLabel=label(directoryHeader,"GAME DIRECTORY",9,0,-108,22,12)
+    local directoryCount=label(directoryHeader,"29 games",0,0,-10,22,11,Tokens.Color.TextMuted)
+    directoryCount.TextXAlignment=Enum.TextXAlignment.Right
+
+    local directoryList=Instance.new("Frame")
+    directoryList.Name="SupportedGameRows"
+    directoryList.Size=UDim2.new(1,-4,0,0)
+    directoryList.AutomaticSize=Enum.AutomaticSize.Y
+    directoryList.BackgroundTransparency=1
+    directoryList.LayoutOrder=4
+    directoryList.Parent=about
+    local listLayout=Instance.new("UIListLayout")
+    listLayout.SortOrder=Enum.SortOrder.LayoutOrder
+    listLayout.Padding=UDim.new(0,5)
+    listLayout.Parent=directoryList
+
+    local emptyHint=card(directoryList,55,999)
+    local emptyText=label(emptyHint,"No matching games. Try another search or filter.",12,11,-24,34,12,Tokens.Color.TextMuted)
+    emptyText.TextWrapped=true
+    local gameRows={}
+    local builtDirectory=false
+    local function addGameRow(data,i)
+        local name,universe,place,state=data[1],data[2],data[3],data[4]
+        local row=Instance.new("TextButton")
+        row.Name="Game_"..tostring(i)
+        row.Size=UDim2.new(1,0,0,57)
+        row.LayoutOrder=i
+        row.Text=""
+        row.AutoButtonColor=false
+        row.Parent=directoryList
+        Material.Control(row,Tokens)
+        Material.OptionHover(row,Tokens,false,Motion)
+        local picture=Instance.new("ImageLabel")
+        picture.Name="GameIcon"
+        picture.BackgroundTransparency=0.1
+        picture.Size=UDim2.fromOffset(37,37)
+        picture.Position=UDim2.fromOffset(10,10)
+        picture.ScaleType=Enum.ScaleType.Crop
+        serenityColor(picture,"BackgroundColor3",Tokens,"PanelSoft")
+        picture.Parent=row
+        local pictureCorner=Instance.new("UICorner")
+        pictureCorner.CornerRadius=UDim.new(0,6)
+        pictureCorner.Parent=picture
+        local placeholder=Icons.Create(picture,universe and "world" or "info",20,Tokens.Color.TextDim,UDim2.fromOffset(8,8))
+        placeholder.Name="DirectoryFallbackIcon"
+        if universe then
+            picture.Image="rbxthumb://type=GameIcon&id="..universe.."&w=150&h=150"
+            runtime:TrackConnection(picture:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+                placeholder.Visible=not picture.IsLoaded
+            end))
+            placeholder.Visible=not picture.IsLoaded
+        end
+        local title=label(row,name,56,5,-155,23,13)
+        title.TextTruncate=Enum.TextTruncate.AtEnd
+        local isCurrent=universe and game.GameId==universe
+        local info=label(row,isCurrent and "CURRENT GAME  ·  ROUTED" or
+            (state=="Routed" and "Loader route configured" or "README listing · Route unverified"),
+            56,29,-107,19,11,Tokens.Color.TextMuted)
+        info.TextTruncate=Enum.TextTruncate.AtEnd
+        local stateLabel=label(row,state=="Routed" and "ROUTED" or "LISTED",0,16,-12,18,10,
+            state=="Routed" and Tokens.Color.Mint or Tokens.Color.Amber)
+        stateLabel.AnchorPoint=Vector2.new(1,0)
+        stateLabel.Position=UDim2.new(1,-10,0,16)
+        stateLabel.Size=UDim2.fromOffset(68,18)
+        stateLabel.TextXAlignment=Enum.TextXAlignment.Center
+        runtime:TrackConnection(row.Activated:Connect(function()
+            if serenityInputBlocked(row) then return end
+            if not place then
+                app:Notify("Route unverified",name.." appears in the README, but its game route is not confirmed.",5,"Info")
+                return
+            end
+            local url="https://www.roblox.com/games/"..tostring(place)
+            local copy=setclipboard or toclipboard
+            local ok=type(copy)=="function" and pcall(copy,url)
+            if ok then
+                app:Notify("Game link copied",name.." · Paste it into your browser or Roblox.",4,"Success")
+            else
+                app:Notify("Game page",url,7,"Info")
+            end
+        end))
+        gameRows[#gameRows+1]={Row=row,Name=string.lower(name),Status=state}
+    end
+    refreshDirectory=function()
+        if not builtDirectory then return end
+        local query=string.lower((findInput.Text or ""):match("^%s*(.-)%s*$"))
+        local matches=0
+        for _,entry in ipairs(gameRows) do
+            local matchesFilter=(filter=="All" or filter==entry.Status)
+            local matchesName=(query=="" or string.find(entry.Name,query,1,true)~=nil)
+            local visible=matchesFilter and matchesName
+            entry.Row.Visible=visible
+            if visible then matches=matches+1 end
+        end
+        emptyHint.Visible=matches==0
+        directoryCount.Text=tostring(matches).." / "..tostring(#gameRows).." games"
+        for name,control in pairs(filterButtons) do
+            serenityColor(control,"TextColor3",Tokens,name==filter and "Accent" or "TextMuted")
+            control:SetAttribute("SelectedDirectoryFilter",name==filter)
+        end
+    end
+    local function buildDirectory()
+        if builtDirectory or runtime.Destroyed then return end
+        builtDirectory=true
+        -- Pictures are requested only on first visit to About, not at startup.
+        for i,data in ipairs(aboutGames) do addGameRow(data,i) end
+        refreshDirectory()
+    end
+    runtime:TrackConnection(findInput:GetPropertyChangedSignal("Text"):Connect(function()
+        if refreshDirectory then refreshDirectory() end
+    end))
+    runtime:TrackConnection(about:GetPropertyChangedSignal("Visible"):Connect(function()
+        if about.Visible then buildDirectory() end
+    end))
+    if about.Visible then buildDirectory() end
+
+    local aboutFooter=card(about,75,5)
+    label(aboutFooter,"ABOUT SERENITY HUB",12,9,-24,20,12)
+    local footerDescription=label(aboutFooter,
+        "Based on current loader rules and the public README (Oct 21, 2026). Routed means configured, not verified working.",
+        12,31,-24,38,11,Tokens.Color.TextMuted)
+    footerDescription.TextWrapped=true
 end
 
 
