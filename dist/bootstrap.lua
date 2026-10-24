@@ -575,7 +575,19 @@ function controller:GetPendingKey()
 end
 function controller:RejectAuthentication(reason)
     if destroyed or closing or not verifying or authenticated then return false end
-    local code=tostring(reason or ""):upper():gsub("%s+", "_")
+    local reasonValue = reason
+    if type(reasonValue) == "table" then
+        reasonValue = reasonValue.error or reasonValue.code or reasonValue.reason
+        if type(reasonValue) == "table" then reasonValue = reasonValue.code or reasonValue.error end
+    end
+    local code = type(reasonValue) == "string" and reasonValue:upper():gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", "_") or ""
+    local aliases = {
+        INVALID_SIGNATURE="SIGNATURE_INVALID",
+        HWID_MISMATCH="FINGERPRINT_MISMATCH",
+        KEY_INVALID="INVALID_KEY",
+        PROJECT_NOT_FOUND="UNAUTHORIZED",
+    }
+    code = aliases[code] or code
     local message="Verification failed. Please try again."
     if code=="KEY_NOT_FOUND" or code=="UNAUTHORIZED" or code=="INVALID_KEY" then
         message="Invalid key. Check it and try again."
@@ -611,7 +623,13 @@ function controller:RejectAuthentication(reason)
     elseif code=="UNAUTHORIZED" then
         message="Key or project mismatch. Contact support."
     end
-    local safeCode = safeCodes[code] and code or (code:match("^HTTP_%d%d%d$") and code) or "UNKNOWN_ERROR"
+    -- Permit short service identifiers, never raw HTTP bodies, key strings or exception text.
+    local serviceCode = #code <= 64 and code:match("^[A-Z][A-Z0-9_]*$")
+        and not code:match("^[A-F0-9]+$") and code ~= "TABLE"
+    local safeCode = safeCodes[code] and code or (serviceCode and code) or "UNRECOGNIZED_RESPONSE"
+    if safeCode=="UNRECOGNIZED_RESPONSE" then
+        message="Key service returned an unreadable error (" .. type(reason) .. ")."
+    end
     self.LastAuthError = safeCode
     message = message .. " [" .. safeCode .. "]"
     pendingKey=nil
