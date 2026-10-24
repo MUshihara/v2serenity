@@ -202,7 +202,7 @@ local body = make("CanvasGroup", {
 }, panel)
 local title = text(body, "Welcome to Serenity", 23, UDim2.fromOffset(24, 12), UDim2.new(1, -48, 0, 32), colors.text, true)
 title.TextXAlignment = Enum.TextXAlignment.Left
-local subtitle = text(body, "Enter your key to continue.", 15, UDim2.fromOffset(24, 47), UDim2.new(1, -48, 0, 24), colors.muted)
+local subtitle = text(body, "No key yet? Choose Get a key to get started.", 15, UDim2.fromOffset(24, 47), UDim2.new(1, -48, 0, 24), colors.muted)
 subtitle.TextXAlignment = Enum.TextXAlignment.Left
 text(body, "Access key", 14, UDim2.fromOffset(28, 81), UDim2.new(1, -56, 0, 22), colors.text, true)
 local inputShell = make("Frame", {
@@ -297,21 +297,21 @@ local function button(name, caption, y, primary)
     local hovered = false
     bind(object.MouseEnter, function()
         hovered = true
-        animate(object, 0.12, {BackgroundTransparency = primary and 0.08 or 0.82})
+        animate(object, 0.12, {BackgroundTransparency = primary and 0.08 or 0})
     end)
     bind(object.MouseLeave, function()
         hovered = false
-        animate(object, 0.12, {BackgroundTransparency = primary and 0 or 1})
+        animate(object, 0.12, {BackgroundTransparency = primary and 0 or 0.08})
     end)
     if not primary then
         bind(object.InputBegan, function(event)
             if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then
-                animate(object, 0.06, {BackgroundTransparency = 0.65})
+                animate(object, 0.06, {BackgroundTransparency = 0.16})
             end
         end)
         bind(UserInputService.InputEnded, function(event)
             if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then
-                animate(object, 0.12, {BackgroundTransparency = hovered and 0.82 or 1})
+                animate(object, 0.12, {BackgroundTransparency = hovered and 0 or 0.08})
             end
         end)
     end
@@ -330,14 +330,15 @@ pixelSymbol(verify, "VerifyShield", {
     " ###### ", "########", "### ####", "## ## ##",
     "##   ###", " ###### ", "  ####  ", "   ##   ",
 }, colors.navy, UDim2.new(0.5, -68, 0.5, 0))
-getKey.BackgroundColor3 = Color3.fromRGB(34, 51, 74)
-getKey.BackgroundTransparency = 1
-getKey.TextColor3 = Color3.fromRGB(221, 232, 246)
+getKey.BackgroundColor3 = Color3.fromRGB(44, 83, 143)
+getKey.BackgroundTransparency = 0.08
+getKey.TextColor3 = Color3.fromRGB(241, 247, 255)
+stroke(getKey, Color3.fromRGB(122, 174, 244), 0.18, 1)
 make("UIPadding", {PaddingLeft = UDim.new(0, 18)}, getKey)
 pixelSymbol(getKey, "GetKeyIcon", {
     " ###    ", "#   #   ", "# # #   ", "#   #   ",
     " ###### ", "     ## ", "      ##", "      ##",
-}, Color3.fromRGB(233, 190, 108), UDim2.new(0.5, -55, 0.5, 0))
+}, Color3.fromRGB(234, 243, 255), UDim2.new(0.5, -55, 0.5, 0))
 buttonAccents[getKey] = Color3.fromRGB(119, 163, 222)
 local statusDot = make("Frame", {
     BackgroundColor3 = colors.muted, BorderSizePixel = 0,
