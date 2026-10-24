@@ -575,7 +575,7 @@ function controller:GetPendingKey()
 end
 function controller:RejectAuthentication(reason)
     if destroyed or closing or not verifying or authenticated then return false end
-    local code=tostring(reason or ""):upper()
+    local code=tostring(reason or ""):upper():gsub("%s+", "_")
     local message="Verification failed. Please try again."
     if code=="KEY_NOT_FOUND" or code=="UNAUTHORIZED" or code=="INVALID_KEY" then
         message="Invalid key. Check it and try again."
@@ -591,11 +591,29 @@ function controller:RejectAuthentication(reason)
         self:ForgetSavedKey()
     elseif code=="RATE_LIMITED" then
         message="Too many attempts. Wait a minute and try again."
-    elseif code=="REQUEST FAILED" or code=="NETWORK_ERROR" then
+    elseif code=="REQUEST_FAILED" or code=="NETWORK_ERROR" then
         message="Could not connect. Please try again."
     elseif code=="BAD_SIGNATURE" or code=="CONFIG_ERROR" then
         message="Key service configuration needs attention. Contact support."
     end
+    local safeCodes = {
+        KEY_NOT_FOUND=true, UNAUTHORIZED=true, INVALID_KEY=true, KEY_EXPIRED=true,
+        EXPIRED=true, KEY_BANNED=true, FINGERPRINT_MISMATCH=true, RATE_LIMITED=true,
+        REQUEST_FAILED=true, NETWORK_ERROR=true, BAD_SIGNATURE=true, CONFIG_ERROR=true,
+        SIGNATURE_INVALID=true, BAD_RESPONSE=true, INVALID_REQUEST=true,
+    }
+    if code=="SIGNATURE_INVALID" then
+        message="Key service signature check failed."
+    elseif code=="BAD_RESPONSE" then
+        message="Key service returned an unexpected response."
+    elseif code=="INVALID_REQUEST" then
+        message="Key service rejected the verification request."
+    elseif code=="UNAUTHORIZED" then
+        message="Key or project mismatch. Contact support."
+    end
+    local safeCode = safeCodes[code] and code or (code:match("^HTTP_%d%d%d$") and code) or "UNKNOWN_ERROR"
+    self.LastAuthError = safeCode
+    message = message .. " [" .. safeCode .. "]"
     pendingKey=nil
     setVerifying(false)
     self:SetStatus(message,"error")
