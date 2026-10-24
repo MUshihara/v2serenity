@@ -182,7 +182,8 @@ for i = 0, 11 do
         end
     end
 end
-local headerTitle = text(header, "SERENITY HUB", 17, UDim2.fromOffset(69, 0), UDim2.fromOffset(280, 56), colors.text, true)
+local headerTitle = text(header, "SERENITY HUB", 22, UDim2.fromOffset(69, 0), UDim2.new(1, -137, 0, 56), colors.text, true)
+headerTitle.Font = Enum.Font.GothamBold
 local close = make("TextButton", {
     Name = "Close", BackgroundColor3 = colors.glass, BackgroundTransparency = 0.6, Text = "×",
     TextColor3 = colors.muted, TextSize = 30, Font = Enum.Font.Gotham,
@@ -607,18 +608,6 @@ local function localProviderIcon(name)
     end
     controller.IconStatus[name] = "Local image registration failed"
     return nil
-end
-
--- Native compact brand stays crisp on desktop and mobile, without a logo download.
-for _,right in ipairs({false,true}) do
-    for _,bottom in ipairs({false,true}) do
-        local x=right and -9 or 8
-        local y=bottom and -9 or 8
-        make("Frame", {Name="CornerRune", BorderSizePixel=0,
-            BackgroundColor3=colors.ivory, BackgroundTransparency=0.58,
-            Position=UDim2.new(right and 1 or 0,x,bottom and 1 or 0,y),
-            Size=UDim2.fromOffset(2,2), Active=false}, panel)
-    end
 end
 
 for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
