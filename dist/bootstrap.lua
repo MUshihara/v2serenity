@@ -287,16 +287,6 @@ pixelSymbol(getKey, "GetKeyIcon", {
     " ###### ", "     ## ", "      ##", "      ##",
 }, Color3.fromRGB(233, 190, 108), UDim2.new(0.5, -55, 0.5, 0))
 buttonAccents[getKey] = Color3.fromRGB(233, 190, 108)
-paste.BackgroundColor3 = Color3.fromRGB(35, 57, 56)
-paste.TextColor3 = Color3.fromRGB(204, 235, 228)
-paste.TextSize = 12
-make("UIPadding", {PaddingLeft = UDim.new(0, 18)}, paste)
-pixelSymbol(paste, "ClipboardIcon", {
-    "  ####  ", " ##  ## ", "########", "#      #",
-    "# #### #", "# #### #", "#      #", "########",
-}, Color3.fromRGB(156, 214, 201), UDim2.new(0, 7, 0.5, 0))
-buttonAccents[paste] = Color3.fromRGB(156, 214, 201)
-
 local statusSurface = make("Frame", {
     Name="KeyFeedback", Position=UDim2.fromOffset(28,228), Size=UDim2.new(1,-56,0,30),
     BackgroundColor3=colors.glass, BackgroundTransparency=0.45, BorderSizePixel=0,
@@ -722,42 +712,35 @@ local function localProviderIcon(name)
 end
 
 for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
-    local providerAccent = ({
-        Linkvertise = Color3.fromRGB(245, 170, 77),
-        LootLabs = Color3.fromRGB(175, 132, 244),
-        ["Work.ink"] = Color3.fromRGB(75, 208, 174),
-    })[name]
-    local providerBase = Color3.fromRGB(27, 33, 32):Lerp(providerAccent, 0.09)
     local option = make("TextButton", {
-        Name = name, BackgroundColor3 = providerBase, BackgroundTransparency = 0.2,
+        Name = name, BackgroundColor3 = colors.glass, BackgroundTransparency = 0.2,
         Position = UDim2.fromOffset(28, 82 + (index - 1) * 54),
         Size = UDim2.new(1, -56, 0, 48), BorderSizePixel = 0,
         Text = "", AutoButtonColor = false,
     }, providers)
-    round(option, 7)
-    buttonAccents[option] = providerAccent
-    stroke(option, providerAccent, index == 1 and 0.25 or 0.45)
+    round(option, 9)
+    stroke(option, index == 1 and colors.cyan or colors.muted, index == 1 and 0.25 or 0.6)
     if index == 1 then
         local accent = make("Frame", {
-            BackgroundColor3 = providerAccent, BorderSizePixel = 0,
+            BackgroundColor3 = colors.cyan, BorderSizePixel = 0,
             Position = UDim2.fromOffset(0, 12), Size = UDim2.fromOffset(3, 24),
         }, option)
         round(accent, 2)
         local recommendation = make("TextLabel", {
             Name = "RecommendedBadge", Text = "★  Recommended", TextSize = 11,
-            Font = Enum.Font.GothamBold, TextColor3 = providerAccent,
-            BackgroundColor3 = providerAccent, BackgroundTransparency = 0.88,
+            Font = Enum.Font.GothamBold, TextColor3 = colors.cyan,
+            BackgroundColor3 = colors.cyan, BackgroundTransparency = 0.88,
             BorderSizePixel = 0, Position = UDim2.new(1, -172, 0, 12),
             Size = UDim2.fromOffset(124, 24),
         }, option)
         round(recommendation, 6)
-        stroke(recommendation, providerAccent, 0.7)
+        stroke(recommendation, colors.cyan, 0.7)
     end
     local mark = make("TextLabel", {
-        BackgroundColor3 = providerAccent, BackgroundTransparency = 0.84,
+        BackgroundColor3 = colors.cyan, BackgroundTransparency = 0.84,
         Position = UDim2.fromOffset(12, 10), Size = UDim2.fromOffset(28, 28),
         Text = name:sub(1, 1), Font = Enum.Font.GothamBold, TextSize = 14,
-        TextColor3 = providerAccent, BorderSizePixel = 0,
+        TextColor3 = colors.cyan, BorderSizePixel = 0,
     }, option)
     round(mark, 7)
     local iconUri = localProviderIcon(name)
@@ -793,7 +776,7 @@ for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
         end)
     end
     text(option, name, 17, UDim2.fromOffset(54, 0), UDim2.new(1, -102, 1, 0), colors.text, true)
-    text(option, "→", 22, UDim2.new(1, -40, 0, 0), UDim2.fromOffset(28, 48), providerAccent)
+    text(option, "→", 22, UDim2.new(1, -40, 0, 0), UDim2.fromOffset(28, 48), colors.muted)
     bind(option.MouseEnter, function() animate(option, 0.12, {BackgroundTransparency = 0}) end)
     bind(option.MouseLeave, function() animate(option, 0.12, {BackgroundTransparency = 0.2}) end)
     bind(option.Activated, function()
