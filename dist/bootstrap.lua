@@ -1,17 +1,4 @@
--- Test UI opens keyless while design work continues.
-do
-    local environment = type(getgenv) == "function" and getgenv() or _G
-    local previous = environment.__SerenityKeyWindowTest
-    if type(previous) == "table" and type(previous.Destroy) == "function" then
-        pcall(function() previous:Destroy() end)
-    end
-    local source = game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/1d9600bb2a6910b749f9f819bf9b992f0517aa10/dist/ui/serenity.lua")
-    local chunk, err = loadstring(source)
-    if not chunk then error(err) end
-    return chunk()
-end
-
--- Serenity test key window. FlowAuth protected payload must call CompleteAuthentication.
+-- Serenity VampAuth key-window test. Protected payload must call CompleteAuthentication.
 -- Test repository only; no production games are loaded.
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -32,9 +19,10 @@ local connections, tweens = {}, {}
 local destroyed, closing = false, false
 local controller = {}
 local verifying, authenticated, attempt = false, false, 0
-local authLoader = "https://flowauth.net/v1/loaders/1648c904082188891affedeaf4cf550d.lua"
+local authLoader = "https://vampauth.com/v1/loaders/8f16731910c17a323a58a6e4f15ce56a.lua"
+local testUI = "https://raw.githubusercontent.com/MUshihara/v2serenity/1d9600bb2a6910b749f9f819bf9b992f0517aa10/dist/ui/serenity.lua"
 local pendingKey
-local cacheFile = "Serenity_Test_Project_Key.txt"
+local cacheFile = "Serenity_Test_VampAuth_Key.txt"
 local readKeyFile = environment.readfile or readfile
 local writeKeyFile = environment.writefile or writefile
 local deleteKeyFile = environment.delfile or delfile
@@ -393,17 +381,33 @@ local function setVerifying(value)
     input.TextEditable = not value
 end
 function controller:CompleteAuthentication()
-    -- Called by the protected FlowAuth payload, never by loader return values.
+    -- Called by the VampAuth-protected payload, never inferred from a loader return value.
     if destroyed or closing or not verifying or authenticated then return false end
     authenticated = true
     saveVerifiedKey(pendingKey)
     pendingKey = nil
-    closing = true
-    input.Text = ""
     self:SetStatus("Key verified. Opening Serenity...", "info")
-    input:ReleaseFocus()
-    animate(panel, 0.16, {GroupTransparency = 1})
-    task.delay(0.18, function() self:Destroy() end)
+    task.spawn(function()
+        local ok = pcall(function()
+            local source = game:HttpGet(testUI)
+            if destroyed then return end
+            local run, compileError = loadstring(source, "Serenity authenticated UI test")
+            if not run then error(compileError or "UI unavailable", 0) end
+            run()
+        end)
+        if destroyed then return end
+        if not ok then
+            authenticated = false
+            setVerifying(false)
+            self:SetStatus("Key verified, but the UI could not load. Try again.", "error")
+            return
+        end
+        closing = true
+        input.Text = ""
+        input:ReleaseFocus()
+        animate(panel, 0.16, {GroupTransparency = 1})
+        task.delay(0.18, function() self:Destroy() end)
+    end)
     return true
 end
 local function submit()
@@ -424,7 +428,7 @@ local function submit()
         environment.script_key = key
         local ok, failure = pcall(function()
             local source = game:HttpGet(authLoader)
-            local run, compileError = loadstring(source, "Serenity FlowAuth test")
+            local run, compileError = loadstring(source, "Serenity VampAuth test")
             if not run then error(compileError or "Loader unavailable", 0) end
             run()
         end)
@@ -434,16 +438,16 @@ local function submit()
         if destroyed or authenticated or currentAttempt ~= attempt then return end
         pendingKey = nil
         setVerifying(false)
-        local message = "Authentication did not complete. Check your key and try again."
+        local message = "No authentication callback. Check your key and the VampAuth test source."
         if not ok then
             local detail = tostring(failure):lower()
             if detail:find("invalid_key", 1, true) or detail:find("expired", 1, true)
-                or detail:find("premium_required", 1, true) or detail:find("hwid", 1, true) then
+                or detail:find("key_required", 1, true) or detail:find("hwid", 1, true) then
                 controller:ForgetSavedKey()
                 input.Text = ""
             end
-            if detail:find("premium_required", 1, true) then
-                message = "This key needs access to the Serenity test project."
+            if detail:find("invalid_key", 1, true) or detail:find("key_required", 1, true) then
+                message = "Invalid key. Use a key from this Serenity VampAuth project."
             elseif detail:find("expired", 1, true) then
                 message = "Your key has expired. Get a new key."
             elseif detail:find("hwid", 1, true) then
@@ -773,7 +777,7 @@ controller.Input = input
 controller.IsPreview = false
 controller.AuthenticationConnected = true
 controller.AutoSaveAvailable = type(writeKeyFile) == "function"
-controller.FlowAuthLoader = "https://flowauth.net/v1/loaders/1648c904082188891affedeaf4cf550d.lua"
+controller.VampAuthLoader = "https://vampauth.com/v1/loaders/8f16731910c17a323a58a6e4f15ce56a.lua"
 environment.__SerenityKeyWindowTest = controller
 controller:Resize()
 animate(panel, 0.22, {GroupTransparency = 0})
