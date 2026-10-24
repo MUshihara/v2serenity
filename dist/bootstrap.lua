@@ -202,7 +202,7 @@ local body = make("CanvasGroup", {
 }, panel)
 local title = text(body, "Welcome to Serenity", 23, UDim2.fromOffset(24, 12), UDim2.new(1, -48, 0, 32), colors.text, true)
 title.TextXAlignment = Enum.TextXAlignment.Left
-local subtitle = text(body, "No key yet? Choose Get a key to get started.", 15, UDim2.fromOffset(24, 47), UDim2.new(1, -48, 0, 24), colors.muted)
+local subtitle = text(body, "No key yet? Choose Get free key to get started.", 15, UDim2.fromOffset(24, 47), UDim2.new(1, -48, 0, 24), colors.muted)
 subtitle.TextXAlignment = Enum.TextXAlignment.Left
 text(body, "Access key", 14, UDim2.fromOffset(28, 81), UDim2.new(1, -56, 0, 22), colors.text, true)
 local inputShell = make("Frame", {
@@ -318,9 +318,9 @@ local function button(name, caption, y, primary)
     return object
 end
 -- One action row keeps the complete key gate visible in phone landscape.
-local verify = button("Verify", "Verify key  →", 170, true)
+local verify = button("Verify", "Submit key  →", 170, true)
 verify.Size = UDim2.new(0.64, -36, 0, 48)
-local getKey = button("GetKey", "Get a key", 170, false)
+local getKey = button("GetKey", "Get free key", 170, false)
 getKey.Position = UDim2.new(0.64, 4, 0, 170)
 getKey.Size = UDim2.new(0.36, -32, 0, 48)
 -- Restrained action colors stay readable against the charcoal window.
@@ -534,7 +534,7 @@ function controller:Destroy()
 end
 local function setVerifying(value)
     verifying = value
-    verify.Text = value and "Checking key…" or "Verify key  →"
+    verify.Text = value and "Checking key…" or "Submit key  →"
     verify.Active = not value
     input.TextEditable = not value
 end
