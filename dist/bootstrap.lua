@@ -19,7 +19,7 @@ local connections, tweens = {}, {}
 local destroyed, closing = false, false
 local controller = {}
 local verifying, authenticated, attempt = false, false, 0
-local authLoader = "https://vampauth.com/v1/loaders/8f16731910c17a323a58a6e4f15ce56a.lua"
+local authLoader = "https://vampauth.com/v1/loaders/3c7dbe245105f0c60aae5d1ae71b17ae.lua"
 local testUI = "https://raw.githubusercontent.com/MUshihara/v2serenity/1d9600bb2a6910b749f9f819bf9b992f0517aa10/dist/ui/serenity.lua"
 local pendingKey
 local cacheFile = "Serenity_Test_VampAuth_Key.txt"
@@ -777,7 +777,7 @@ controller.Input = input
 controller.IsPreview = false
 controller.AuthenticationConnected = true
 controller.AutoSaveAvailable = type(writeKeyFile) == "function"
-controller.VampAuthLoader = "https://vampauth.com/v1/loaders/8f16731910c17a323a58a6e4f15ce56a.lua"
+controller.VampAuthLoader = "https://vampauth.com/v1/loaders/3c7dbe245105f0c60aae5d1ae71b17ae.lua"
 environment.__SerenityKeyWindowTest = controller
 controller:Resize()
 animate(panel, 0.22, {GroupTransparency = 0})
