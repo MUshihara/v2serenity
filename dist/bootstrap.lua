@@ -418,6 +418,39 @@ function controller:CompleteAuthentication()
     end)
     return true
 end
+-- Called only by the protected custom verifier while a submission is pending.
+function controller:GetPendingKey()
+    if destroyed or closing or not verifying or authenticated then return nil end
+    return pendingKey
+end
+function controller:RejectAuthentication(reason)
+    if destroyed or closing or not verifying or authenticated then return false end
+    local code=tostring(reason or ""):upper()
+    local message="Verification failed. Please try again."
+    if code=="KEY_NOT_FOUND" or code=="UNAUTHORIZED" or code=="INVALID_KEY" then
+        message="Invalid key. Check it and try again."
+        self:ForgetSavedKey()
+    elseif code=="KEY_EXPIRED" or code=="EXPIRED" then
+        message="This key has expired. Get a new key."
+        self:ForgetSavedKey()
+    elseif code=="KEY_BANNED" then
+        message="This key has been revoked. Contact support."
+        self:ForgetSavedKey()
+    elseif code=="FINGERPRINT_MISMATCH" then
+        message="This key is linked to another device. Contact support."
+        self:ForgetSavedKey()
+    elseif code=="RATE_LIMITED" then
+        message="Too many attempts. Wait a minute and try again."
+    elseif code=="REQUEST FAILED" or code=="NETWORK_ERROR" then
+        message="Could not connect. Please try again."
+    elseif code=="BAD_SIGNATURE" or code=="CONFIG_ERROR" then
+        message="Key service configuration needs attention. Contact support."
+    end
+    pendingKey=nil
+    setVerifying(false)
+    self:SetStatus(message,"error")
+    return true
+end
 local function submit()
     if destroyed or closing or verifying or authenticated then return end
     local key = input.Text:match("^%s*(.-)%s*$") or ""
@@ -443,7 +476,7 @@ local function submit()
         -- Restore the caller's key; only the success callback saves verified keys.
         environment.script_key = previousKey
         key = nil
-        if destroyed or authenticated or currentAttempt ~= attempt then return end
+        if destroyed or authenticated or not verifying or currentAttempt ~= attempt then return end
         pendingKey = nil
         setVerifying(false)
         local message = "Verification did not finish. Check your key and try again."
