@@ -214,7 +214,7 @@ round(inputShell, 5)
 local inputEdge = stroke(inputShell, colors.muted, 0.52)
 local input = make("TextBox", {
     Name = "LicenseKey", BackgroundTransparency = 1,
-    Position = UDim2.fromOffset(15, 0), Size = UDim2.new(1, -100, 1, 0),
+    Position = UDim2.fromOffset(15, 0), Size = UDim2.new(1, -72, 1, 0),
     Text = "", PlaceholderText = "Enter or paste your access key",
     TextColor3 = colors.text, PlaceholderColor3 = colors.muted,
     Font = Enum.Font.Gotham, TextSize = 15,
@@ -222,14 +222,46 @@ local input = make("TextBox", {
     ClearTextOnFocus = false, MultiLine = false,
 }, inputShell)
 local paste = make("TextButton", {
-    Name = "Paste", BackgroundColor3 = Color3.fromRGB(40, 58, 82), BackgroundTransparency = 0,
-    Text = "Paste", TextColor3 = colors.text, Font = Enum.Font.GothamMedium,
+    Name = "Paste", BackgroundColor3 = Color3.fromRGB(40, 58, 82), BackgroundTransparency = 1,
+    Text = "", TextColor3 = colors.text, Font = Enum.Font.GothamMedium,
     TextSize = 13, BorderSizePixel = 0,
-    Position = UDim2.new(1, -79, 0, 4), Size = UDim2.fromOffset(75, 40),
+    Position = UDim2.new(1, -48, 0, 4), Size = UDim2.fromOffset(44, 40),
     AutoButtonColor = false,
 }, inputShell)
 round(paste, 3)
-stroke(paste, colors.lavender, 0.3)
+local pasteGlyph = make("Frame", {
+    Name = "PasteClipboard", BackgroundTransparency = 1, BorderSizePixel = 0,
+    AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromOffset(14, 17), Active = false,
+}, paste)
+round(pasteGlyph, 2)
+local pasteGlyphEdge = stroke(pasteGlyph, colors.muted, 0, 1.5)
+local pasteClip = make("Frame", {
+    BackgroundColor3 = colors.muted, BorderSizePixel = 0, Active = false,
+    AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -2),
+    Size = UDim2.fromOffset(8, 4),
+}, pasteGlyph)
+round(pasteClip, 1)
+local pasteGlyphScale = make("UIScale", {Scale = 1}, pasteGlyph)
+bind(paste.MouseEnter, function()
+    animate(pasteGlyphEdge, 0.12, {Color = colors.ivory})
+    animate(pasteClip, 0.12, {BackgroundColor3 = colors.ivory})
+end)
+bind(paste.MouseLeave, function()
+    animate(pasteGlyphEdge, 0.12, {Color = colors.muted})
+    animate(pasteClip, 0.12, {BackgroundColor3 = colors.muted})
+    animate(pasteGlyphScale, 0.12, {Scale = 1})
+end)
+bind(paste.InputBegan, function(event)
+    if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then
+        animate(pasteGlyphScale, 0.06, {Scale = 0.86})
+    end
+end)
+bind(UserInputService.InputEnded, function(event)
+    if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then
+        animate(pasteGlyphScale, 0.12, {Scale = 1})
+    end
+end)
 local function pixelSymbol(parent, name, rows, color, position)
     local icon = make("Frame", {
         Name = name, BackgroundTransparency = 1, BorderSizePixel = 0,
@@ -258,12 +290,31 @@ local function button(name, caption, y, primary)
         Font = Enum.Font.GothamBold, TextSize = 15, AutoButtonColor = false,
     }, body)
     round(object, 5)
-    stroke(object, primary and colors.cyan or colors.lavender, primary and 0.15 or 0.3)
+    if primary then stroke(object, colors.cyan, 0.15) end
     if primary then
         make("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(213, 195, 149), colors.cyan), Rotation = 90}, object)
     end
-    bind(object.MouseEnter, function() animate(object, 0.12, {BackgroundTransparency = primary and 0.08 or 0.08}) end)
-    bind(object.MouseLeave, function() animate(object, 0.12, {BackgroundTransparency = primary and 0 or 0.3}) end)
+    local hovered = false
+    bind(object.MouseEnter, function()
+        hovered = true
+        animate(object, 0.12, {BackgroundTransparency = primary and 0.08 or 0.82})
+    end)
+    bind(object.MouseLeave, function()
+        hovered = false
+        animate(object, 0.12, {BackgroundTransparency = primary and 0 or 1})
+    end)
+    if not primary then
+        bind(object.InputBegan, function(event)
+            if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then
+                animate(object, 0.06, {BackgroundTransparency = 0.65})
+            end
+        end)
+        bind(UserInputService.InputEnded, function(event)
+            if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then
+                animate(object, 0.12, {BackgroundTransparency = hovered and 0.82 or 1})
+            end
+        end)
+    end
     return object
 end
 -- One action row keeps the complete key gate visible in phone landscape.
@@ -280,6 +331,7 @@ pixelSymbol(verify, "VerifyShield", {
     "##   ###", " ###### ", "  ####  ", "   ##   ",
 }, colors.navy, UDim2.new(0.5, -68, 0.5, 0))
 getKey.BackgroundColor3 = Color3.fromRGB(34, 51, 74)
+getKey.BackgroundTransparency = 1
 getKey.TextColor3 = Color3.fromRGB(221, 232, 246)
 make("UIPadding", {PaddingLeft = UDim.new(0, 18)}, getKey)
 pixelSymbol(getKey, "GetKeyIcon", {
@@ -287,18 +339,12 @@ pixelSymbol(getKey, "GetKeyIcon", {
     " ###### ", "     ## ", "      ##", "      ##",
 }, Color3.fromRGB(233, 190, 108), UDim2.new(0.5, -55, 0.5, 0))
 buttonAccents[getKey] = Color3.fromRGB(119, 163, 222)
-local statusSurface = make("Frame", {
-    Name="KeyFeedback", Position=UDim2.fromOffset(28,228), Size=UDim2.new(1,-56,0,30),
-    BackgroundColor3=colors.glass, BackgroundTransparency=0.45, BorderSizePixel=0,
-},body)
-round(statusSurface,4)
-local statusEdge=stroke(statusSurface,colors.muted,0.87,1)
 local statusDot = make("Frame", {
     BackgroundColor3 = colors.muted, BorderSizePixel = 0,
-    Position = UDim2.fromOffset(38, 240), Size = UDim2.fromOffset(5, 5),
+    Position = UDim2.fromOffset(28, 240), Size = UDim2.fromOffset(5, 5),
 }, body)
 round(statusDot, 7)
-local statusLabel = text(body, "Enter your key to continue.", 12, UDim2.fromOffset(52, 228), UDim2.new(1, -92, 0, 30), colors.muted)
+local statusLabel = text(body, "Enter your key to continue.", 12, UDim2.fromOffset(42, 228), UDim2.new(1, -70, 0, 30), colors.muted)
 statusLabel.TextWrapped = true
 
 local footer = make("Frame", {
@@ -400,7 +446,7 @@ function controller:SetStatus(message, kind)
     statusLabel.Text = message
     statusLabel.TextColor3 = color
     statusDot.BackgroundColor3 = color
-    animate(statusEdge,0.14,{Color=color,Transparency=kind=="error" and 0.48 or 0.87})
+
     animate(inputEdge,0.14,{Color=kind=="error" and colors.error or colors.muted,Transparency=kind=="error" and 0.25 or 0.52})
     -- Feedback always occupies the same row; text never resizes the window.
 
