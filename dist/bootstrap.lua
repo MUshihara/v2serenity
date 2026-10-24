@@ -801,12 +801,38 @@ local dismiss = make("TextButton", {
 local card = make("Frame", {
     Name = "DiscordCard", AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(452, 264),
-    BackgroundColor3 = colors.glass, BorderSizePixel = 0, ZIndex = 2,
+    BackgroundColor3 = Color3.fromRGB(23, 33, 54), BorderSizePixel = 0, ZIndex = 2,
 }, discordModal)
 round(card, 7)
-stroke(card, colors.lavender, 0.35)
-local community = text(card, "SERENITY HUB DISCORD", 13, UDim2.fromOffset(24, 16), UDim2.fromOffset(350, 22), colors.cyan, true)
-text(card, "Community & support", 22, UDim2.fromOffset(24, 42), UDim2.fromOffset(380, 32), colors.text, true)
+local discordCardEdge = stroke(card, discordBlue, 0.22)
+local discordTile = make("Frame", {
+    Name = "DiscordBadge", Position = UDim2.fromOffset(24, 21),
+    Size = UDim2.fromOffset(40, 40), BackgroundColor3 = Color3.fromRGB(51, 79, 150),
+    BorderSizePixel = 0, Active = false,
+}, card)
+round(discordTile, 8)
+stroke(discordTile, discordBlue, 0.3)
+local popupMark = discordMark:Clone()
+popupMark.Position = UDim2.fromOffset(9, 12)
+popupMark.Parent = discordTile
+local popupShine = make("Frame", {
+    Name = "DiscordHeaderShine", BackgroundColor3 = Color3.fromRGB(145, 180, 255),
+    BackgroundTransparency = 0.86, Size = UDim2.new(1, 0, 0, 106),
+    BorderSizePixel = 0, Active = false, ZIndex = 0,
+}, card)
+round(popupShine, 7)
+local popupShineGradient = make("UIGradient", {
+    Offset = Vector2.new(-1.4, 0), Rotation = 15,
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.35, 1),
+        NumberSequenceKeypoint.new(0.5, 0),
+        NumberSequenceKeypoint.new(0.65, 1),
+        NumberSequenceKeypoint.new(1, 1),
+    }),
+}, popupShine)
+local community = text(card, "SERENITY HUB DISCORD", 13, UDim2.fromOffset(76, 19), UDim2.fromOffset(320, 22), Color3.fromRGB(164, 191, 255), true)
+text(card, "Community & support", 21, UDim2.fromOffset(76, 41), UDim2.fromOffset(350, 32), Color3.fromRGB(237, 243, 255), true)
 text(card, "Help with keys, updates and premium.", 14, UDim2.fromOffset(24, 80), UDim2.fromOffset(400, 24), colors.muted)
 local popupClose = make("TextButton", {
     Name = "DiscordClose", Text = "×", TextSize = 24, TextColor3 = colors.muted,
@@ -816,22 +842,23 @@ local popupClose = make("TextButton", {
 local inviteField = make("TextBox", {
     Name = "DiscordInvite", Text = discordInvite, TextEditable = false, ClearTextOnFocus = false,
     TextColor3 = colors.text, TextSize = 16, Font = Enum.Font.Gotham,
-    BackgroundColor3 = colors.navy, BackgroundTransparency = 0.2,
+    BackgroundColor3 = Color3.fromRGB(17, 26, 43), BackgroundTransparency = 0,
     Position = UDim2.fromOffset(24, 116), Size = UDim2.fromOffset(404, 44),
 }, card)
 round(inviteField, 8)
-stroke(inviteField, colors.muted, 0.65)
+stroke(inviteField, discordBlue, 0.55)
 local copyInvite = make("TextButton", {
     Name = "CopyDiscordInvite", Text = "Copy link", TextSize = 15,
     Font = Enum.Font.GothamMedium, TextColor3 = colors.text,
-    BackgroundColor3 = Color3.fromRGB(53, 60, 55), AutoButtonColor = false,
+    BackgroundColor3 = Color3.fromRGB(48, 76, 145), BorderSizePixel = 0, AutoButtonColor = false,
     Position = UDim2.fromOffset(24, 174), Size = UDim2.fromOffset(404, 44),
 }, card)
 round(copyInvite, 5)
-stroke(copyInvite, colors.cyan, 0.3)
+local copyInviteEdge = stroke(copyInvite, discordBlue, 0.2)
 local inviteFeedback = text(card, "Copy the link and open Discord in your browser.", 14,
     UDim2.fromOffset(24, 228), UDim2.fromOffset(404, 22), colors.muted)
 inviteFeedback.Name = "DiscordFeedback"
+inviteFeedback.TextColor3 = Color3.fromRGB(183, 200, 232)
 local popupOpen, popupGeneration = false, 0
 local function setDiscordPopup(open)
     if destroyed or closing or popupOpen == open then return end
@@ -842,6 +869,9 @@ local function setDiscordPopup(open)
     inviteField:ReleaseFocus()
     if open then
         copyInvite.Text = "Copy link"
+        copyInviteEdge.Transparency = 0.2
+        popupShineGradient.Offset = Vector2.new(-1.4, 0)
+        animate(popupShineGradient, 0.7, {Offset = Vector2.new(1.4, 0)})
         inviteFeedback.Text = "Copy the link and open Discord in your browser."
         discordModal.Visible = true
         discordModal.GroupTransparency = 1
@@ -869,6 +899,10 @@ bind(copyInvite.Activated, function()
     inviteFeedback.Text = ok and "Link copied to clipboard." or "Select the link above to copy it manually."
     if not ok then inviteField:CaptureFocus() end
     animate(copyInvite, 0.12, {BackgroundTransparency = 0})
+    if ok then
+        copyInviteEdge.Transparency = 0
+        animate(copyInviteEdge, 0.8, {Transparency = 0.2})
+    end
     task.delay(1.8, function()
         if not destroyed and popupOpen then copyInvite.Text = "Copy link" end
     end)
@@ -878,7 +912,7 @@ local function addButtonFeedback(object)
     if not object:IsA("TextButton") then return end
     local baseColor = object.BackgroundColor3
     local baseText = object.TextColor3
-    local pressColor = baseColor:Lerp(object == discord and discordBlue or colors.cyan, 0.22)
+    local pressColor = baseColor:Lerp((object == discord or object == copyInvite or object == popupClose) and discordBlue or colors.cyan, 0.22)
     local hovered, held = false, false
     local function release()
         if not held then return end
