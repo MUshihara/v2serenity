@@ -652,6 +652,15 @@ local function submit()
     controller:SetStatus("Checking your key...", "info")
     task.spawn(function()
         local previousKey = environment.script_key
+        local previousConfig = environment.config
+        local loaderConfig = {}
+        if type(previousConfig) == "table" then
+            for name, value in pairs(previousConfig) do loaderConfig[name] = value end
+        end
+        -- Keep SDK validation enabled; failed checks should report, not disconnect.
+        loaderConfig.InvalidAction = "console"
+        loaderConfig.DisableChecks = false
+        environment.config = loaderConfig
         environment.script_key = key
         local ok, failure = pcall(function()
             local source = game:HttpGet(authLoader)
@@ -661,6 +670,7 @@ local function submit()
         end)
         -- Restore the caller's key; only the success callback saves verified keys.
         environment.script_key = previousKey
+        environment.config = previousConfig
         key = nil
         if destroyed or authenticated or not verifying or currentAttempt ~= attempt then return end
         pendingKey = nil
