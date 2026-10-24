@@ -276,21 +276,87 @@ make("Frame", {
 }, footer)
 text(footer, "Need a hand?", 13, UDim2.fromOffset(28, 8), UDim2.new(1, -190, 0, 22), colors.text, true)
 text(footer, "Keys, updates and premium support.", 13, UDim2.fromOffset(28, 31), UDim2.new(1, -190, 0, 22), colors.muted)
+local discordBlue = Color3.fromRGB(104, 139, 255)
 local discord = make("TextButton", {
-    Name = "Discord", BackgroundColor3 = colors.glass, BackgroundTransparency = 0.25, Text = "Discord  ↗",
-    TextColor3 = colors.cyan, TextSize = 13, Font = Enum.Font.Gotham,
+    Name = "Discord", BackgroundColor3 = Color3.fromRGB(33, 53, 105),
+    BackgroundTransparency = 0.08, Text = "", BorderSizePixel = 0,
+    TextColor3 = Color3.fromRGB(233, 241, 255), TextSize = 14, Font = Enum.Font.GothamMedium,
     Position = UDim2.new(1, -152, 0, 10), Size = UDim2.fromOffset(124, 44),
-    TextXAlignment = Enum.TextXAlignment.Center, AutoButtonColor = false,
+    AutoButtonColor = false, ClipsDescendants = true,
 }, footer)
-round(discord, 9)
-local discordOutline = stroke(discord, colors.cyan, 0.55)
+round(discord, 7)
+local discordOutline = stroke(discord, discordBlue, 0.22)
+make("UIGradient", {
+    Color = ColorSequence.new(Color3.fromRGB(155, 188, 255), Color3.fromRGB(91, 116, 213)),
+    Rotation = 90,
+}, discord)
+-- Compact pixel Discord mark: native shapes keep the icon sharp without an asset download.
+local discordMark = make("Frame", {
+    Name = "DiscordIcon", BackgroundTransparency = 1, BorderSizePixel = 0,
+    Position = UDim2.fromOffset(12, 14), Size = UDim2.fromOffset(22, 16), ZIndex = 3,
+    Active = false,
+}, discord)
+local discordPixels = {
+    "   ###        ###   ",
+    "  ################  ",
+    " ################## ",
+    " ################## ",
+    "####################",
+    "####################",
+    "#####  ######  #####",
+    "####    ####    ####",
+    "####    ####    ####",
+    "#####  ######  #####",
+    "####################",
+    " ################## ",
+    "  #####      #####  ",
+    "   ###        ###   ",
+}
+for y, row in ipairs(discordPixels) do
+    local x = 1
+    while x <= #row do
+        if row:sub(x,x) == "#" then
+            local first = x
+            repeat x = x + 1 until x > #row or row:sub(x,x) ~= "#"
+            make("Frame", {
+                BorderSizePixel = 0, BackgroundColor3 = Color3.fromRGB(234, 242, 255),
+                Position = UDim2.fromOffset(first, y), Size = UDim2.fromOffset(x-first, 1),
+                Active = false, ZIndex = 3,
+            }, discordMark)
+        else x = x + 1 end
+    end
+end
+local discordCaption = text(discord, "Discord", 14, UDim2.fromOffset(42, 0), UDim2.new(1, -48, 1, 0), Color3.fromRGB(235, 243, 255), true)
+discordCaption.ZIndex = 3
+local discordShine = make("Frame", {
+    Name = "GlassShine", Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255), BorderSizePixel = 0,
+    BackgroundTransparency = 0.62, ZIndex = 2, Active = false,
+}, discord)
+round(discordShine, 7)
+local shineGradient = make("UIGradient", {
+    Rotation = 20, Offset = Vector2.new(-1.4, 0),
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.38, 1),
+        NumberSequenceKeypoint.new(0.5, 0.25),
+        NumberSequenceKeypoint.new(0.62, 1),
+        NumberSequenceKeypoint.new(1, 1),
+    }),
+}, discordShine)
+-- One repeating native tween, cancelled by the existing window cleanup.
+local shineTween = TweenService:Create(shineGradient,
+    TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, false, 2.6),
+    {Offset = Vector2.new(1.4, 0)})
+tweens[shineGradient] = shineTween
+shineTween:Play()
 bind(discord.MouseEnter, function()
     animate(discord, 0.14, {BackgroundTransparency = 0})
-    animate(discordOutline, 0.14, {Transparency = 0.15})
+    animate(discordOutline, 0.14, {Transparency = 0})
 end)
 bind(discord.MouseLeave, function()
-    animate(discord, 0.14, {BackgroundTransparency = 0.25})
-    animate(discordOutline, 0.14, {Transparency = 0.55})
+    animate(discord, 0.14, {BackgroundTransparency = 0.08})
+    animate(discordOutline, 0.14, {Transparency = 0.22})
 end)
 
 function controller:SetStatus(message, kind)
@@ -812,7 +878,7 @@ local function addButtonFeedback(object)
     if not object:IsA("TextButton") then return end
     local baseColor = object.BackgroundColor3
     local baseText = object.TextColor3
-    local pressColor = baseColor:Lerp(colors.cyan, 0.22)
+    local pressColor = baseColor:Lerp(object == discord and discordBlue or colors.cyan, 0.22)
     local hovered, held = false, false
     local function release()
         if not held then return end
