@@ -48,12 +48,12 @@ function controller:ForgetSavedKey()
 end
 
 local colors = {
-    navy = Color3.fromRGB(20, 23, 23),
-    glass = Color3.fromRGB(35, 39, 39),
+    navy = Color3.fromRGB(17, 24, 36),
+    glass = Color3.fromRGB(32, 44, 62),
     text = Color3.fromRGB(242, 238, 225),
-    muted = Color3.fromRGB(189, 195, 186),
+    muted = Color3.fromRGB(180, 193, 211),
     cyan = Color3.fromRGB(192, 170, 120),
-    lavender = Color3.fromRGB(121, 141, 132),
+    lavender = Color3.fromRGB(111, 140, 178),
     ivory = Color3.fromRGB(224, 211, 175),
     error = Color3.fromRGB(231, 147, 137),
 }
@@ -148,9 +148,9 @@ local background = make("Frame", {
 round(background, 8)
 make("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(31, 36, 35)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(23, 27, 27)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(26, 29, 28)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 40, 57)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(19, 28, 41)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(23, 32, 46)),
     }), Rotation = 35,
 }, background)
 local scaling = make("UIScale", {Scale = 1}, panel)
@@ -222,14 +222,14 @@ local input = make("TextBox", {
     ClearTextOnFocus = false, MultiLine = false,
 }, inputShell)
 local paste = make("TextButton", {
-    Name = "Paste", BackgroundColor3 = Color3.fromRGB(60, 66, 61), BackgroundTransparency = 0,
+    Name = "Paste", BackgroundColor3 = Color3.fromRGB(40, 58, 82), BackgroundTransparency = 0,
     Text = "Paste", TextColor3 = colors.text, Font = Enum.Font.GothamMedium,
     TextSize = 13, BorderSizePixel = 0,
     Position = UDim2.new(1, -79, 0, 4), Size = UDim2.fromOffset(75, 40),
     AutoButtonColor = false,
 }, inputShell)
 round(paste, 3)
-stroke(paste, colors.cyan, 0.3)
+stroke(paste, colors.lavender, 0.3)
 local function pixelSymbol(parent, name, rows, color, position)
     local icon = make("Frame", {
         Name = name, BackgroundTransparency = 1, BorderSizePixel = 0,
@@ -279,14 +279,14 @@ pixelSymbol(verify, "VerifyShield", {
     " ###### ", "########", "### ####", "## ## ##",
     "##   ###", " ###### ", "  ####  ", "   ##   ",
 }, colors.navy, UDim2.new(0.5, -68, 0.5, 0))
-getKey.BackgroundColor3 = Color3.fromRGB(65, 51, 32)
-getKey.TextColor3 = Color3.fromRGB(244, 220, 173)
+getKey.BackgroundColor3 = Color3.fromRGB(34, 51, 74)
+getKey.TextColor3 = Color3.fromRGB(221, 232, 246)
 make("UIPadding", {PaddingLeft = UDim.new(0, 18)}, getKey)
 pixelSymbol(getKey, "GetKeyIcon", {
     " ###    ", "#   #   ", "# # #   ", "#   #   ",
     " ###### ", "     ## ", "      ##", "      ##",
 }, Color3.fromRGB(233, 190, 108), UDim2.new(0.5, -55, 0.5, 0))
-buttonAccents[getKey] = Color3.fromRGB(233, 190, 108)
+buttonAccents[getKey] = Color3.fromRGB(119, 163, 222)
 local statusSurface = make("Frame", {
     Name="KeyFeedback", Position=UDim2.fromOffset(28,228), Size=UDim2.new(1,-56,0,30),
     BackgroundColor3=colors.glass, BackgroundTransparency=0.45, BorderSizePixel=0,
