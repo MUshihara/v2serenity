@@ -2649,7 +2649,7 @@ function Desktop.Mount(deps, options)
     local statusTimeText="0s"
     local statusExpanded,statusNoticeActive=false,false
     local statusRunning,statusComplete=true,false
-    local statusNoticeTimer,progressTween
+    local statusNoticeTimer,progressTween,rewardTween,sheenTween
     local syncStatusShape
     local function statusMobile()
         return deps.Mobile or (UserInputService.TouchEnabled and screen.AbsoluteSize.X<1000)
@@ -2665,9 +2665,9 @@ function Desktop.Mount(deps, options)
         return f
     end
     local statusBody,statusRound=surface(statusDock,"StatusBody","ShellDeep",24,88)
-    statusBody.BackgroundTransparency=0.025;statusBody.ClipsDescendants=true
+    statusBody.BackgroundTransparency=0;statusBody.ClipsDescendants=true
     local shellShade=Instance.new("UIGradient");shellShade.Rotation=70
-    shellShade.Color=ColorSequence.new(Color3.new(1,1,1),Color3.new(0.78,0.80,0.84));shellShade.Parent=statusBody
+    shellShade.Color=ColorSequence.new(Color3.new(1,1,1),Color3.new(0.88,0.90,0.94));shellShade.Parent=statusBody
     local dockEdge=Instance.new("UIStroke");serenityColor(dockEdge,"Color",tokens,"Stroke")
     dockEdge.Transparency=0.46;dockEdge.Thickness=1;dockEdge.Parent=statusBody
     local headerLight=surface(statusBody,"HeaderLight","Accent",1,89)
@@ -2676,7 +2676,13 @@ function Desktop.Mount(deps, options)
     local activityBadge=surface(statusBody,"ActivityBadge","Accent",32,89)
     activityBadge.BackgroundTransparency=0.90
     local badgeEdge=Instance.new("UIStroke");serenityColor(badgeEdge,"Color",tokens,"Accent")
-    badgeEdge.Transparency=0.60;badgeEdge.Parent=activityBadge
+    badgeEdge.Transparency=0.38;badgeEdge.Parent=activityBadge
+    local badgeScale=Instance.new("UIScale");badgeScale.Scale=1;badgeScale.Parent=activityBadge
+    local noticeSheen=surface(statusBody,"RewardSheen","Accent",0,89)
+    noticeSheen.Size=UDim2.new(0,80,0,64);noticeSheen.BackgroundTransparency=0.78;noticeSheen.Visible=false
+    local sheenMask=Instance.new("UIGradient");sheenMask.Rotation=15
+    sheenMask.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,0.4),NumberSequenceKeypoint.new(1,1)})
+    sheenMask.Parent=noticeSheen
     local badgeShade=Instance.new("UIGradient");badgeShade.Rotation=110
     badgeShade.Transparency=NumberSequence.new(0,0.65);badgeShade.Parent=activityBadge
     local statusCaption=label(statusBody,"Running",10,"Accent",91)
@@ -2697,11 +2703,20 @@ function Desktop.Mount(deps, options)
     dockTime.TextXAlignment=Enum.TextXAlignment.Right
     local statusEvent=Instance.new("CanvasGroup");statusEvent.BackgroundTransparency=1;statusEvent.GroupTransparency=1
     statusEvent.Visible=false;statusEvent.ZIndex=90;statusEvent.Parent=statusBody
-    local eventIcon=deps.Icons.Create(activityBadge,"inventory",18,tokens.Color.Mint,UDim2.fromOffset(10,10));eventIcon.ZIndex=92;eventIcon.Visible=false
+    local eventIcon=Instance.new("Frame");eventIcon.Name="RewardSpark";eventIcon.BackgroundTransparency=1
+    eventIcon.Size=UDim2.fromOffset(18,18);eventIcon.Position=UDim2.fromOffset(10,10)
+    eventIcon.ZIndex=92;eventIcon.Visible=false;eventIcon.Parent=activityBadge
+    for _,rect in ipairs({{8,0,2,18},{7,4,4,10},{5,7,8,4},{0,8,18,2},{4,7,10,4},{7,5,4,8}}) do
+        local ray=surface(eventIcon,"SparkRay","Accent",0,92)
+        ray.Position=UDim2.fromOffset(rect[1],rect[2]);ray.Size=UDim2.fromOffset(rect[3],rect[4])
+    end
     local eventTitle=label(statusEvent,"",14,"Text",91);eventTitle.Font=Enum.Font.GothamSemibold
     local eventBody=label(statusEvent,"",11,"TextMuted",91)
     local detailToggle=Instance.new("TextButton");detailToggle.Text="";detailToggle.AutoButtonColor=false
     detailToggle.BackgroundTransparency=1;detailToggle.ZIndex=95;detailToggle.Parent=statusBody
+    local toggleDisc=surface(detailToggle,"ExpandDisc","Inset",16,95)
+    toggleDisc.BackgroundTransparency=0.35;toggleDisc.AnchorPoint=Vector2.new(0.5,0.5)
+    toggleDisc.Position=UDim2.fromScale(0.5,0.5);toggleDisc.Size=UDim2.fromOffset(24,24)
     local chevron=Instance.new("Frame");chevron.BackgroundTransparency=1
     chevron.Size=UDim2.fromOffset(10,6);chevron.AnchorPoint=Vector2.new(0.5,0.5)
     chevron.Position=UDim2.fromScale(0.5,0.5);chevron.ZIndex=96;chevron.Parent=detailToggle
@@ -2766,7 +2781,7 @@ function Desktop.Mount(deps, options)
         statValues[1].Text=compactNumber(statusCounts.Clicks)
         statValues[2].Text="+"..compactNumber(statusCounts.Rewards)
         statValues[3].Text=statusTimeText
-        dockTime.Text=compactNumber(statusCounts.Clicks)
+        dockTime.Text=statusMobile() and compactNumber(statusCounts.Clicks) or statusTimeText
     end
     local function refreshActivityGlyph()
         statusCaption.Text=statusNoticeActive and "Update" or statusComplete and "Complete" or statusRunning and "Running" or "Paused"
@@ -2831,9 +2846,9 @@ function Desktop.Mount(deps, options)
     end
     local function dockSize()
         local mobile=statusMobile()
-        local width=statusExpanded and (mobile and 268 or 432) or (mobile and 232 or 340)
+        local width=statusExpanded and (mobile and 268 or 432) or (mobile and 232 or 360)
         if statusMusicActive then width=width+44 end
-        return UDim2.fromOffset(math.min(width,math.max(120,screen.AbsoluteSize.X-24)),statusExpanded and (mobile and 166 or 152) or (mobile and 48 or 60))
+        return UDim2.fromOffset(math.min(width,math.max(120,screen.AbsoluteSize.X-24)),statusExpanded and (mobile and 166 or 156) or (mobile and 48 or 64))
     end
     local shapeTweens={}
     local function shape(object,props)
@@ -2845,29 +2860,29 @@ function Desktop.Mount(deps, options)
     syncStatusShape=function()
         local mobile=statusMobile()
         local inset=statusMusicActive and 44 or 0
-        local head=mobile and 48 or 60
+        local head=mobile and 48 or 64
         shape(statusRound,{CornerRadius=UDim.new(0,statusExpanded and 20 or head/2)})
-        statusCaption.Visible=not mobile
-        statusCaption.Position=UDim2.new(1,-116,0,11);statusCaption.Size=UDim2.fromOffset(78,19)
+        statusCaption.Visible=not mobile and statusExpanded and not statusNoticeActive
+        statusCaption.Position=UDim2.new(1,-116,0,13);statusCaption.Size=UDim2.fromOffset(78,19)
         statusBody.Position=UDim2.fromOffset(inset,0);statusBody.Size=UDim2.new(1,-inset,1,0)
         activityTile.Position=UDim2.fromOffset(0,(head-38)/2);activityTile.Visible=statusMusicActive
-        activityBadge.Position=UDim2.fromOffset(10,mobile and 8 or 11)
-        activityBadge.Size=UDim2.fromOffset(mobile and 32 or 38,mobile and 32 or 38)
-        runningIcon.Position=UDim2.fromOffset(mobile and 7 or 10,mobile and 7 or 10)
+        activityBadge.Position=UDim2.fromOffset(mobile and 10 or 12,mobile and 8 or 12)
+        activityBadge.Size=UDim2.fromOffset(mobile and 32 or 40,mobile and 32 or 40)
+        runningIcon.Position=UDim2.fromOffset(mobile and 7 or 11,mobile and 7 or 11)
         eventIcon.Position=runningIcon.Position
         statusRow.Position=UDim2.fromOffset(0,0);statusRow.Size=UDim2.new(1,0,0,head)
         statusEvent.Position=statusRow.Position;statusEvent.Size=statusRow.Size
-        local left=mobile and 52 or 60
-        dockActivity.Position=UDim2.fromOffset(left,mobile and 0 or 10)
-        dockActivity.Size=UDim2.new(1,-left-(mobile and 66 or 122),0,mobile and head or 21)
-        dockActivity.TextSize=mobile and 13 or 14
-        dockMetrics.Position=UDim2.fromOffset(left,32);dockMetrics.Size=UDim2.new(1,-left-36,0,16)
+        local left=mobile and 52 or 64
+        dockActivity.Position=UDim2.fromOffset(left,mobile and 0 or 11)
+        dockActivity.Size=UDim2.new(1,-left-(mobile and 66 or (statusExpanded and 122 or 86)),0,mobile and head or 23)
+        dockActivity.TextSize=mobile and 13 or 15
+        dockMetrics.Position=UDim2.fromOffset(left,36);dockMetrics.Size=UDim2.new(1,-left-36,0,16)
         dockMetrics.Visible=not mobile
-        dockTime.Visible=mobile;dockTime.Position=UDim2.new(1,-70,0,0);dockTime.Size=UDim2.fromOffset(36,head)
+        dockTime.Visible=mobile or not statusExpanded;dockTime.Position=UDim2.new(1,mobile and -70 or -84,0,0);dockTime.Size=UDim2.fromOffset(mobile and 36 or 44,head)
         detailToggle.Position=UDim2.new(1,-34,0,0);detailToggle.Size=UDim2.fromOffset(34,head)
-        eventTitle.Position=UDim2.fromOffset(left,mobile and 0 or 10)
-        eventTitle.Size=UDim2.new(1,-left-(mobile and 36 or 122),0,mobile and head or 21);eventTitle.TextSize=mobile and 13 or 14
-        eventBody.Position=UDim2.fromOffset(left,32);eventBody.Size=UDim2.new(1,-left-16,0,16)
+        eventTitle.Position=UDim2.fromOffset(left,mobile and 0 or 11)
+        eventTitle.Size=UDim2.new(1,-left-40,0,mobile and head or 23);eventTitle.TextSize=mobile and 13 or 15
+        eventBody.Position=UDim2.fromOffset(left,36);eventBody.TextSize=12;eventBody.Size=UDim2.new(1,-left-16,0,16)
         eventBody.Visible=not mobile
         details.Position=UDim2.fromOffset(12,head);details.Size=UDim2.new(1,-24,0,118)
         details.Visible=statusExpanded
@@ -2904,6 +2919,8 @@ function Desktop.Mount(deps, options)
     end
     runtime:TrackCleanup(function()
         if progressTween then progressTween:Cancel() end
+        if rewardTween then rewardTween:Cancel() end
+        if sheenTween then sheenTween:Cancel() end
         if statusNoticeTimer then pcall(task.cancel,statusNoticeTimer) end
         for _,tween in pairs(shapeTweens) do tween:Cancel() end
         table.clear(shapeTweens)
@@ -2940,10 +2957,21 @@ function Desktop.Mount(deps, options)
         if statusMobile() and (eventTitle.Text:lower():find("reward",1,true) or tostring(message or ""):find("+1",1,true)) then eventTitle.Text="Reward +1" end
         eventBody.Text=tostring(message or ""):sub(1,140)
         syncStatusShape()
+        if rewardTween then rewardTween:Cancel() end
+        if sheenTween then sheenTween:Cancel() end
+        noticeSheen.Visible=false;badgeScale.Scale=1
+        if statusDock.Visible and not deps.Motion.Reduced then
+            badgeScale.Scale=0.84
+            rewardTween=deps.Motion:Tween(badgeScale,0.32,{Scale=1},Enum.EasingStyle.Back)
+            noticeSheen.Position=UDim2.fromOffset(-90,0);noticeSheen.Visible=true
+            sheenTween=deps.Motion:Tween(noticeSheen,0.65,{Position=UDim2.new(1,10,0,0)},Enum.EasingStyle.Sine)
+            local currentSheen=sheenTween
+            sheenTween.Completed:Once(function() if not runtime.Destroyed and sheenTween==currentSheen then noticeSheen.Visible=false end end)
+        end
         statusNoticeTimer=task.delay(math.clamp(tonumber(duration) or 3,1,10),function()
             statusNoticeTimer=nil
             if runtime.Destroyed then return end
-            statusNoticeActive=false;syncStatusShape()
+            statusNoticeActive=false;noticeSheen.Visible=false;syncStatusShape()
         end)
     end
     local function showDock()
@@ -3017,7 +3045,7 @@ function Desktop.Mount(deps, options)
     local statusDragHandle=Instance.new("TextButton")
     statusDragHandle.Name="StatusDragHandle";statusDragHandle.Text="";statusDragHandle.AutoButtonColor=false
     statusDragHandle.Position=UDim2.fromOffset(statusMusicActive and 44 or 0,0)
-    statusDragHandle.BackgroundTransparency=1;statusDragHandle.Size=UDim2.new(1,-38,0,statusMobile() and 48 or 60)
+    statusDragHandle.BackgroundTransparency=1;statusDragHandle.Size=UDim2.new(1,-38,0,statusMobile() and 48 or 64)
     statusDragHandle.Active=true;statusDragHandle.ZIndex=94;statusDragHandle.Parent=statusDock
     local statusRestoreGate=0
     local function activateStatus()
@@ -4959,7 +4987,7 @@ do
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new · Solid trial"})
-    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Refined activity capsule","Rounded status, a unified counter rail and quieter visual details."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Activity status polish","Clearer PC text, session time, and a brief reward animation."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
