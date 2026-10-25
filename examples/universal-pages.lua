@@ -2255,6 +2255,7 @@ function Desktop.Mount(deps, options)
     deps.Typography.Label(brand, "Brand", tokens, options.Title or "SERENITY HUB", UDim2.fromOffset(63, 12), UDim2.new(1, -70, 0, 21), tokens.Color.Text,"Text").ZIndex = 5
     local brandSub = deps.Typography.Label(brand, "BrandSub", tokens, options.Subtitle or "Interface Prototype", UDim2.fromOffset(63, 34), UDim2.new(1, -70, 0, 16), tokens.Color.TextDim,"TextDim")
     brandSub.ZIndex = 5
+    brandSub:SetAttribute("LocalizationIgnore",true)
 
     local navHolder = Instance.new("ScrollingFrame")
     navHolder.Name = "Navigation"
@@ -4287,16 +4288,13 @@ for _,entry in ipairs({{"fly","Fly",Enum.KeyCode.F},{"noclip","Noclip",Enum.KeyC
     end})
 end
 
-local dashboard = app:AddPage({Id="Dashboard", Title="Dashboard", Icon="dashboard", Accent=Tokens.Color.Accent, Order=-2})
-local about = app:AddPage({Id="About", Title="About", Icon="info", Accent=Tokens.Color.Cyan, Order=-3})
-local server = app:AddPage({Id="Server", Title="Server", Icon="server", Accent=Tokens.Color.Cyan, Group="Common", Order=4})
-local misc = app:AddPage({Id="Misc", Title="Misc", Icon="misc", Accent=Tokens.Color.Mint, Group="Common", Order=6})
-local settings = app:AddPage({Id="Settings", Title="Settings", Icon="settings", Accent=Tokens.Color.Pink, Group="System", Order=7})
+local dashboard = app:AddPage({Id="Dashboard", Title="Dashboard", Icon="dashboard", Accent=Tokens.Color.Accent, Group="Universal", Order=-2})
+local about = app:AddPage({Id="About", Title="About", Icon="info", Accent=Tokens.Color.Cyan, Group="Universal", Order=-3})
+local settings = app:AddPage({Id="Settings", Title="Settings", Icon="settings", Accent=Tokens.Color.Pink, Group="Universal", Order=4})
 
 -- UI SETTINGS: only connected behavior is exposed.
-local miscCols = ColumnLayout.new(misc, deps, {})
-local utility = Section.new(miscCols.Left, deps, {Title="Interaction"})
-Toggle.new(utility.Body, deps, {Title="Reduced Motion", Default=false, Callback=function(v) Motion.Reduced = v;app:RefreshIconMotion() end})
+local profile=app:AddPage({Id="Profile",Title="Profile",Icon="info",Group="Universal",Order=3})
+local profileCols=ColumnLayout.new(profile,deps,{Gap=10})
 local settingsCols = ColumnLayout.new(settings, deps, {})
 
 local themeBindings=setmetatable({}, {__mode="k"})
@@ -4317,6 +4315,7 @@ local hideDashboardName=false
 local identityBindings={}
 local function registerIdentity(object,property,shown,hidden)
     if not object then return end
+    object:SetAttribute("LocalizationIgnore",true)
     table.insert(identityBindings,{Object=object,Property=property,Shown=shown,Hidden=hidden})
     object[property]=hideDashboardName and hidden or shown
 end
@@ -4423,6 +4422,7 @@ local appearancePath="Serenity_UI_Universal_Example_v1.json"
 local HttpService=game:GetService("HttpService")
 local saveRevision=0
 local saveTimer
+local selectedLanguage="English"
 local uiSoundsEnabled=true
 local uiSoundVolume=60
 saveAppearance=function()
@@ -4434,7 +4434,7 @@ saveAppearance=function()
         saveTimer=nil
         if runtime.Destroyed or revision~=saveRevision or type(writefile)~="function" then return end
         pcall(function()
-            writefile(appearancePath,HttpService:JSONEncode({Version=1,DesignVersion=2,MotionVersion=1,HideDashboardName=hideDashboardName,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,MusicReactive=app.MusicReactive==true,UI=app:GetUIPreferences(),View=app:GetViewState()}))
+            writefile(appearancePath,HttpService:JSONEncode({Version=1,DesignVersion=2,MotionVersion=1,HideDashboardName=hideDashboardName,Language=selectedLanguage,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,MusicReactive=app.MusicReactive==true,UI=app:GetUIPreferences(),View=app:GetViewState()}))
         end)
     end)
 end
@@ -4448,6 +4448,7 @@ if type(readfile)=="function" then
     if ok and type(data)=="table" and data.Version==1 then savedAppearance=data end
 end
 if savedAppearance then
+    selectedLanguage=type(savedAppearance.Language)=="string" and savedAppearance.Language or "English"
     uiSoundsEnabled=savedAppearance.UISoundsEnabled~=false
     local volume=tonumber(savedAppearance.UISoundVolume)
     if volume and volume==volume then uiSoundVolume=math.clamp(volume,0,100) end
@@ -4577,7 +4578,7 @@ local function glassSelector(parent,title)
     table.insert(glassSelectors,control)
     return control
 end
-local appearance = Section.new(settingsCols.Left, deps, {Title="Appearance"})
+local appearance = Section.new(profileCols.Left, deps, {Title="Appearance"})
 local themeControl=Select.new(appearance.Body,deps,{Title="Color theme",Options=themeNames,Default="Midnight",Callback=applyTheme})
 glassSelector(appearance.Body,"Glass material")
 local paletteControl=Select.new(appearance.Body,deps,{Title="Border colors",Options={"Aurora","Ice","Sunset","Match theme"},Default="Aurora",Callback=function(v) markCustom();materialState.Palette=v;refreshMaterials();saveAppearance() end})
@@ -4659,7 +4660,7 @@ local function usePreset(name)
         end
     end
 end
-local presetSection=Section.new(settingsCols.Left,deps,{Title="Style presets",Description="Coordinated complete looks. Your settings save automatically."})
+local presetSection=Section.new(profileCols.Left,deps,{Title="Style presets",Description="Coordinated complete looks. Your settings save automatically."})
 presetSection.Frame.LayoutOrder=-1
 presetControl=Select.new(presetSection.Body,deps,{Title="Choose a preset",Options=presetNames,Default="Custom",Callback=function(v)
     if v=="Custom" then selectedPreset=v;highlightPreset();saveAppearance() else usePreset(v) end
@@ -4690,7 +4691,7 @@ previewSound.AutoButtonColor=true
 previewSound.Parent=soundSection.Body
 Material.Inset(previewSound,Tokens)
 previewSound.Activated:Connect(function() if serenityInputBlocked(previewSound) then return end; deps.PlayUISound(true) end)
-local gallery=Section.new(settingsCols.Right,deps,{Title="Preset gallery",Description="Click a swatch to apply the complete look."})
+local gallery=Section.new(profileCols.Right,deps,{Title="Preset gallery",Description="Click a swatch to apply the complete look."})
 local grid=Instance.new("Frame");grid.Size=UDim2.new(1,0,0,math.ceil(#presets/2)*73-8);grid.BackgroundTransparency=1;grid.Parent=gallery.Body
 local layout=Instance.new("UIGridLayout");layout.CellSize=UDim2.new(0.5,-5,0,65);layout.CellPadding=UDim2.fromOffset(10,8)
 layout.SortOrder=Enum.SortOrder.LayoutOrder;layout.FillDirectionMaxCells=2;layout.Parent=grid
@@ -4806,7 +4807,7 @@ do
     explore.Position=UDim2.fromOffset(18,96);explore.Size=UDim2.fromOffset(166,38)
     serenityColor(explore,"BackgroundColor3",Tokens,"Accent")
     serenityColor(explore,"TextColor3",Tokens,"ShellDeep")
-    local customize=button(hero,"Customize",function() app:SelectPage("Settings") end)
+    local customize=button(hero,"Customize",function() app:SelectPage("Profile") end)
     customize.Position=UDim2.fromOffset(192,96);customize.Size=UDim2.fromOffset(104,38)
     local function arrangeHero()
         local wide=logicalWidth(hero)>=390
@@ -4906,10 +4907,10 @@ do
     end})
     reducedMotionToggle(quick.Body)
     glassSelector(quick.Body,"Glass material")
-    local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
+    local openSettings=button(quick.Body,"Appearance & presets  ›",function() app:SelectPage("Profile") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new"})
-    for i,data in ipairs({{"Dashboard restored","Previous layout with the new industrial colors and styling."},{"Universal sample","Shared pages only. Feedback drafts are copied locally."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Dashboard restored","Previous layout with the new industrial colors and styling."},{"Universal pages","About, Dashboard, Feedback, Profile, Settings and Languages."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -5126,6 +5127,7 @@ do
             placeholder.Visible=not picture.IsLoaded
         end
         local title=label(row,name,56,5,-190,23,13)
+        title:SetAttribute("LocalizationIgnore",true)
         title.TextTruncate=Enum.TextTruncate.AtEnd
         local isCurrent=universe and game.GameId==universe
         local info=label(row,(isCurrent and "Current · " or "").."Updated "..data[5],56,29,-72,19,11,Tokens.Color.TextMuted)
@@ -5229,7 +5231,7 @@ do
         local fn=setclipboard or toclipboard
         return type(fn)=="function" and pcall(fn,tostring(value))
     end
-    local feedback=app:AddPage({Id="Feedback",Title="Feedback",Icon="webhook",Group="Common",Order=1})
+    local feedback=app:AddPage({Id="Feedback",Title="Feedback",Icon="webhook",Group="Universal",Order=1})
     local section=Section.new(feedback,deps,{Title="Feedback",Description="Prepare a bug report, suggestion or help request."})
     local category="Bug report"
     Select.new(section.Body,deps,{Title="Type",Options={"Bug report","Suggestion","Key help","Other"},Default=category,Callback=function(v) category=v end})
@@ -5252,33 +5254,10 @@ do
         local ok=copy("https://discord.gg/pWPs7428wE")
         app:Notify(ok and "Invite copied" or "Serenity Hub Discord",ok and "Paste into Discord or your browser." or "discord.gg/pWPs7428wE",4,"Info")
     end)
-    local session=Section.new(server,deps,{Title="Current server"})
-    text(session.Body,"Place ID: "..tostring(game.PlaceId),30)
-    text(session.Body,"Players: "..tostring(#game:GetService("Players"):GetPlayers()).." / "..tostring(game:GetService("Players").MaxPlayers),30)
-    text(session.Body,"Player count is a snapshot taken when this example opens.",36)
-    button(session.Body,"Copy server ID",function()
-        if game.JobId=="" then app:Notify("Server ID unavailable","This session has no public job ID.",4,"Info");return end
-        local ok=copy(game.JobId)
-        app:Notify(ok and "Server ID copied" or "Clipboard unavailable",ok and "Ready to paste." or "Your environment does not provide clipboard access.",3,"Info")
-    end)
-    button(session.Body,"Rejoin this server",function()
-        app:Confirm({Title="Rejoin server?",Message="This reconnects your Roblox session.",ConfirmText="Rejoin",Callback=function(yes)
-            if not yes then return end
-            local ok=pcall(function()
-                local teleport=game:GetService("TeleportService");local player=game:GetService("Players").LocalPlayer
-                if game.JobId~="" then teleport:TeleportToPlaceInstance(game.PlaceId,game.JobId,player) else teleport:Teleport(game.PlaceId,player) end
-            end)
-            if not ok then app:Notify("Rejoin unavailable","Roblox could not start the teleport.",4,"Info") end
-        end})
-    end)
-    local tools=Section.new(misc,deps,{Title="UI utilities"})
-    button(tools.Body,"Reset floating positions",function() app:ResetFloatingPositions() end)
-    button(tools.Body,"Show sample notification",function() app:Notify("Serenity Hub","Universal UI sample is ready.",4,"Info") end)
-    text(tools.Body,"Quick Menu panels demonstrate the controls only. Fly, Noclip and ESP need game-provided callbacks.",52)
     local player=game:GetService("Players").LocalPlayer
-    local profile=app:AddPage({Id="Profile",Title="Profile",Icon="info",Group="System",Order=8})
     runtime:TrackConnection(app.ProfileButton.Activated:Connect(function() if not serenityInputBlocked(app.ProfileButton) then app:SelectPage("Profile") end end))
-    local info=Section.new(profile,deps,{Title="Your profile"})
+    local info=Section.new(profileCols.Left,deps,{Title="Your profile"})
+    info.Frame.LayoutOrder=-2
     registerIdentity(text(info.Body,player.DisplayName,30),"Text",player.DisplayName,"Hidden profile")
     registerIdentity(text(info.Body,"@"..player.Name,30),"Text","@"..player.Name,"Username hidden")
     registerIdentity(text(info.Body,"User ID: "..player.UserId,30),"Text","User ID: "..player.UserId,"User ID hidden")
@@ -5314,6 +5293,146 @@ do
         if Motion.Reduced then finish() end
     end)
     runtime:TrackCleanup(function() if timer then pcall(task.cancel,timer) end;if tween then tween:Cancel() end;finish() end)
+end
+
+-- Ten shared languages; bundled dictionaries, event-driven bindings, no HTTP translation.
+do
+local I18N={}
+I18N.Options={'English','Filipino','Bahasa Indonesia','Tiếng Việt','ไทย','Español','Português (Brasil)','Français','Deutsch','Русский'}
+local codes={'en','fil','id','vi','th','es','pt','fr','de','ru'}
+local supported={en=true,fil=true,id=true,vi=true,th=true,es=true,pt=true,fr=true,de=true,ru=true}
+local aliases={tl='fil',['in']='id'}
+function I18N.Resolve(locale)
+    local code=tostring(locale or ''):lower():gsub('_','-'):match('^([a-z]+)')
+    code=aliases[code] or code
+    return supported[code] and code or 'en'
+end
+function I18N.Code(selection)
+    for i,name in ipairs(I18N.Options) do if name==selection then return codes[i] end end
+    return 'en'
+end
+function I18N.new(selection,detected)
+    local self={Bindings={},Selection=selection,Detected=detected,Destroyed=false}
+    function self:Language()
+        local chosen=I18N.Code(self.Selection)
+        return chosen
+    end
+    function self:T(source)
+        if type(source)~='string' or source=='' then return source end
+        local pack=I18N.Packs[self:Language()] or {}
+        if pack[source] then return pack[source] end
+        -- Only translate dictionary-backed labels with numeric values. Never rewrite names.
+        local label,separator,value=source:match('^(.-)(: )([%d][%d,%.]*)$')
+        if not label then label,separator,value=source:match('^(.-)( · )([%d][%d,%.]*)$') end
+        if label and pack[label] then return pack[label]..separator..value end
+        local selected=source:match('^Language changed: (.+)$')
+        if selected then return (pack['Language changed'] or 'Language changed')..': '..selected end
+        -- Translate only known UI patterns; never edit a user's text or arbitrary values.
+        local time=source:match('^Session · (%d+:%d%d:%d%d)$')
+        if time then return (pack.Session or 'Session')..' · '..time end
+        local count=source:match('^(%d+ / 1800) characters$')
+        if count then return count..' '..(pack.characters or 'characters') end
+        if source:find(' / ',1,true) then
+            local parts={}; for part in (source..' / '):gmatch('(.-) / ') do parts[#parts+1]=pack[part] or part end
+            return table.concat(parts,' / ')
+        end
+        return source
+    end
+    function self:Refresh()
+        for _,binding in pairs(self.Bindings) do binding.Render() end
+    end
+    function self:Set(selection)
+        self.Selection='English'
+        for _,name in ipairs(I18N.Options) do if name==selection then self.Selection=name end end
+        self:Refresh()
+    end
+    function self:Detect(locale)
+        self.Detected=locale
+        -- Explicit user choice; Roblox locale never changes the selected language.
+    end
+    function self:Bind(object,property)
+        local binding={Source=object[property],Last=nil,Font=object.Font,Wrapped=object.TextWrapped,Truncate=object.TextTruncate}
+        local id={};self.Bindings[id]=binding
+        function binding.Render()
+            if self.Destroyed then return end
+            -- Roblox may defer property events: capture a pending canonical write before refreshing.
+            if binding.Last~=nil and object[property]~=binding.Last then binding.Source=object[property] end
+            binding.Last=self:T(binding.Source)
+            if object[property]~=binding.Last then object[property]=binding.Last end
+            -- SourceSans provides Roblox's fallback glyph handling, including Thai.
+            object.Font=self:Language()=='th' and Enum.Font.SourceSans or binding.Font
+            if property=='Text' then
+                local translated=binding.Last~=binding.Source
+                object.TextWrapped=translated or binding.Wrapped
+                object.TextTruncate=translated and Enum.TextTruncate.None or binding.Truncate
+            end
+        end
+        binding.Change=object:GetPropertyChangedSignal(property):Connect(function()
+            if object[property]==binding.Last then return end
+            binding.Source=object[property];binding.Render()
+        end)
+        binding.Destroy=object.Destroying:Connect(function()
+            binding.Change:Disconnect();binding.Destroy:Disconnect();self.Bindings[id]=nil
+        end)
+        binding.Render()
+    end
+    function self:Destroy()
+        self.Destroyed=true
+        for _,b in pairs(self.Bindings) do b.Change:Disconnect();b.Destroy:Disconnect() end
+        self.Bindings={}
+    end
+    self:Set(selection)
+    return self
+end
+
+I18N.Packs={
+ ["fil"]={["About"]="Tungkol",["Rewards"]="Mga gantimpala",["Misc"]="Iba pa",["Settings"]="Mga setting",["Feedback"]="Puna",["Appearance"]="Hitsura",["Interface"]="Interface",["Language"]="Wika",["Language preview"]="Preview ng wika",["Session"]="Sesyon",["Community"]="Komunidad",["Farm"]="Pag-farm",["Pets"]="Mga pet",["Status"]="Katayuan",["Movement"]="Paggalaw",["Transparency"]="Transparency",["Rose"]="Rosas",["Cyan"]="Cyan",["Lavender"]="Lavender",["No matching options"]="Walang tumugmang opsiyon",["No options"]="Walang opsiyon",["Select all"]="Piliin lahat",["Clear"]="Alisin lahat",["Cancel"]="Kanselahin",["Reset"]="I-reset",["Preview"]="Preview",["Dashboard"]="Dashboard",["Server"]="Server",["ESP"]="ESP",["Eggs"]="Mga Itlog",["Player ESP"]="Player ESP",["Ride A Pet"]="Ride A Pet",["Unknown"]="Hindi Kilala",["Selection"]="Mga Napili",["Shortcuts"]="Mga Shortcut",["Target"]="Target",["Dice"]="Dice",["Waiting"]="Naghihintay",["locked"]="naka-lock",["base"]="base",["ready"]="handa",["Ended"]="Tapos na",["Error"]="Error",["Forge"]="Forge",["Common"]="Karaniwan",["Rare"]="Bihira",["Epic"]="Epiko",["Legendary"]="Maalamat",["Mythic"]="Mitiko",["Automatic"]="Awtomatiko",["Auto"]="Auto",["Ready"]="Handa",["Coin"]="Coin",["Ore"]="Ore",["Rune"]="Rune",["Reward"]="Reward",["ore"]="ore",["max"]="max",["Paused"]="Naka-pause",["Profile"]="Mga profile",["Languages"]="Wika",["UNIVERSAL"]="PANGKALAHATAN",["SESSION"]="Sesyon"},
+ ["id"]={["About"]="Tentang",["Rewards"]="Hadiah",["Misc"]="Lainnya",["Settings"]="Pengaturan",["Feedback"]="Masukan",["Appearance"]="Tampilan",["Interface"]="Antarmuka",["Language"]="Bahasa",["Language preview"]="Pratinjau Bahasa",["Session"]="Sesi",["Community"]="Komunitas",["Farm"]="Farming",["Pets"]="Pet",["Status"]="Status",["Movement"]="Gerakan",["Transparency"]="Transparansi",["Rose"]="Merah Muda",["Cyan"]="Sian",["Lavender"]="Lavender",["No matching options"]="Tidak ada opsi yang cocok",["No options"]="Tidak ada opsi",["Select all"]="Pilih Semua",["Clear"]="Hapus",["Cancel"]="Batal",["Reset"]="Reset",["Preview"]="Pratinjau",["Dashboard"]="Dasbor",["Server"]="Server",["ESP"]="ESP",["Eggs"]="Telur",["Player ESP"]="ESP Pemain",["Ride A Pet"]="Ride A Pet",["Unknown"]="Tidak Diketahui",["Selection"]="Pilihan",["Shortcuts"]="Pintasan",["Target"]="Target",["Dice"]="Dice",["Waiting"]="Menunggu",["locked"]="terkunci",["base"]="base",["ready"]="siap",["Ended"]="Selesai",["Error"]="Error",["Forge"]="Tempa",["Common"]="Umum",["Rare"]="Langka",["Epic"]="Epik",["Legendary"]="Legendaris",["Mythic"]="Mitos",["Automatic"]="Otomatis",["Auto"]="Auto",["Ready"]="Siap",["Coin"]="Koin",["Ore"]="Ore",["Rune"]="Rune",["Reward"]="Hadiah",["ore"]="ore",["max"]="max",["Paused"]="Dijeda",["Profile"]="Profil",["Languages"]="Bahasa",["UNIVERSAL"]="UMUM",["SESSION"]="Sesi"},
+ ["vi"]={["About"]="Giới thiệu",["Rewards"]="Phần thưởng",["Misc"]="Khác",["Settings"]="Cài đặt",["Feedback"]="Góp ý",["Appearance"]="Giao diện",["Interface"]="Giao diện điều khiển",["Language"]="Ngôn ngữ",["Language preview"]="Xem thử ngôn ngữ",["Session"]="Phiên",["Community"]="Cộng đồng",["Farm"]="Cày tài nguyên",["Pets"]="Thú cưng",["Status"]="Trạng thái",["Movement"]="Di chuyển",["Transparency"]="Độ trong suốt",["Rose"]="Hồng",["Cyan"]="Xanh lơ",["Lavender"]="Tím nhạt",["No matching options"]="Không có tùy chọn phù hợp",["No options"]="Không có tùy chọn",["Select all"]="Chọn tất cả",["Clear"]="Xóa",["Cancel"]="Hủy",["Reset"]="Đặt lại",["Preview"]="Xem thử",["Dashboard"]="Bảng điều khiển",["Server"]="Máy chủ",["ESP"]="ESP",["Eggs"]="Trứng",["Player ESP"]="ESP người chơi",["Ride A Pet"]="Ride A Pet",["Unknown"]="Không xác định",["Selection"]="Lựa chọn",["Shortcuts"]="Phím tắt",["Target"]="Mục tiêu",["Dice"]="Dice",["Waiting"]="Đang chờ",["locked"]="đã khóa",["base"]="base",["ready"]="sẵn sàng",["Ended"]="Đã kết thúc",["Error"]="Lỗi",["Forge"]="Rèn",["Common"]="Thường",["Rare"]="Hiếm",["Epic"]="Sử thi",["Legendary"]="Huyền thoại",["Mythic"]="Thần thoại",["Automatic"]="Tự động",["Auto"]="Tự động",["Ready"]="Sẵn sàng",["Coin"]="Xu",["Ore"]="Quặng",["Rune"]="Rune",["Reward"]="Phần thưởng",["ore"]="quặng",["max"]="tối đa",["Paused"]="Tạm dừng",["Profile"]="Hồ sơ",["Languages"]="Ngôn ngữ",["UNIVERSAL"]="CHUNG",["SESSION"]="Phiên"},
+ ["th"]={["About"]="เกี่ยวกับ",["Rewards"]="รางวัล",["Misc"]="อื่น ๆ",["Settings"]="การตั้งค่า",["Feedback"]="ข้อเสนอแนะ",["Appearance"]="รูปลักษณ์",["Interface"]="ส่วนติดต่อ",["Language"]="ภาษา",["Language preview"]="ตัวอย่างภาษา",["Session"]="เซสชัน",["Community"]="ชุมชน",["Farm"]="ฟาร์ม",["Pets"]="สัตว์เลี้ยง",["Status"]="สถานะ",["Movement"]="การเคลื่อนที่",["Transparency"]="ความโปร่งใส",["Rose"]="ชมพู",["Cyan"]="ฟ้า",["Lavender"]="ม่วงอ่อน",["No matching options"]="ไม่พบตัวเลือก",["No options"]="ไม่มีตัวเลือก",["Select all"]="เลือกทั้งหมด",["Clear"]="ล้าง",["Cancel"]="ยกเลิก",["Reset"]="รีเซ็ต",["Preview"]="ตัวอย่าง",["Dashboard"]="แดชบอร์ด",["Server"]="เซิร์ฟเวอร์",["ESP"]="ESP",["Eggs"]="ไข่",["Player ESP"]="ESP ผู้เล่น",["Ride A Pet"]="Ride A Pet",["Unknown"]="ไม่ทราบ",["Selection"]="การเลือก",["Shortcuts"]="ปุ่มลัด",["Target"]="เป้าหมาย",["Dice"]="Dice",["Waiting"]="กำลังรอ",["locked"]="ล็อกอยู่",["base"]="base",["ready"]="พร้อม",["Ended"]="จบแล้ว",["Error"]="ข้อผิดพลาด",["Forge"]="ตีเหล็ก",["Common"]="ทั่วไป",["Rare"]="หายาก",["Epic"]="อีพิก",["Legendary"]="ตำนาน",["Mythic"]="เทพนิยาย",["Automatic"]="อัตโนมัติ",["Auto"]="อัตโนมัติ",["Ready"]="พร้อม",["Coin"]="เหรียญ",["Ore"]="แร่",["Rune"]="รูน",["Reward"]="รางวัล",["ore"]="แร่",["max"]="สูงสุด",["Paused"]="พัก",["Profile"]="โปรไฟล์",["Languages"]="ภาษา",["UNIVERSAL"]="ทั่วไป",["SESSION"]="เซสชัน"},
+ ["es"]={["About"]="Acerca de",["Rewards"]="Recompensas",["Misc"]="Varios",["Settings"]="Configuración",["Feedback"]="Comentarios",["Appearance"]="Apariencia",["Interface"]="Interfaz",["Language"]="Idioma",["Language preview"]="Vista previa de idiomas",["Session"]="Sesión",["Community"]="Comunidad",["Farm"]="Farmeo",["Pets"]="Mascotas",["Status"]="Estado",["Movement"]="Movimiento",["Transparency"]="Transparencia",["Rose"]="Rosa",["Cyan"]="Cian",["Lavender"]="Lavanda",["No matching options"]="No hay opciones coincidentes",["No options"]="Sin opciones",["Select all"]="Seleccionar todo",["Clear"]="Limpiar",["Cancel"]="Cancelar",["Reset"]="Restablecer",["Preview"]="Vista previa",["Dashboard"]="Panel",["Server"]="Servidor",["ESP"]="ESP",["Eggs"]="Huevos",["Player ESP"]="ESP de jugadores",["Ride A Pet"]="Ride A Pet",["Unknown"]="Desconocido",["Selection"]="Selección",["Shortcuts"]="Atajos",["Target"]="Objetivo",["Dice"]="Dice",["Waiting"]="Esperando",["locked"]="bloqueadas",["base"]="base",["ready"]="listas",["Ended"]="Finalizado",["Error"]="Error",["Forge"]="Forja",["Common"]="Común",["Rare"]="Raro",["Epic"]="Épico",["Legendary"]="Legendario",["Mythic"]="Mítico",["Automatic"]="Automático",["Auto"]="Auto",["Ready"]="Listo",["Coin"]="Moneda",["Ore"]="Mineral",["Rune"]="Runa",["Reward"]="Recompensa",["ore"]="mineral",["max"]="máx.",["Paused"]="Pausado",["Profile"]="Perfiles",["Languages"]="Idioma",["UNIVERSAL"]="GENERAL",["SESSION"]="Sesión"},
+ ["pt"]={["About"]="Sobre",["Rewards"]="Recompensas",["Misc"]="Diversos",["Settings"]="Configurações",["Feedback"]="Comentários",["Appearance"]="Aparência",["Interface"]="Interface",["Language"]="Idioma",["Language preview"]="Prévia de idiomas",["Session"]="Sessão",["Community"]="Comunidade",["Farm"]="Farm",["Pets"]="Pets",["Status"]="Status",["Movement"]="Movimento",["Transparency"]="Transparência",["Rose"]="Rosa",["Cyan"]="Ciano",["Lavender"]="Lavanda",["No matching options"]="Nenhuma opção encontrada",["No options"]="Sem opções",["Select all"]="Selecionar tudo",["Clear"]="Limpar",["Cancel"]="Cancelar",["Reset"]="Redefinir",["Preview"]="Prévia",["Dashboard"]="Painel",["Server"]="Servidor",["ESP"]="ESP",["Eggs"]="Ovos",["Player ESP"]="ESP de jogadores",["Ride A Pet"]="Ride A Pet",["Unknown"]="Desconhecido",["Selection"]="Seleção",["Shortcuts"]="Atalhos",["Target"]="Alvo",["Dice"]="Dice",["Waiting"]="Aguardando",["locked"]="bloqueadas",["base"]="base",["ready"]="prontas",["Ended"]="Finalizado",["Error"]="Erro",["Forge"]="Forja",["Common"]="Comum",["Rare"]="Raro",["Epic"]="Épico",["Legendary"]="Lendário",["Mythic"]="Mítico",["Automatic"]="Automático",["Auto"]="Auto",["Ready"]="Pronto",["Coin"]="Moeda",["Ore"]="Minério",["Rune"]="Runa",["Reward"]="Recompensa",["ore"]="minério",["max"]="máx.",["Paused"]="Pausado",["Profile"]="Perfis",["Languages"]="Idioma",["UNIVERSAL"]="GERAL",["SESSION"]="Sessão"},
+ ["fr"]={["About"]="À propos",["Rewards"]="Récompenses",["Misc"]="Divers",["Settings"]="Paramètres",["Feedback"]="Commentaires",["Appearance"]="Apparence",["Interface"]="Interface",["Language"]="Langue",["Language preview"]="Aperçu des langues",["Session"]="Session",["Community"]="Communauté",["Farm"]="Farm",["Pets"]="Animaux",["Status"]="État",["Movement"]="Déplacement",["Transparency"]="Transparence",["Rose"]="Rose",["Cyan"]="Cyan",["Lavender"]="Lavande",["No matching options"]="Aucune option correspondante",["No options"]="Aucune option",["Select all"]="Tout sélectionner",["Clear"]="Effacer",["Cancel"]="Annuler",["Reset"]="Réinitialiser",["Preview"]="Aperçu",["Dashboard"]="Tableau de bord",["Server"]="Serveur",["ESP"]="ESP",["Eggs"]="Œufs",["Player ESP"]="ESP des joueurs",["Ride A Pet"]="Ride A Pet",["Unknown"]="Inconnu",["Selection"]="Sélection",["Shortcuts"]="Raccourcis",["Target"]="Cible",["Dice"]="Dice",["Waiting"]="En attente",["locked"]="verrouillées",["base"]="base",["ready"]="prêtes",["Ended"]="Terminé",["Error"]="Erreur",["Forge"]="Forge",["Common"]="Commun",["Rare"]="Rare",["Epic"]="Épique",["Legendary"]="Légendaire",["Mythic"]="Mythique",["Automatic"]="Automatique",["Auto"]="Auto",["Ready"]="Prêt",["Coin"]="Pièce",["Ore"]="Minerai",["Rune"]="Rune",["Reward"]="Récompense",["ore"]="minerai",["max"]="max.",["Paused"]="En pause",["Profile"]="Profils",["Languages"]="Langue",["UNIVERSAL"]="GÉNÉRAL",["SESSION"]="Session"},
+ ["de"]={["About"]="Über",["Rewards"]="Belohnungen",["Misc"]="Sonstiges",["Settings"]="Einstellungen",["Feedback"]="Feedback",["Appearance"]="Darstellung",["Interface"]="Oberfläche",["Language"]="Sprache",["Language preview"]="Sprachvorschau",["Session"]="Sitzung",["Community"]="Community",["Farm"]="Farmen",["Pets"]="Begleiter",["Status"]="Status",["Movement"]="Bewegung",["Transparency"]="Transparenz",["Rose"]="Rosa",["Cyan"]="Cyan",["Lavender"]="Lavendel",["No matching options"]="Keine passenden Optionen",["No options"]="Keine Optionen",["Select all"]="Alle auswählen",["Clear"]="Leeren",["Cancel"]="Abbrechen",["Reset"]="Zurücksetzen",["Preview"]="Vorschau",["Dashboard"]="Übersicht",["Server"]="Server",["ESP"]="ESP",["Eggs"]="Eier",["Player ESP"]="Spieler-ESP",["Ride A Pet"]="Ride A Pet",["Unknown"]="Unbekannt",["Selection"]="Auswahl",["Shortcuts"]="Tastenkürzel",["Target"]="Ziel",["Dice"]="Dice",["Waiting"]="Wartet",["locked"]="gesperrt",["base"]="Basis",["ready"]="bereit",["Ended"]="Beendet",["Error"]="Fehler",["Forge"]="Schmiede",["Common"]="Gewöhnlich",["Rare"]="Selten",["Epic"]="Episch",["Legendary"]="Legendär",["Mythic"]="Mythisch",["Automatic"]="Automatisch",["Auto"]="Auto",["Ready"]="Bereit",["Coin"]="Münze",["Ore"]="Erz",["Rune"]="Rune",["Reward"]="Belohnung",["ore"]="Erz",["max"]="max.",["Paused"]="Pausiert",["Profile"]="Profile",["Languages"]="Sprache",["UNIVERSAL"]="ALLGEMEIN",["SESSION"]="Sitzung"},
+ ["ru"]={["About"]="О программе",["Rewards"]="Награды",["Misc"]="Разное",["Settings"]="Настройки",["Feedback"]="Обратная связь",["Appearance"]="Оформление",["Interface"]="Интерфейс",["Language"]="Язык",["Language preview"]="Предпросмотр языков",["Session"]="Сеанс",["Community"]="Сообщество",["Farm"]="Фарм",["Pets"]="Питомцы",["Status"]="Состояние",["Movement"]="Движение",["Transparency"]="Прозрачность",["Rose"]="Розовый",["Cyan"]="Голубой",["Lavender"]="Лавандовый",["No matching options"]="Варианты не найдены",["No options"]="Нет вариантов",["Select all"]="Выбрать всё",["Clear"]="Очистить",["Cancel"]="Отмена",["Reset"]="Сбросить",["Preview"]="Предпросмотр",["Dashboard"]="Панель",["Server"]="Сервер",["ESP"]="ESP",["Eggs"]="Яйца",["Player ESP"]="ESP игроков",["Ride A Pet"]="Ride A Pet",["Unknown"]="Неизвестно",["Selection"]="Выбор",["Shortcuts"]="Горячие клавиши",["Target"]="Цель",["Dice"]="Dice",["Waiting"]="Ожидание",["locked"]="заблокировано",["base"]="база",["ready"]="готово",["Ended"]="Завершено",["Error"]="Ошибка",["Forge"]="Кузница",["Common"]="Обычный",["Rare"]="Редкий",["Epic"]="Эпический",["Legendary"]="Легендарный",["Mythic"]="Мифический",["Automatic"]="Автоматически",["Auto"]="Авто",["Ready"]="Готово",["Coin"]="Монета",["Ore"]="Руда",["Rune"]="Руна",["Reward"]="Награда",["ore"]="руда",["max"]="макс.",["Paused"]="Пауза",["Profile"]="Профили",["Languages"]="Язык",["UNIVERSAL"]="ОБЩЕЕ",["SESSION"]="Сеанс"},
+}
+
+    local translator=I18N.new(selectedLanguage)
+    selectedLanguage=translator.Selection
+    local bound=setmetatable({}, {__mode="k"})
+    local function bind(object)
+        if runtime.Destroyed or bound[object] or object:GetAttribute("LocalizationIgnore") then return end
+        if object:IsA("TextLabel") or object:IsA("TextButton") then
+            bound[object]=true;translator:Bind(object,"Text")
+        elseif object:IsA("TextBox") then
+            -- Translate hints only, never typed feedback, search text or numeric values.
+            bound[object]=true;translator:Bind(object,"PlaceholderText")
+        end
+    end
+    local languages=app:AddPage({Id="Languages",Title="Languages",Icon="world",Group="Universal",Order=5})
+    local section=Section.new(languages,deps,{Title="Language"})
+    local hint=Typography.Label(section.Body,"Control",Tokens,"English is the default. Your language choice saves automatically.",UDim2.new(),UDim2.new(1,0,0,48),Tokens.Color.TextMuted,"TextMuted")
+    hint.TextWrapped=true;hint.TextSize=12
+    local control
+    function app:SetLanguage(selection)
+        translator:Set(selection);selectedLanguage=translator.Selection
+        if control then control:Set(selectedLanguage,true) end
+        saveAppearance()
+    end
+    function app:GetLanguage() return selectedLanguage end
+    control=Select.new(section.Body,deps,{Title="Language",Options=I18N.Options,Default=selectedLanguage,Callback=function(v) app:SetLanguage(v) end})
+    local preview=Section.new(languages,deps,{Title="Language preview"})
+    Typography.Label(preview.Body,"Control",Tokens,"Welcome to Serenity",UDim2.new(),UDim2.new(1,0,0,34),Tokens.Color.Text,"Text")
+    Typography.Label(preview.Body,"Control",Tokens,"Appearance",UDim2.new(),UDim2.new(1,0,0,30),Tokens.Color.Text,"Text")
+    local scopes={app.ScreenGui}
+    if app.NotificationScreenGui then table.insert(scopes,app.NotificationScreenGui) end
+    for _,root in ipairs(scopes) do
+        for _,object in ipairs(root:GetDescendants()) do bind(object) end
+        runtime:TrackConnection(root.DescendantAdded:Connect(function(object)
+            task.defer(function() if not runtime.Destroyed and object.Parent then bind(object) end end)
+        end))
+    end
+    runtime:TrackCleanup(function() translator:Destroy() end)
 end
 
 app:SelectPage("Dashboard")
@@ -5366,6 +5485,7 @@ end
 print("SERENITY UNIVERSAL PAGES SAMPLE | RightCtrl: toggle | Ctrl+K: search")
 
 return app
+
 
 
 
