@@ -2656,25 +2656,31 @@ function Desktop.Mount(deps, options)
     end
     local function surface(parent,name,role,radius,z)
         local f=Instance.new("Frame");f.Name=name;f.BorderSizePixel=0
-        serenityColor(f,"BackgroundColor3",tokens,role);f.ZIndex=z;f.Parent=parent;corner(f,radius)
-        return f
+        serenityColor(f,"BackgroundColor3",tokens,role);f.ZIndex=z;f.Parent=parent;local rounding=corner(f,radius)
+        return f,rounding
     end
     local function label(parent,text,size,role,z)
         local f=deps.Typography.Label(parent,"Control",tokens,text,UDim2.fromOffset(0,0),UDim2.fromOffset(0,0),tokens.Color[role],role)
         f.TextSize=size;f.TextTruncate=Enum.TextTruncate.AtEnd;f.ZIndex=z
         return f
     end
-    local statusBody=surface(statusDock,"StatusBody","ShellDeep",18,88)
-    statusBody.BackgroundTransparency=0.01;statusBody.ClipsDescendants=true
+    local statusBody,statusRound=surface(statusDock,"StatusBody","ShellDeep",24,88)
+    statusBody.BackgroundTransparency=0.025;statusBody.ClipsDescendants=true
+    local shellShade=Instance.new("UIGradient");shellShade.Rotation=70
+    shellShade.Color=ColorSequence.new(Color3.new(1,1,1),Color3.new(0.78,0.80,0.84));shellShade.Parent=statusBody
     local dockEdge=Instance.new("UIStroke");serenityColor(dockEdge,"Color",tokens,"Stroke")
     dockEdge.Transparency=0.46;dockEdge.Thickness=1;dockEdge.Parent=statusBody
     local headerLight=surface(statusBody,"HeaderLight","Accent",1,89)
     headerLight.BackgroundTransparency=0.32;headerLight.Position=UDim2.fromOffset(24,0)
-    headerLight.Size=UDim2.new(1,-48,0,1)
-    local activityBadge=surface(statusBody,"ActivityBadge","Accent",12,89)
-    activityBadge.BackgroundTransparency=0.88
+    headerLight.Size=UDim2.new(1,-48,0,1);headerLight.Visible=false
+    local activityBadge=surface(statusBody,"ActivityBadge","Accent",32,89)
+    activityBadge.BackgroundTransparency=0.90
     local badgeEdge=Instance.new("UIStroke");serenityColor(badgeEdge,"Color",tokens,"Accent")
-    badgeEdge.Transparency=0.85;badgeEdge.Parent=activityBadge
+    badgeEdge.Transparency=0.60;badgeEdge.Parent=activityBadge
+    local badgeShade=Instance.new("UIGradient");badgeShade.Rotation=110
+    badgeShade.Transparency=NumberSequence.new(0,0.65);badgeShade.Parent=activityBadge
+    local statusCaption=label(statusBody,"Running",10,"Accent",91)
+    statusCaption.TextXAlignment=Enum.TextXAlignment.Right;statusCaption.Font=Enum.Font.GothamMedium
     local runningIcon=deps.Icons.Create(activityBadge,"activity",18,tokens.Color.Accent,UDim2.fromOffset(10,10));runningIcon.ZIndex=91
     local restingGlyph=Instance.new("Frame");restingGlyph.BackgroundTransparency=1
     restingGlyph.Size=UDim2.fromOffset(22,22);restingGlyph.AnchorPoint=Vector2.new(0.5,0.5)
@@ -2705,25 +2711,32 @@ function Desktop.Mount(deps, options)
     end
     local details=Instance.new("Frame");details.BackgroundTransparency=1
     details.Visible=false;details.ZIndex=90;details.Parent=statusBody
-    local separator=surface(details,"Divider","Stroke",0,90);separator.BackgroundTransparency=0.72
+    local separator=surface(details,"Divider","Stroke",0,90);separator.BackgroundTransparency=0.87
     separator.Size=UDim2.new(1,0,0,1)
+    local statRail=surface(details,"StatisticsRail","Inset",12,90)
+    statRail.BackgroundTransparency=0.38;statRail.Position=UDim2.fromOffset(0,8);statRail.Size=UDim2.new(1,0,0,48)
+    for i=1,2 do
+        local line=surface(statRail,"StatDivider"..i,"Stroke",0,91)
+        line.Position=UDim2.new(i/3,0,0,12);line.Size=UDim2.fromOffset(1,24);line.BackgroundTransparency=0.5
+    end
     local statTiles,statValues={},{}
-    for i,caption in ipairs({"ACTIONS","REWARDS","ELAPSED"}) do
-        local tile=surface(details,"Stat"..i,"Inset",9,90);tile.BackgroundTransparency=0.18
+    for i,caption in ipairs({"Actions","Rewards","Elapsed"}) do
+        local tile=surface(details,"Stat"..i,"Inset",0,91);tile.BackgroundTransparency=1
         local value=label(tile,i==3 and "0s" or "0",17,i==2 and "Accent" or "Text",91)
-        value.Font=Enum.Font.GothamSemibold;value.Position=UDim2.fromOffset(10,5);value.Size=UDim2.new(1,-20,0,23)
-        local name=label(tile,caption,9,"TextMuted",91)
-        name.Position=UDim2.fromOffset(10,29);name.Size=UDim2.new(1,-20,0,12)
+        value.Font=Enum.Font.GothamSemibold;value.Position=UDim2.fromOffset(12,2);value.Size=UDim2.new(1,-24,0,24)
+        local name=label(tile,caption,10,"TextMuted",92)
+        name.Position=UDim2.fromOffset(12,27);name.Size=UDim2.new(1,-24,0,14)
         statTiles[i]=tile;statValues[i]=value
     end
     local statusDetails={"No active task","Start a demo from Playground"}
     local detailText=label(details,statusDetails[1],11,"TextMuted",91)
     detailText.TextYAlignment=Enum.TextYAlignment.Center
-    local detailRestore=Instance.new("TextButton");detailRestore.Text="Open UI  ↗"
+    local detailRestore=Instance.new("TextButton");detailRestore.Text="Open UI  ›"
     detailRestore.Font=Enum.Font.GothamSemibold;detailRestore.TextSize=11
-    serenityColor(detailRestore,"TextColor3",tokens,"Text");serenityColor(detailRestore,"BackgroundColor3",tokens,"Inset")
+    serenityColor(detailRestore,"TextColor3",tokens,"Accent");serenityColor(detailRestore,"BackgroundColor3",tokens,"Accent")
+    detailRestore.BackgroundTransparency=0.9
     detailRestore.BorderSizePixel=0;detailRestore.AutoButtonColor=false;detailRestore.ZIndex=95
-    detailRestore.Parent=details;corner(detailRestore,8)
+    detailRestore.Parent=details;corner(detailRestore,14)
     local petsShortcut=Instance.new("TextButton");petsShortcut.Text="Server pets  ›"
     petsShortcut.Font=Enum.Font.GothamMedium;petsShortcut.TextSize=10
     petsShortcut.TextXAlignment=Enum.TextXAlignment.Left;petsShortcut.BackgroundTransparency=1
@@ -2756,6 +2769,7 @@ function Desktop.Mount(deps, options)
         dockTime.Text=compactNumber(statusCounts.Clicks)
     end
     local function refreshActivityGlyph()
+        statusCaption.Text=statusNoticeActive and "Update" or statusComplete and "Complete" or statusRunning and "Running" or "Paused"
         runningIcon.Visible=statusRunning and not statusNoticeActive
         eventIcon.Visible=statusNoticeActive
         restingGlyph.Visible=not statusRunning and not statusNoticeActive
@@ -2801,7 +2815,7 @@ function Desktop.Mount(deps, options)
     function app:SetStatusMetrics(clicks,seconds,rewards)
         if runtime.Destroyed then return end
         statusCounts.Clicks=clicks or 0;statusCounts.Seconds=seconds or 0;statusCounts.Rewards=rewards or 0
-        dockMetrics.Text=compactNumber(clicks).." clicks  ·  "..tostring(rewards or 0).." rewards"
+        dockMetrics.Text=compactNumber(clicks).." clicks  ·  "..tostring(rewards or 0)..((rewards or 0)==1 and " reward" or " rewards")
         statusTimeText=tostring(seconds or 0).."s";refreshMetrics()
     end
     function app:IsMinimized() return not holder.Visible or self._Minimizing==true end
@@ -2832,6 +2846,9 @@ function Desktop.Mount(deps, options)
         local mobile=statusMobile()
         local inset=statusMusicActive and 44 or 0
         local head=mobile and 48 or 60
+        shape(statusRound,{CornerRadius=UDim.new(0,statusExpanded and 20 or head/2)})
+        statusCaption.Visible=not mobile
+        statusCaption.Position=UDim2.new(1,-116,0,11);statusCaption.Size=UDim2.fromOffset(78,19)
         statusBody.Position=UDim2.fromOffset(inset,0);statusBody.Size=UDim2.new(1,-inset,1,0)
         activityTile.Position=UDim2.fromOffset(0,(head-38)/2);activityTile.Visible=statusMusicActive
         activityBadge.Position=UDim2.fromOffset(10,mobile and 8 or 11)
@@ -2842,21 +2859,21 @@ function Desktop.Mount(deps, options)
         statusEvent.Position=statusRow.Position;statusEvent.Size=statusRow.Size
         local left=mobile and 52 or 60
         dockActivity.Position=UDim2.fromOffset(left,mobile and 0 or 10)
-        dockActivity.Size=UDim2.new(1,-left-(mobile and 66 or 36),0,mobile and head or 21)
+        dockActivity.Size=UDim2.new(1,-left-(mobile and 66 or 122),0,mobile and head or 21)
         dockActivity.TextSize=mobile and 13 or 14
         dockMetrics.Position=UDim2.fromOffset(left,32);dockMetrics.Size=UDim2.new(1,-left-36,0,16)
         dockMetrics.Visible=not mobile
         dockTime.Visible=mobile;dockTime.Position=UDim2.new(1,-70,0,0);dockTime.Size=UDim2.fromOffset(36,head)
         detailToggle.Position=UDim2.new(1,-34,0,0);detailToggle.Size=UDim2.fromOffset(34,head)
         eventTitle.Position=UDim2.fromOffset(left,mobile and 0 or 10)
-        eventTitle.Size=UDim2.new(1,-left-36,0,mobile and head or 21);eventTitle.TextSize=mobile and 13 or 14
+        eventTitle.Size=UDim2.new(1,-left-(mobile and 36 or 122),0,mobile and head or 21);eventTitle.TextSize=mobile and 13 or 14
         eventBody.Position=UDim2.fromOffset(left,32);eventBody.Size=UDim2.new(1,-left-16,0,16)
         eventBody.Visible=not mobile
         details.Position=UDim2.fromOffset(12,head);details.Size=UDim2.new(1,-24,0,118)
         details.Visible=statusExpanded
         for i,tile in ipairs(statTiles) do
-            tile.Position=UDim2.new((i-1)/3,(i-1)*2,0,10)
-            tile.Size=UDim2.new(1/3,-4,0,46)
+            tile.Position=UDim2.new((i-1)/3,0,0,10)
+            tile.Size=UDim2.new(1/3,0,0,46)
             statValues[i].TextSize=mobile and 15 or 18
         end
         detailText.Position=UDim2.fromOffset(1,59);detailText.Size=UDim2.new(1,mobile and -2 or -100,0,18)
@@ -2866,7 +2883,7 @@ function Desktop.Mount(deps, options)
         statusRow.Visible=true;statusEvent.Visible=true
         shape(statusRow,{GroupTransparency=statusNoticeActive and 1 or 0})
         shape(statusEvent,{GroupTransparency=statusNoticeActive and 0 or 1})
-        progressTrack.Position=UDim2.new(0,18,1,-3);progressTrack.Size=UDim2.new(1,-36,0,2)
+        progressTrack.Position=UDim2.new(0,28,1,-4);progressTrack.Size=UDim2.new(1,-56,0,2)
         local handle=statusDock:FindFirstChild("StatusDragHandle")
         if handle then handle.Position=UDim2.fromOffset(inset,0);handle.Size=UDim2.new(1,-inset-34,0,head) end
         refreshActivityGlyph();refreshMetrics()
@@ -2912,9 +2929,9 @@ function Desktop.Mount(deps, options)
     end)
     detailRestore.MouseEnter:Connect(function()
         if serenityInputBlocked(detailRestore) then return end
-        deps.Motion:Tween(detailRestore,0.12,{BackgroundColor3=tokens.Color.InsetHover})
+        deps.Motion:Tween(detailRestore,0.12,{BackgroundTransparency=0.78})
     end)
-    detailRestore.MouseLeave:Connect(function() deps.Motion:Tween(detailRestore,0.12,{BackgroundColor3=tokens.Color.Inset}) end)
+    detailRestore.MouseLeave:Connect(function() deps.Motion:Tween(detailRestore,0.12,{BackgroundTransparency=0.9}) end)
     function app:StatusNotice(title,message,duration)
         if runtime.Destroyed then return end
         if statusNoticeTimer then pcall(task.cancel,statusNoticeTimer) end
@@ -4942,7 +4959,7 @@ do
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new · Solid trial"})
-    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Desktop activity shelf","Wider PC details; compact mobile status stays unchanged."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Refined activity capsule","Rounded status, a unified counter rail and quieter visual details."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
