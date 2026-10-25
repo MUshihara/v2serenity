@@ -5021,10 +5021,10 @@ do
         {"Jump To Steal Soccer Players",nil,nil,"Patched","26 Aug 2026 · 01:27",1787678820},
     }
 
-    -- Oldest first; the most recently updated runtime appears last.
+    -- Newest first; older runtime updates appear farther down.
     table.sort(aboutGames,function(a,b)
         if a[6]==b[6] then return string.lower(a[1])<string.lower(b[1]) end
-        return a[6]<b[6]
+        return a[6]>b[6]
     end)
 
     local intro=card(about,100,1)
