@@ -2647,11 +2647,16 @@ function Desktop.Mount(deps, options)
     statusDock.BorderSizePixel=0;statusDock.Text=""
     statusDock.AutoButtonColor=false;statusDock.ClipsDescendants=true
     statusDock.Visible=false;statusDock.ZIndex=88;statusDock.Parent=screen
-    corner(statusDock,24)
+    corner(statusDock,12)
+    local statusCounts={Clicks=0,Seconds=0,Rewards=0}
+    local statusMusicActive=false
+    local statusTimeText="0s"
+    local syncStatusShape
+    local function statusMobile() return deps.Mobile or (UserInputService.TouchEnabled and screen.AbsoluteSize.X<1000) end
     local statusBody=Instance.new("Frame");statusBody.Name="StatusBody"
     statusBody.Position=UDim2.fromOffset(46,0);statusBody.Size=UDim2.new(1,-46,1,0)
-    statusBody.BackgroundColor3=statusDock.BackgroundColor3;statusBody.BorderSizePixel=0
-    statusBody.ZIndex=88;statusBody.Parent=statusDock;corner(statusBody,22)
+    serenityColor(statusBody,"BackgroundColor3",tokens,"ShellDeep");statusBody.BackgroundTransparency=0.02;statusBody.BorderSizePixel=0
+    statusBody.ZIndex=88;statusBody.Parent=statusDock;corner(statusBody,12)
     local dockEdge=Instance.new("UIStroke");serenityColor(dockEdge,"Color",tokens,"Stroke")
     dockEdge.Transparency=0.72;dockEdge.Parent=statusBody
     -- Compact live activity: one title, one metric line, and a quiet activity glyph.
@@ -2701,6 +2706,9 @@ function Desktop.Mount(deps, options)
     eventTitle.Font=Enum.Font.GothamBold;eventTitle.TextSize=14;eventTitle.ZIndex=90
     local eventBody=deps.Typography.Label(statusEvent,"Control",tokens,"",UDim2.fromOffset(14,36),UDim2.new(1,-28,0,30),tokens.Color.TextMuted,"TextMuted")
     eventBody.TextSize=12;eventBody.TextWrapped=true;eventBody.TextYAlignment=Enum.TextYAlignment.Top;eventBody.ZIndex=90
+    local runningIcon=deps.Icons.Create(statusRow,"activity",16,tokens.Color.Accent,UDim2.fromOffset(12,12));runningIcon.ZIndex=91
+    eventIcon.Parent=statusEvent
+    restingGlyph.Parent=statusRow
     local statusExpanded=false
     local statusDetails={"No active task", "Start a demo from Playground"}
     local details=Instance.new("Frame");details.BackgroundTransparency=1
@@ -2748,7 +2756,8 @@ function Desktop.Mount(deps, options)
     function app:SetStatusSummary(summary,time)
         if runtime.Destroyed then return end
         dockMetrics.Text=tostring(summary or ""):sub(1,120)
-        dockTime.Text=tostring(time or ""):sub(1,12)
+        statusTimeText=tostring(time or ""):sub(1,12)
+        dockTime.Text=statusMobile() and tostring(statusCounts.Clicks) or statusTimeText
     end
     runtime:TrackCleanup(function() if progressTween then progressTween:Cancel();progressTween=nil end end)
     function app:SetStatusDetails(lines)
@@ -2762,7 +2771,9 @@ function Desktop.Mount(deps, options)
     local statusRunning=true
     local statusComplete=false
     local function refreshActivityGlyph()
-        for _,bar in ipairs(activityBars) do bar.Visible=statusRunning and not statusNoticeActive end
+        activityTile.Visible=statusMusicActive
+        for _,bar in ipairs(activityBars) do bar.Visible=statusMusicActive end
+        runningIcon.Visible=statusRunning
         eventIcon.Visible=statusNoticeActive
         restingGlyph.Visible=not statusRunning and not statusNoticeActive
         if statusComplete then
@@ -2786,14 +2797,10 @@ function Desktop.Mount(deps, options)
         end
     end
     function app:SetStatusMetrics(clicks,seconds,rewards)
+        statusCounts.Clicks=clicks or 0;statusCounts.Seconds=seconds or 0;statusCounts.Rewards=rewards or 0
         dockMetrics.Text=tostring(clicks or 0).." clicks  ·  "..tostring(rewards or 0).." rewards"
-        dockTime.Text=tostring(seconds or 0).."s"
-        -- Reuse the bounded demo's updates; no perpetual animation or render loop.
-        if statusRunning and statusDock.Visible and not statusNoticeActive and not deps.Motion.Reduced then
-            for i,bar in ipairs(activityBars) do
-                deps.Motion:Tween(bar,0.18,{Size=UDim2.fromOffset(3,5+((math.floor(clicks or 0)+i*3)%12))})
-            end
-        end
+        statusTimeText=tostring(seconds or 0).."s"
+        dockTime.Text=statusMobile() and tostring(clicks or 0) or statusTimeText
     end
     function app:IsMinimized() return not holder.Visible or self._Minimizing==true end
     local windowTween,windowScaleTween,dockTween,transition= nil,nil,nil,0
@@ -2807,7 +2814,10 @@ function Desktop.Mount(deps, options)
         return UDim2.fromOffset(statusDock.AbsolutePosition.X-screen.AbsolutePosition.X+statusDock.AbsoluteSize.X/2,statusDock.AbsolutePosition.Y-screen.AbsolutePosition.Y+statusDock.AbsoluteSize.Y/2)
     end
     local function dockSize()
-        return UDim2.fromOffset(math.min((statusNoticeActive or statusExpanded) and 316 or 272,math.max(120,screen.AbsoluteSize.X-24)),statusNoticeActive and 78 or (statusExpanded and 120 or 52))
+        local mobile=statusMobile()
+        local width=statusExpanded and (mobile and 272 or 380) or (mobile and 226 or 350)
+        if statusMusicActive then width=width+42 end
+        return UDim2.fromOffset(math.min(width,math.max(120,screen.AbsoluteSize.X-24)),statusExpanded and (mobile and 108 or 122) or (mobile and 40 or 56))
     end
     -- Compact: 2px separation. Expanded/event: merge into one fluid capsule.
     local shapeTweens={}
@@ -2815,18 +2825,57 @@ function Desktop.Mount(deps, options)
         if shapeTweens[object] then shapeTweens[object]:Cancel() end
         shapeTweens[object]=deps.Motion:Tween(object,0.24,props,Enum.EasingStyle.Quint)
     end
-    local function syncStatusShape()
-        local joined=statusExpanded or statusNoticeActive
-        local inset=joined and 0 or 46
+    syncStatusShape=function()
+        local mobile=statusMobile()
+        local inset=statusMusicActive and 42 or 0
+        local rowHeight=mobile and 40 or 56
         shape(statusBody,{Position=UDim2.fromOffset(inset,0),Size=UDim2.new(1,-inset,1,0)})
-        shape(orbEdge,{Transparency=joined and 0.86 or 0.68})
-        shape(activityTile,{Position=UDim2.fromOffset(joined and 29 or 22,joined and 29 or 26),Size=UDim2.fromOffset(joined and 40 or 44,joined and 40 or 44),BackgroundTransparency=joined and 0.55 or 0})
-        statusRow.Visible=true;statusEvent.Visible=true
+        statusRow.Position=UDim2.fromOffset(inset,0);statusRow.Size=UDim2.new(1,-inset,1,0)
+        statusEvent.Position=statusRow.Position;statusEvent.Size=statusRow.Size
+        activityTile.Position=UDim2.fromOffset(18,rowHeight/2);activityTile.Size=UDim2.fromOffset(36,36)
+        activityTile.Visible=statusMusicActive
+        orbEdge.Transparency=0.75;orbInset.BackgroundTransparency=0.96
+        runningIcon.Position=UDim2.fromOffset(12,mobile and 12 or 13)
+        restingGlyph.Position=UDim2.fromOffset(20,mobile and 20 or 22)
+        eventIcon.Position=UDim2.fromOffset(20,mobile and 20 or 22)
+        dockActivity.Position=UDim2.fromOffset(36,mobile and 0 or 7)
+        dockActivity.Size=UDim2.new(1,-116,0,mobile and 40 or 20)
+        dockActivity.TextSize=mobile and 12 or 14
+        dockMetrics.Position=UDim2.fromOffset(36,30);dockMetrics.Size=UDim2.new(1,-80,0,16)
+        dockMetrics.Visible=not mobile
+        dockTime.Position=UDim2.new(1,-76,0,mobile and 0 or 8)
+        dockTime.Size=UDim2.fromOffset(40,mobile and 40 or 20)
+        dockTime.Text=mobile and tostring(statusCounts.Clicks) or statusTimeText
+        detailToggle.Position=UDim2.new(1,-34,0,mobile and 7 or 15)
+        detailToggle.Size=UDim2.fromOffset(30,28)
+        details.Position=UDim2.fromOffset(14,mobile and 44 or 60)
+        details.Size=UDim2.new(1,-28,0,60)
+        details.Visible=statusExpanded and not statusNoticeActive
+        eventTitle.Position=UDim2.fromOffset(36,mobile and 0 or 7)
+        eventTitle.Size=UDim2.new(1,-48,0,mobile and 40 or 21)
+        eventTitle.TextSize=mobile and 12 or 14;eventTitle.TextTruncate=Enum.TextTruncate.AtEnd
+        eventBody.Position=UDim2.fromOffset(36,30);eventBody.Size=UDim2.new(1,-48,0,16)
+        eventBody.TextWrapped=false;eventBody.TextTruncate=Enum.TextTruncate.AtEnd;eventBody.Visible=not mobile
+        statusRow.Visible=true;statusEvent.Visible=true;dockActivity.Visible=true
         shape(statusRow,{GroupTransparency=statusNoticeActive and 1 or 0})
         shape(statusEvent,{GroupTransparency=statusNoticeActive and 0 or 1})
         detailToggle.Visible=not statusNoticeActive
-        details.Visible=statusExpanded and not statusNoticeActive
+        progressTrack.Position=UDim2.new(0,36,0,rowHeight-3);progressTrack.Size=UDim2.new(1,-48,0,1)
         refreshActivityGlyph()
+    end
+    function app:SetStatusMusicLevel(active,level)
+        if runtime.Destroyed then return end
+        active=active==true
+        if statusMusicActive~=active then
+            statusMusicActive=active
+            syncStatusShape()
+            if statusDock.Visible then statusDock.Size=dockSize() end
+        end
+        if not active or not statusDock.Visible or deps.Motion.Reduced then return end
+        local height=math.clamp(tonumber(level) or 0,0,1)
+        for i,bar in ipairs(activityBars) do
+            bar.Size=UDim2.fromOffset(3,4+math.floor(height*(i%2==0 and 17 or 12)))
+        end
     end
     runtime:TrackCleanup(function() for _,tween in pairs(shapeTweens) do tween:Cancel() end;table.clear(shapeTweens) end)
     local function expandStatus(value)
@@ -2836,7 +2885,10 @@ function Desktop.Mount(deps, options)
             dockTween=deps.Motion:Tween(statusDock,0.22,{Size=dockSize()},Enum.EasingStyle.Quint)
         end
     end
-    detailToggle.Activated:Connect(function() expandStatus(not statusExpanded) end)
+    detailToggle.Activated:Connect(function()
+        if serenityInputBlocked(detailToggle) or (app.StatusClickSuppressed and app:StatusClickSuppressed()) then return end
+        expandStatus(not statusExpanded)
+    end)
     detailRestore.Activated:Connect(function() app:SetVisible(true) end)
     local petsShortcut=Instance.new("TextButton");petsShortcut.BackgroundTransparency=1
     petsShortcut.Text="Server pets  ›";petsShortcut.TextSize=11;petsShortcut.Font=Enum.Font.GothamMedium
@@ -2847,8 +2899,9 @@ function Desktop.Mount(deps, options)
     function app:StatusNotice(title,message,duration)
         if runtime.Destroyed then return end
         if statusNoticeTimer then pcall(task.cancel,statusNoticeTimer) end
-        statusNoticeActive=true;statusRow.Visible=false;dockActivity.Visible=false;statusEvent.Visible=true
+        statusNoticeActive=true;statusEvent.Visible=true
         eventTitle.Text=tostring(title or "Update"):sub(1,60)
+        if statusMobile() and (eventTitle.Text:lower():find("reward",1,true) or tostring(message or ""):find("+1",1,true)) then eventTitle.Text="Reward +1" end
         eventBody.Text=tostring(message or ""):sub(1,140)
         local function resize()
             syncStatusShape()
@@ -2936,7 +2989,7 @@ function Desktop.Mount(deps, options)
     runtime:TrackCleanup(cancelTransition)
     local statusDragHandle=Instance.new("TextButton")
     statusDragHandle.Name="StatusDragHandle";statusDragHandle.Text="";statusDragHandle.AutoButtonColor=false
-    statusDragHandle.BackgroundTransparency=1;statusDragHandle.Size=UDim2.new(1,-38,0,52)
+    statusDragHandle.BackgroundTransparency=1;statusDragHandle.Size=UDim2.new(1,-38,0,40)
     statusDragHandle.Active=true;statusDragHandle.ZIndex=94;statusDragHandle.Parent=statusDock
     local statusRestoreGate=0
     local function activateStatus()
@@ -2945,7 +2998,7 @@ function Desktop.Mount(deps, options)
         if os.clock()<statusRestoreGate then return end
         statusRestoreGate=os.clock()+0.2
         if deps.PlayUISound then deps.PlayUISound() end
-        app:SetVisible(true)
+        expandStatus(not statusExpanded)
     end
     statusDock.Activated:Connect(activateStatus)
     statusDragHandle.Activated:Connect(activateStatus)
@@ -3064,6 +3117,7 @@ function Desktop.Mount(deps, options)
     runtime:TrackConnection(screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
         placeIcon(restore.AbsolutePosition-screen.AbsolutePosition)
         if statusDock.Visible and app:IsMinimized() then
+            syncStatusShape()
             if dockTween then dockTween:Cancel();dockTween=nil end
             statusDock.Size=dockSize()
         end
@@ -3747,6 +3801,7 @@ do
         if removed then removed:Disconnect();removed=nil end
         table.clear(candidates);source=nil;amplitude=0;elapsed=0;pickElapsed=1
         resetRunes()
+        if app.SetStatusMusicLevel then app:SetStatusMusicLevel(false,0) end
     end
     function app:SetMusicSource(sound)
         if sound~=nil and (typeof(sound)~="Instance" or not sound:IsA("Sound")) then return false end
@@ -3771,8 +3826,9 @@ do
         end)
         follow=game:GetService("RunService").Heartbeat:Connect(function(dt)
             if runtime.Destroyed then return end
-            if Motion.Reduced or app.MotionSuspended or not app.Holder.Visible then
+            if Motion.Reduced or app.MotionSuspended or (not app.Holder.Visible and not app:IsMinimized()) then
                 if amplitude~=0 then amplitude=0;resetRunes() end
+                if app.SetStatusMusicLevel then app:SetStatusMusicLevel(false,0) end
                 return
             end
             elapsed=elapsed+dt
@@ -3781,6 +3837,7 @@ do
             pickElapsed=pickElapsed+step
             if pickElapsed>=1 then source=pickSource();pickElapsed=0 end
             local target=audible(source) and math.clamp(source.PlaybackLoudness/450,0,1) or 0
+            if app.SetStatusMusicLevel then app:SetStatusMusicLevel(audible(source)==true,amplitude) end
             amplitude=amplitude+(target-amplitude)*(1-math.exp(-step*(target>amplitude and 18 or 7)))
             if target==0 and amplitude<0.005 then
                 if amplitude~=0 then amplitude=0;resetRunes() end
@@ -4873,7 +4930,7 @@ do
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new · Solid trial"})
-    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Clearer quick actions","Larger labels and brief press feedback for your tools."},{"Presets stay connected","Dashboard colors follow the selected appearance preset."}}) do
+    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Compact activity status","Tap for details; reward updates stay inside the mobile pill."},{"Presets stay connected","Dashboard colors follow the selected appearance preset."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
