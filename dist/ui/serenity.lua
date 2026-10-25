@@ -4989,37 +4989,43 @@ do
     -- Date snapshot: Serenity-hub @ 195d62265876dc08c1bc6504dbf9ee1ddefe115c.
     -- Refresh the date snapshot when rebuilding this directory; no runtime API polling.
     local aboutGames={
-        -- Name, UniverseId, launch PlaceId, status, last runtime update (PHT).
-        {"MM2",66654135,142823291,"Supported","21 Oct 2026 · 02:29"},
-        {"Steal A Seed",10764328008,122216176958450,"Supported","17 Sep 2026 · 16:39"},
-        {"Lift a Cube",10759860151,109530157755211,"Supported","15 Sep 2026 · 19:32"},
-        {"Steal An Anime Egg",10747748563,76377501906469,"Supported","15 Sep 2026 · 19:38"},
-        {"Break and Steal an Egg",10765288803,114326934417838,"Supported","23 Oct 2026 · 00:23"},
-        {"Ride A Pet",10035204815,124216119978534,"Supported","20 Oct 2026 · 23:54"},
-        {"+1 Strength to Grow Your Arm",10310999762,86259628805375,"Supported","26 Sep 2026 · 11:50"},
-        {"Anime Dice",10708913337,113290951185459,"Supported","19 Oct 2026 · 19:34"},
-        {"+1 Loot to Forge",10684750879,118805555015549,"Supported","21 Oct 2026 · 01:56"},
-        {"Lift Rock for Eggs",10768316438,76731343328034,"Supported","13 Oct 2026 · 22:52"},
-        {"+1 Drain Water Per Click",10561352230,103883942725157,"Supported","26 Aug 2026 · 01:27"},
-        {"Sell Ores",10336278580,122572082932179,"Supported","08 Sep 2026 · 18:45"},
-        {"+1 Cut Grass Adventure",10410945205,90086669327265,"Supported","28 Aug 2026 · 02:11"},
-        {"Greedy Growers",10440833423,74102906764176,"Supported","26 Aug 2026 · 21:12"},
-        {"Chicken Farm",10209534490,137233438285284,"Supported","27 Aug 2026 · 23:46"},
-        {"+1 Monkey Evolution",10605939914,91701030914075,"Supported","26 Aug 2026 · 20:03"},
-        {"+1 Superhero Evolution",10577588270,97824450589417,"Supported","26 Aug 2026 · 01:27"},
-        {"Heroes RNG",10153098880,108307565942574,"Discontinued","30 Aug 2026 · 00:24"},
-        {"Throw a Coin",10131390815,115681808123944,"Discontinued","30 Aug 2026 · 11:00"},
-        {"Cheating During Testing",9780429221,98894876188248,"Patched","31 Aug 2026 · 23:53"},
-        {"Roll Anime to Fight",10298144467,107653945083776,"Discontinued","17 Sep 2026 · 18:50"},
-        {"+1 Dino Evolution",10664667515,103138601755519,"Supported","12 Sep 2026 · 12:44"},
-        {"+1 Phonk Evolution",10544327471,104809044319701,"Supported","04 Sep 2026 · 10:24"},
-        {"Unscathed RNG",8959257868,122951224417794,"Supported","05 Sep 2026 · 15:19"},
-        {"Mine a Mountain",10187294555,125927821145949,"Supported","07 Sep 2026 · 19:45"},
-        {"Search for the Needle",10756011174,77108422251420,"Discontinued","09 Sep 2026 · 07:52"},
-        {"+1 Tongue Escape",10681914462,122245938604556,"Supported","12 Sep 2026 · 01:17"},
-        {"Collect All the Leaves",nil,nil,"Patched","26 Aug 2026 · 01:27"},
-        {"Jump To Steal Soccer Players",nil,nil,"Patched","26 Aug 2026 · 01:27"},
+        -- Name, UniverseId, launch PlaceId, status, last runtime update (PHT), UTC sort timestamp.
+        {"MM2",66654135,142823291,"Supported","21 Oct 2026 · 02:29",1792520940},
+        {"Steal A Seed",10764328008,122216176958450,"Supported","17 Sep 2026 · 16:39",1789634340},
+        {"Lift a Cube",10759860151,109530157755211,"Supported","15 Sep 2026 · 19:32",1789471920},
+        {"Steal An Anime Egg",10747748563,76377501906469,"Supported","15 Sep 2026 · 19:38",1789472280},
+        {"Break and Steal an Egg",10765288803,114326934417838,"Supported","23 Oct 2026 · 00:23",1792686180},
+        {"Ride A Pet",10035204815,124216119978534,"Supported","20 Oct 2026 · 23:54",1792511640},
+        {"+1 Strength to Grow Your Arm",10310999762,86259628805375,"Supported","26 Sep 2026 · 11:50",1790394600},
+        {"Anime Dice",10708913337,113290951185459,"Supported","19 Oct 2026 · 19:34",1792409640},
+        {"+1 Loot to Forge",10684750879,118805555015549,"Supported","21 Oct 2026 · 01:56",1792518960},
+        {"Lift Rock for Eggs",10768316438,76731343328034,"Supported","13 Oct 2026 · 22:52",1791903120},
+        {"+1 Drain Water Per Click",10561352230,103883942725157,"Supported","26 Aug 2026 · 01:27",1787678820},
+        {"Sell Ores",10336278580,122572082932179,"Supported","08 Sep 2026 · 18:45",1788864300},
+        {"+1 Cut Grass Adventure",10410945205,90086669327265,"Supported","28 Aug 2026 · 02:11",1787854260},
+        {"Greedy Growers",10440833423,74102906764176,"Supported","26 Aug 2026 · 21:12",1787749920},
+        {"Chicken Farm",10209534490,137233438285284,"Supported","27 Aug 2026 · 23:46",1787845560},
+        {"+1 Monkey Evolution",10605939914,91701030914075,"Supported","26 Aug 2026 · 20:03",1787745780},
+        {"+1 Superhero Evolution",10577588270,97824450589417,"Supported","26 Aug 2026 · 01:27",1787678820},
+        {"Heroes RNG",10153098880,108307565942574,"Discontinued","30 Aug 2026 · 00:24",1788020640},
+        {"Throw a Coin",10131390815,115681808123944,"Discontinued","30 Aug 2026 · 11:00",1788058800},
+        {"Cheating During Testing",9780429221,98894876188248,"Patched","31 Aug 2026 · 23:53",1788191580},
+        {"Roll Anime to Fight",10298144467,107653945083776,"Discontinued","17 Sep 2026 · 18:50",1789642200},
+        {"+1 Dino Evolution",10664667515,103138601755519,"Supported","12 Sep 2026 · 12:44",1789188240},
+        {"+1 Phonk Evolution",10544327471,104809044319701,"Supported","04 Sep 2026 · 10:24",1788488640},
+        {"Unscathed RNG",8959257868,122951224417794,"Supported","05 Sep 2026 · 15:19",1788592740},
+        {"Mine a Mountain",10187294555,125927821145949,"Supported","07 Sep 2026 · 19:45",1788781500},
+        {"Search for the Needle",10756011174,77108422251420,"Discontinued","09 Sep 2026 · 07:52",1788911520},
+        {"+1 Tongue Escape",10681914462,122245938604556,"Supported","12 Sep 2026 · 01:17",1789147020},
+        {"Collect All the Leaves",nil,nil,"Patched","26 Aug 2026 · 01:27",1787678820},
+        {"Jump To Steal Soccer Players",nil,nil,"Patched","26 Aug 2026 · 01:27",1787678820},
     }
+
+    -- Oldest first; the most recently updated runtime appears last.
+    table.sort(aboutGames,function(a,b)
+        if a[6]==b[6] then return string.lower(a[1])<string.lower(b[1]) end
+        return a[6]<b[6]
+    end)
 
     local intro=card(about,100,1)
     Icons.Create(intro,"about",21,Tokens.Color.Accent,UDim2.fromOffset(14,12))
