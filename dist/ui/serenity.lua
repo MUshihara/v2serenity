@@ -2817,9 +2817,9 @@ function Desktop.Mount(deps, options)
     end
     local function dockSize()
         local mobile=statusMobile()
-        local width=statusExpanded and (mobile and 268 or 320) or (mobile and 232 or 300)
+        local width=statusExpanded and (mobile and 268 or 432) or (mobile and 232 or 340)
         if statusMusicActive then width=width+44 end
-        return UDim2.fromOffset(math.min(width,math.max(120,screen.AbsoluteSize.X-24)),statusExpanded and (mobile and 166 or 178) or (mobile and 48 or 60))
+        return UDim2.fromOffset(math.min(width,math.max(120,screen.AbsoluteSize.X-24)),statusExpanded and (mobile and 166 or 152) or (mobile and 48 or 60))
     end
     local shapeTweens={}
     local function shape(object,props)
@@ -2857,11 +2857,12 @@ function Desktop.Mount(deps, options)
         for i,tile in ipairs(statTiles) do
             tile.Position=UDim2.new((i-1)/3,(i-1)*2,0,10)
             tile.Size=UDim2.new(1/3,-4,0,46)
-            statValues[i].TextSize=mobile and 15 or 17
+            statValues[i].TextSize=mobile and 15 or 18
         end
-        detailText.Position=UDim2.fromOffset(1,59);detailText.Size=UDim2.new(1,-2,0,18)
+        detailText.Position=UDim2.fromOffset(1,59);detailText.Size=UDim2.new(1,mobile and -2 or -100,0,18)
+        petsShortcut.Visible=mobile
         petsShortcut.Position=UDim2.fromOffset(1,81);petsShortcut.Size=UDim2.new(1,-100,0,28)
-        detailRestore.Position=UDim2.new(1,-90,0,81);detailRestore.Size=UDim2.fromOffset(90,28)
+        detailRestore.Position=UDim2.new(1,-90,0,mobile and 81 or 61);detailRestore.Size=UDim2.fromOffset(90,28)
         statusRow.Visible=true;statusEvent.Visible=true
         shape(statusRow,{GroupTransparency=statusNoticeActive and 1 or 0})
         shape(statusEvent,{GroupTransparency=statusNoticeActive and 0 or 1})
@@ -3617,9 +3618,10 @@ function Desktop.Mount(deps, options)
     if deps.Mobile then
         heading.Position=UDim2.fromOffset(46,12)
         heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-50,24)
-        brandSub.Position=UDim2.fromOffset(16,39)
-        brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-30,15)
-        brandSub.TextSize=10
+        brandSub.Position=UDim2.fromOffset(46,37)
+        brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-54,19)
+        brandSub.TextSize=11
+        brandSub.TextYAlignment=Enum.TextYAlignment.Center
     end
     pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(deps.Mobile and 160 or 190,40)
     pageButton.BackgroundTransparency=1;pageText.TextSize=17;serenityColor(pageText,"TextColor3",tokens,"Text")
@@ -4940,7 +4942,7 @@ do
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new · Solid trial"})
-    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Activity capsule redesign","Compact mobile header, structured counters, and steady inline updates."},{"Presets stay connected","Dashboard colors follow the selected appearance preset."}}) do
+    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Desktop activity shelf","Wider PC details; compact mobile status stays unchanged."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4981,48 +4983,50 @@ do
     end
     runtime:TrackConnection(community:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeCommunity));arrangeCommunity()
     -- ABOUT / M4.78: grounded supported-games directory.
-    -- Route = a loader rule, NOT proof of a healthy or tested payload.
-    -- Snapshot: root loader + dist/loader.lua + README (2026-10-21).
+    -- Owner-maintained game availability, with runtime commit dates.
     -- Keep this independent of the preserved Dashboard and Settings.
+    -- Statuses are maintained by Serenity; dates are runtime-file commit times.
+    -- Date snapshot: Serenity-hub @ 195d62265876dc08c1bc6504dbf9ee1ddefe115c.
+    -- Refresh the date snapshot when rebuilding this directory; no runtime API polling.
     local aboutGames={
-        -- Name, UniverseId, launch PlaceId, route state
-        {"MM2",66654135,142823291,"Routed"},
-        {"Steal A Seed",10764328008,122216176958450,"Routed"},
-        {"Lift a Cube",10759860151,109530157755211,"Routed"},
-        {"Steal An Anime Egg",10747748563,76377501906469,"Routed"},
-        {"Break and Steal an Egg",10765288803,114326934417838,"Routed"},
-        {"Ride A Pet",10035204815,124216119978534,"Routed"},
-        {"+1 Strength to Grow Your Arm",10310999762,86259628805375,"Routed"},
-        {"Anime Dice",10708913337,113290951185459,"Routed"},
-        {"+1 Loot to Forge",10684750879,118805555015549,"Routed"},
-        {"Lift Rock for Eggs",10768316438,76731343328034,"Routed"},
-        {"+1 Drain Water Per Click",10561352230,103883942725157,"Routed"},
-        {"Sell Ores",10336278580,122572082932179,"Routed"},
-        {"+1 Cut Grass Adventure",10410945205,90086669327265,"Routed"},
-        {"Greedy Growers",10440833423,74102906764176,"Routed"},
-        {"Chicken Farm",10209534490,137233438285284,"Routed"},
-        {"+1 Monkey Evolution",10605939914,91701030914075,"Routed"},
-        {"+1 Superhero Evolution",10577588270,97824450589417,"Routed"},
-        {"Heroes RNG",10153098880,108307565942574,"Routed"},
-        {"Throw a Coin",10131390815,115681808123944,"Routed"},
-        {"Cheating During Testing",9780429221,98894876188248,"Routed"},
-        {"Roll Anime to Fight",10298144467,107653945083776,"Routed"},
-        {"+1 Dino Evolution",10664667515,103138601755519,"Routed"},
-        {"+1 Phonk Evolution",10544327471,104809044319701,"Routed"},
-        {"Unscathed RNG",8959257868,122951224417794,"Routed"},
-        {"Mine a Mountain",10187294555,125927821145949,"Routed"},
-        {"Search for the Needle",10756011174,77108422251420,"Routed"},
-        {"+1 Tongue Escape",10681914462,122245938604556,"Routed"},
-        {"Collect All the Leaves",nil,nil,"Listed"},
-        {"Jump To Steal Soccer Players",nil,nil,"Listed"},
+        -- Name, UniverseId, launch PlaceId, status, last runtime update (PHT).
+        {"MM2",66654135,142823291,"Supported","21 Oct 2026 · 02:29"},
+        {"Steal A Seed",10764328008,122216176958450,"Supported","17 Sep 2026 · 16:39"},
+        {"Lift a Cube",10759860151,109530157755211,"Supported","15 Sep 2026 · 19:32"},
+        {"Steal An Anime Egg",10747748563,76377501906469,"Supported","15 Sep 2026 · 19:38"},
+        {"Break and Steal an Egg",10765288803,114326934417838,"Supported","23 Oct 2026 · 00:23"},
+        {"Ride A Pet",10035204815,124216119978534,"Supported","20 Oct 2026 · 23:54"},
+        {"+1 Strength to Grow Your Arm",10310999762,86259628805375,"Supported","26 Sep 2026 · 11:50"},
+        {"Anime Dice",10708913337,113290951185459,"Supported","19 Oct 2026 · 19:34"},
+        {"+1 Loot to Forge",10684750879,118805555015549,"Supported","21 Oct 2026 · 01:56"},
+        {"Lift Rock for Eggs",10768316438,76731343328034,"Supported","13 Oct 2026 · 22:52"},
+        {"+1 Drain Water Per Click",10561352230,103883942725157,"Supported","26 Aug 2026 · 01:27"},
+        {"Sell Ores",10336278580,122572082932179,"Supported","08 Sep 2026 · 18:45"},
+        {"+1 Cut Grass Adventure",10410945205,90086669327265,"Supported","28 Aug 2026 · 02:11"},
+        {"Greedy Growers",10440833423,74102906764176,"Supported","26 Aug 2026 · 21:12"},
+        {"Chicken Farm",10209534490,137233438285284,"Supported","27 Aug 2026 · 23:46"},
+        {"+1 Monkey Evolution",10605939914,91701030914075,"Supported","26 Aug 2026 · 20:03"},
+        {"+1 Superhero Evolution",10577588270,97824450589417,"Supported","26 Aug 2026 · 01:27"},
+        {"Heroes RNG",10153098880,108307565942574,"Discontinued","30 Aug 2026 · 00:24"},
+        {"Throw a Coin",10131390815,115681808123944,"Discontinued","30 Aug 2026 · 11:00"},
+        {"Cheating During Testing",9780429221,98894876188248,"Patched","31 Aug 2026 · 23:53"},
+        {"Roll Anime to Fight",10298144467,107653945083776,"Discontinued","17 Sep 2026 · 18:50"},
+        {"+1 Dino Evolution",10664667515,103138601755519,"Supported","12 Sep 2026 · 12:44"},
+        {"+1 Phonk Evolution",10544327471,104809044319701,"Supported","04 Sep 2026 · 10:24"},
+        {"Unscathed RNG",8959257868,122951224417794,"Supported","05 Sep 2026 · 15:19"},
+        {"Mine a Mountain",10187294555,125927821145949,"Supported","07 Sep 2026 · 19:45"},
+        {"Search for the Needle",10756011174,77108422251420,"Discontinued","09 Sep 2026 · 07:52"},
+        {"+1 Tongue Escape",10681914462,122245938604556,"Supported","12 Sep 2026 · 01:17"},
+        {"Collect All the Leaves",nil,nil,"Patched","26 Aug 2026 · 01:27"},
+        {"Jump To Steal Soccer Players",nil,nil,"Patched","26 Aug 2026 · 01:27"},
     }
 
     local intro=card(about,100,1)
     Icons.Create(intro,"about",21,Tokens.Color.Accent,UDim2.fromOffset(14,12))
     label(intro,"Supported Games",44,8,-60,26,18)
-    local introSub=label(intro,"Explore Serenity Hub experiences. Routes are configured, not necessarily live-tested.",14,42,-28,35,12,Tokens.Color.TextMuted)
+    local introSub=label(intro,"Find your game and check its availability and latest script update.",14,42,-28,35,12,Tokens.Color.TextMuted)
     introSub.TextWrapped=true
-    label(intro,"27 ROUTED   /   2 LISTED",14,80,-28,16,10,Tokens.Color.Cyan)
+    label(intro,"22 SUPPORTED   ·   3 PATCHED   ·   4 DISCONTINUED",14,78,-28,18,10,Tokens.Color.Cyan)
 
     local directorySearch=card(about,105,2)
     local findInput=Instance.new("TextBox")
@@ -5053,15 +5057,16 @@ do
     local filter="All"
     local filterButtons={}
     local refreshDirectory
-    for i,name in ipairs({"All","Routed","Listed"}) do
+    for i,name in ipairs({"All","Supported","Patched","Discontinued"}) do
         local filterButton=Instance.new("TextButton")
         filterButton.Name="Filter"..name
+        filterButton.LayoutOrder=i
         filterButton.Text=name
         filterButton.TextSize=12
         filterButton.Font=Enum.Font.GothamSemibold
         filterButton.AutoButtonColor=false
-        filterButton.Position=UDim2.new((i-1)/3,(i==1 and 0 or i==2 and 3 or 6),0,0)
-        filterButton.Size=UDim2.new(1/3,-7,0,32)
+        filterButton.Position=UDim2.new((i-1)/4,3,0,0)
+        filterButton.Size=UDim2.new(1/4,-6,0,32)
         serenityColor(filterButton,"TextColor3",Tokens,"Text")
         filterButton.Parent=filterWrap
         Material.Inset(filterButton,Tokens)
@@ -5073,6 +5078,21 @@ do
             if refreshDirectory then refreshDirectory() end
         end))
     end
+
+
+    local function arrangeDirectoryFilters()
+        local columns=logicalWidth(directorySearch)<440 and 2 or 4
+        for _,control in pairs(filterButtons) do
+            local index=control.LayoutOrder-1
+            control.Position=UDim2.new((index%columns)/columns,3,0,math.floor(index/columns)*37)
+            control.Size=UDim2.new(1/columns,-6,0,32)
+        end
+        local height=columns==2 and 74 or 37
+        filterWrap.Size=UDim2.new(1,-24,0,height)
+        directorySearch.Size=UDim2.new(1,-4,0,55+height+12)
+    end
+    runtime:TrackConnection(directorySearch:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeDirectoryFilters))
+    arrangeDirectoryFilters()
 
     local directoryHeader=Instance.new("Frame")
     directoryHeader.Name="DirectoryHeading"
@@ -5132,23 +5152,31 @@ do
             end))
             placeholder.Visible=not picture.IsLoaded
         end
-        local title=label(row,name,56,5,-155,23,13)
+        local title=label(row,name,56,5,-190,23,13)
         title.TextTruncate=Enum.TextTruncate.AtEnd
         local isCurrent=universe and game.GameId==universe
-        local info=label(row,isCurrent and "CURRENT GAME  ·  ROUTED" or
-            (state=="Routed" and "Loader route configured" or "README listing · Route unverified"),
-            56,29,-107,19,11,Tokens.Color.TextMuted)
+        local info=label(row,(isCurrent and "Current · " or "").."Updated "..data[5],56,29,-72,19,11,Tokens.Color.TextMuted)
         info.TextTruncate=Enum.TextTruncate.AtEnd
-        local stateLabel=label(row,state=="Routed" and "ROUTED" or "LISTED",0,16,-12,18,10,
-            state=="Routed" and Tokens.Color.Mint or Tokens.Color.Amber)
+        local stateRole=state=="Supported" and "Mint" or state=="Patched" and "Amber" or "TextDim"
+        local stateLabel=label(row,string.upper(state),0,14,-12,18,10,Tokens.Color[stateRole])
+        serenityColor(stateLabel,"TextColor3",Tokens,stateRole)
         stateLabel.AnchorPoint=Vector2.new(1,0)
-        stateLabel.Position=UDim2.new(1,-10,0,16)
-        stateLabel.Size=UDim2.fromOffset(68,18)
-        stateLabel.TextXAlignment=Enum.TextXAlignment.Center
+        stateLabel.TextXAlignment=Enum.TextXAlignment.Right
+        local function arrangeGameRow()
+            local narrow=logicalWidth(row)<420
+            row.Size=UDim2.new(1,0,0,narrow and 82 or 62)
+            title.Size=UDim2.new(1,narrow and -70 or -190,0,23)
+            stateLabel.AnchorPoint=Vector2.new(narrow and 0 or 1,0)
+            stateLabel.Position=narrow and UDim2.fromOffset(56,52) or UDim2.new(1,-12,0,10)
+            stateLabel.Size=UDim2.fromOffset(118,18)
+            stateLabel.TextXAlignment=narrow and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right
+        end
+        runtime:TrackConnection(row:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeGameRow))
+        arrangeGameRow()
         runtime:TrackConnection(row.Activated:Connect(function()
             if serenityInputBlocked(row) then return end
             if not place then
-                app:Notify("Route unverified",name.." appears in the README, but its game route is not confirmed.",5,"Info")
+                app:Notify(state,name.." · A game-page link is not available in this directory.",4,"Info")
                 return
             end
             local url="https://www.roblox.com/games/"..tostring(place)
@@ -5203,7 +5231,7 @@ do
     local aboutFooter=card(about,75,5)
     label(aboutFooter,"ABOUT SERENITY HUB",12,9,-24,20,12)
     local footerDescription=label(aboutFooter,
-        "Based on current loader rules and the public README (Oct 21, 2026). Routed means configured, not verified working.",
+        "Availability is maintained by Serenity. Updated = latest runtime-file commit, in PHT (UTC+8). Date snapshot: 25 Oct 2026.",
         12,31,-24,38,11,Tokens.Color.TextMuted)
     footerDescription.TextWrapped=true
 end
