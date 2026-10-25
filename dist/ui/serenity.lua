@@ -4497,6 +4497,7 @@ refreshMaterials=function()
                 if object:GetAttribute("ReadingSurface") then
                     object.BackgroundTransparency=math.min(object.BackgroundTransparency,0.06)
                 end
+                if object:GetAttribute("DashboardSolid") then object.BackgroundTransparency=0.02 end
                 local g=object:FindFirstChild("GlassSheen") or object:FindFirstChild("ShellTone")
                 if not g then g=Instance.new("UIGradient");g.Name="GlassSheen";g.Parent=object end
                 g.Rotation=115
@@ -4511,7 +4512,7 @@ refreshMaterials=function()
                     local gl=Instance.new("UIGradient");gl.Name="Spectrum";gl.Parent=lip
                     gl.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.3,0.1),NumberSequenceKeypoint.new(0.7,0.35),NumberSequenceKeypoint.new(1,1)})
                 end
-                lip.Visible=enhanced;lip.BackgroundColor3=Color3.new(1,1,1);lip.BackgroundTransparency=0.24
+                lip.Visible=enhanced and not object:GetAttribute("DashboardSolid");lip.BackgroundColor3=Color3.new(1,1,1);lip.BackgroundTransparency=0.24
                 lip.Spectrum.Color=spectrum
                 end
             end
@@ -4684,18 +4685,23 @@ do
     local function logicalWidth(frame)
         return frame.AbsoluteSize.X/math.max(deps.UIScale.Scale,0.01)
     end
+    -- M4.79 dashboard-only solid surface trial. Roles keep every preset usable.
+    local function solidSurface(object,role,radius)
+        serenityColor(object,"BackgroundColor3",Tokens,role)
+        object.BackgroundTransparency=0.02
+        object.BorderSizePixel=0
+        object:SetAttribute("DashboardSolid",true)
+        local corner=object:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
+        corner.CornerRadius=UDim.new(0,radius or 12);corner.Parent=object
+        for _,child in ipairs(object:GetChildren()) do
+            if child:IsA("UIStroke") then child.Enabled=false end
+        end
+    end
     local function card(parent,height,order)
         local f=Instance.new("Frame");f.Size=UDim2.new(1,-4,0,height)
         f.LayoutOrder=order or 1;f.Parent=parent;Material.Section(f,Tokens)
         f:SetAttribute("ReadingSurface",true)
-        local _,brackets=Material.PixelCorners(f,Tokens,5)
-        local function feedback(active)
-            for _,part in ipairs(brackets) do
-                Motion:Tween(part,"Hover",{BackgroundTransparency=active and 0.38 or 0.72})
-            end
-        end
-        runtime:TrackConnection(f.MouseEnter:Connect(function() if serenityInputBlocked(f) then return end; feedback(true) end))
-        runtime:TrackConnection(f.MouseLeave:Connect(function() feedback(false) end))
+        solidSurface(f,"Panel",12)
         return f
     end
     local function label(parent,message,x,y,w,h,size,color)
@@ -4705,21 +4711,33 @@ do
     end
     local function button(parent,message,callback)
         local b=Instance.new("TextButton");b.Text=message;b.AutoButtonColor=false
-        b.Font=Enum.Font.GothamMedium;b.TextSize=12;serenityColor(b,"TextColor3",Tokens,"Text")
+        b.Font=Enum.Font.GothamMedium;b.TextSize=13;serenityColor(b,"TextColor3",Tokens,"Text")
         b.Parent=parent;Material.Inset(b,Tokens)
-        runtime:TrackConnection(b.Activated:Connect(callback))
+        solidSurface(b,"Inset",9)
+        runtime:TrackConnection(b.Activated:Connect(function() if serenityInputBlocked(b) then return end;callback() end))
         local normal=b.BackgroundTransparency
         runtime:TrackConnection(b.MouseEnter:Connect(function() if serenityInputBlocked(b) then return end; Motion:Tween(b,"Hover",{BackgroundTransparency=0.05}) end))
         runtime:TrackConnection(b.MouseLeave:Connect(function() Motion:Tween(b,"Hover",{BackgroundTransparency=normal}) end))
+        runtime:TrackConnection(b.InputBegan:Connect(function(input)
+            if serenityInputBlocked(b) then return end
+            if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+                Motion:Tween(b,0.08,{BackgroundTransparency=0.18})
+            end
+        end))
+        runtime:TrackConnection(b.InputEnded:Connect(function(input)
+            if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+                Motion:Tween(b,"Hover",{BackgroundTransparency=normal})
+            end
+        end))
         return b
     end
     local heading=Instance.new("Frame");heading.Size=UDim2.new(1,-4,0,48)
     heading.BackgroundTransparency=1;heading.LayoutOrder=1;heading.Parent=dashboard
     local dashboardTitle=label(heading,"Dashboard",0,0,-112,27,23)
-    local dashboardSubtitle=label(heading,"Your Serenity grimoire",0,28,-112,18,12,Tokens.Color.TextMuted)
+    local dashboardSubtitle=label(heading,"Your workspace, at a glance.",0,28,-112,18,13,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UI TEST  ·  M4.78";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="SOLID  ·  TEST";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     serenityColor(badge,"TextColor3",Tokens,"Accent");badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4729,14 +4747,14 @@ do
     end
     runtime:TrackConnection(heading:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHeading));arrangeHeading()
 
-    local hero=card(dashboard,142,2);hero.Name="DashboardHero";hero.ClipsDescendants=true
+    local hero=card(dashboard,150,2);hero.Name="DashboardHero";hero.ClipsDescendants=true
     hideDashboardName=savedAppearance and savedAppearance.HideDashboardName==true or false
-    local greeting=label(hero,hideDashboardName and "Welcome back" or "Welcome back, "..player.DisplayName,18,15,-125,28,20)
+    local greeting=label(hero,hideDashboardName and "Welcome back" or "Welcome back, "..player.DisplayName,18,16,-125,30,22)
     registerIdentity(greeting,"Text","Welcome back, "..player.DisplayName,"Welcome back")
     registerIdentity(app.IdentityName,"Text",player.DisplayName,"Hidden profile")
     registerIdentity(app.IdentityAvatar,"ImageTransparency",0,1)
     greeting.TextTruncate=Enum.TextTruncate.AtEnd
-    local note=label(hero,"Choose a workspace below. Make Serenity yours.",18,48,-125,34,12,Tokens.Color.TextMuted)
+    local note=label(hero,"Quick access to your tools and preferences.",18,51,-125,34,13,Tokens.Color.TextMuted)
     note.TextWrapped=true;note.TextYAlignment=Enum.TextYAlignment.Top
     local portrait=Instance.new("ImageLabel");portrait.Name="DashboardAvatar"
     portrait.AnchorPoint=Vector2.new(1,0);portrait.Position=UDim2.new(1,-18,0,19)
@@ -4749,12 +4767,14 @@ do
     registerIdentity(portrait,"ImageTransparency",0,1)
     -- Show the thumbnail directly; executor load flags can remain false after rendering.
     local explore=button(hero,"Explore components  ›",function() app:SelectPage("Playground") end)
-    explore.Position=UDim2.fromOffset(18,94);explore.Size=UDim2.fromOffset(166,34)
+    explore.Position=UDim2.fromOffset(18,96);explore.Size=UDim2.fromOffset(166,38)
+    serenityColor(explore,"BackgroundColor3",Tokens,"Accent")
+    serenityColor(explore,"TextColor3",Tokens,"ShellDeep")
     local customize=button(hero,"Customize",function() app:SelectPage("Settings") end)
-    customize.Position=UDim2.fromOffset(192,94);customize.Size=UDim2.fromOffset(104,34)
+    customize.Position=UDim2.fromOffset(192,96);customize.Size=UDim2.fromOffset(104,38)
     local function arrangeHero()
         local wide=logicalWidth(hero)>=390
-        explore.Size=UDim2.fromOffset(math.max(80,math.min(166,logicalWidth(hero)-36)),34)
+        explore.Size=UDim2.fromOffset(math.max(80,math.min(166,logicalWidth(hero)-36)),38)
         portrait.Visible=wide
         greeting.Size=UDim2.new(1,wide and -125 or -36,0,28)
         note.Size=UDim2.new(1,wide and -125 or -36,0,34)
@@ -4812,9 +4832,9 @@ do
     for i,data in ipairs(destinations) do
         local b=button(workspaces,"",function() local action=app:GetQuickAction(data[4]);if action then app:SetQuickPanelEnabled(data[4],not action.PanelEnabled) end end);shortcuts[i]=b
         Icons.Create(b,data[3],20,Tokens.Color.Accent,UDim2.fromOffset(10,11))
-        local title=label(b,data[1],38,8,-90,22,13)
-        title.Font=Enum.Font.GothamMedium
-        local sub=label(b,data[2],10,38,-20,18,11,Tokens.Color.TextMuted)
+        local title=label(b,data[1],38,8,-90,22,14)
+        title.Font=Enum.Font.GothamBold
+        local sub=label(b,data[2],10,38,-20,18,12,Tokens.Color.TextMuted)
         sub.TextTruncate=Enum.TextTruncate.AtEnd
         local switch=Instance.new("Frame");switch.Size=UDim2.fromOffset(32,19)
         switch.Position=UDim2.new(1,-42,0,12);switch.BorderSizePixel=0;switch.Parent=b
@@ -4852,8 +4872,8 @@ do
     glassSelector(quick.Body,"Glass material")
     local openSettings=button(quick.Body,"Appearance & preferences  ›",function() app:SelectPage("Settings") end)
     openSettings.Size=UDim2.new(1,0,0,38)
-    local news=Section.new(cols.Right,deps,{Title="What's new · M4.77"})
-    for i,data in ipairs({{"Safer dialogs and reloads","Confirmations block shortcuts; pending saves stop on reload."},{"Remember your workspace","Keybinds, floating positions and music preference now save."},{"Readable inline pet details","Expand a pet in place; loading and update states are available."}}) do
+    local news=Section.new(cols.Right,deps,{Title="What's new · Solid trial"})
+    for i,data in ipairs({{"Solid dashboard trial","Softer cards, bolder headings and quieter borders."},{"Clearer quick actions","Larger labels and brief press feedback for your tools."},{"Presets stay connected","Dashboard colors follow the selected appearance preset."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -4861,6 +4881,13 @@ do
         label(row,data[1],24,5,-36,22,12)
         local sub=label(row,data[2],24,27,-36,26,11,Tokens.Color.TextMuted)
         sub.TextWrapped=true;sub.TextYAlignment=Enum.TextYAlignment.Top
+    end
+    -- Keep the trial local to Dashboard, including its two preference sections.
+    for _,section in ipairs({quick,news}) do
+        solidSurface(section.Body,"Panel",12)
+        for _,label in ipairs(section.Header:GetDescendants()) do
+            if label:IsA("TextLabel") then label.TextSize=14;label.Font=Enum.Font.GothamBold end
+        end
     end
     local community=card(dashboard,88,6)
     Icons.Create(community,"discord",25,Tokens.Color.Accent,UDim2.fromOffset(14,16))
