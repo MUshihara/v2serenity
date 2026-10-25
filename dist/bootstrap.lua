@@ -90,7 +90,7 @@ local function text(parent, content, size, position, dimensions, color, bold)
     return make("TextLabel", {
         BackgroundTransparency = 1, Text = content,
         TextColor3 = color or colors.text, TextSize = size,
-        Font = bold and Enum.Font.GothamMedium or Enum.Font.Gotham,
+        Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
         Position = position, Size = dimensions,
@@ -128,8 +128,8 @@ local panel = make("CanvasGroup", {
     GroupColor3 = Color3.fromRGB(255, 255, 255),
     BorderSizePixel = 0, GroupTransparency = 1, ClipsDescendants = true,
 }, viewport)
-round(panel, 8)
-local edge = stroke(panel, Color3.fromRGB(255, 255, 255), 0.38, 1)
+round(panel, 16)
+local edge = stroke(panel, Color3.fromRGB(255, 255, 255), 0.9, 1)
 make("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 131, 106)),
@@ -142,21 +142,21 @@ make("UIGradient", {
 local background = make("Frame", {
     Name = "GlassBackground", Size = UDim2.fromScale(1, 1),
     BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-    BackgroundTransparency = 0.025, BorderSizePixel = 0,
+    BackgroundTransparency = 0, BorderSizePixel = 0,
     ZIndex = 0, Active = false,
 }, panel)
-round(background, 8)
+round(background, 16)
 make("UIGradient", {
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 40, 57)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(19, 28, 41)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(23, 32, 46)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 30, 44)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(15, 22, 33)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 26, 39)),
     }), Rotation = 35,
 }, background)
 local scaling = make("UIScale", {Scale = 1}, panel)
 local header = make("Frame", {
     Name = "Header", BackgroundColor3 = colors.glass,
-    BackgroundTransparency = 0.68, BorderSizePixel = 0,
+    BackgroundTransparency = 0.9, BorderSizePixel = 0,
     Size = UDim2.new(1, 0, 0, 56),
 }, panel)
 make("Frame", {
@@ -186,38 +186,38 @@ end
 local headerTitle = text(header, "SERENITY HUB", 22, UDim2.fromOffset(69, 0), UDim2.new(1, -137, 0, 56), colors.text, true)
 headerTitle.Font = Enum.Font.GothamBold
 local close = make("TextButton", {
-    Name = "Close", BackgroundColor3 = colors.glass, BackgroundTransparency = 0.6, Text = "×",
+    Name = "Close", BackgroundColor3 = colors.glass, BackgroundTransparency = 1, BorderSizePixel = 0, Text = "×",
     TextColor3 = colors.muted, TextSize = 30, Font = Enum.Font.Gotham,
     AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 6),
     Size = UDim2.fromOffset(44, 44), AutoButtonColor = false,
 }, header)
 
 round(close, 8)
-stroke(close, colors.muted, 0.75)
+-- Close stays unboxed to keep the header quiet.
 local body = make("CanvasGroup", {
     Name = "Body", BackgroundTransparency = 1, BorderSizePixel = 0,
     GroupTransparency = 0, GroupColor3 = Color3.fromRGB(255, 255, 255),
     Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 1, -120),
     ClipsDescendants = false,
 }, panel)
-local title = text(body, "Welcome to Serenity", 23, UDim2.fromOffset(24, 12), UDim2.new(1, -48, 0, 32), colors.text, true)
+local title = text(body, "Welcome to Serenity", 24, UDim2.fromOffset(24, 12), UDim2.new(1, -48, 0, 32), colors.text, true)
 title.TextXAlignment = Enum.TextXAlignment.Left
 local subtitle = text(body, "No key yet? Choose Get free key to get started.", 15, UDim2.fromOffset(24, 47), UDim2.new(1, -48, 0, 24), colors.muted)
 subtitle.TextXAlignment = Enum.TextXAlignment.Left
-text(body, "Access key", 14, UDim2.fromOffset(28, 81), UDim2.new(1, -56, 0, 22), colors.text, true)
+text(body, "Access key", 14, UDim2.fromOffset(28, 76), UDim2.new(1, -56, 0, 22), colors.text, true)
 local inputShell = make("Frame", {
-    BackgroundColor3 = colors.glass, BackgroundTransparency = 0.28,
-    Position = UDim2.fromOffset(28, 108), Size = UDim2.new(1, -56, 0, 48),
+    BackgroundColor3 = Color3.fromRGB(35, 44, 60), BackgroundTransparency = 0,
+    Position = UDim2.fromOffset(28, 104), Size = UDim2.new(1, -56, 0, 56),
     BorderSizePixel = 0,
 }, body)
-round(inputShell, 5)
-local inputEdge = stroke(inputShell, colors.muted, 0.52)
+round(inputShell, 11)
+local inputEdge = stroke(inputShell, colors.lavender, 0.95)
 local input = make("TextBox", {
     Name = "LicenseKey", BackgroundTransparency = 1,
     Position = UDim2.fromOffset(15, 0), Size = UDim2.new(1, -72, 1, 0),
     Text = "", PlaceholderText = "Enter or paste your access key",
     TextColor3 = colors.text, PlaceholderColor3 = colors.muted,
-    Font = Enum.Font.Gotham, TextSize = 15,
+    Font = Enum.Font.GothamMedium, TextSize = 16,
     TextXAlignment = Enum.TextXAlignment.Left,
     ClearTextOnFocus = false, MultiLine = false,
 }, inputShell)
@@ -225,7 +225,7 @@ local paste = make("TextButton", {
     Name = "Paste", BackgroundColor3 = Color3.fromRGB(40, 58, 82), BackgroundTransparency = 1,
     Text = "", TextColor3 = colors.text, Font = Enum.Font.GothamMedium,
     TextSize = 13, BorderSizePixel = 0,
-    Position = UDim2.new(1, -48, 0, 4), Size = UDim2.fromOffset(44, 40),
+    Position = UDim2.new(1, -48, 0, 8), Size = UDim2.fromOffset(44, 40),
     AutoButtonColor = false,
 }, inputShell)
 round(paste, 3)
@@ -285,12 +285,12 @@ local function button(name, caption, y, primary)
     local object = make("TextButton", {
         Name = name, BackgroundColor3 = primary and Color3.fromRGB(255, 255, 255) or colors.navy,
         BackgroundTransparency = primary and 0 or 0.3, BorderSizePixel = 0,
-        Position = UDim2.fromOffset(28, y), Size = UDim2.new(1, -56, 0, 48),
+        Position = UDim2.fromOffset(28, y), Size = UDim2.new(1, -56, 0, 52),
         Text = caption, TextColor3 = primary and colors.navy or colors.text,
         Font = Enum.Font.GothamBold, TextSize = 15, AutoButtonColor = false,
     }, body)
-    round(object, 5)
-    if primary then stroke(object, colors.cyan, 0.15) end
+    round(object, 11)
+    -- Solid surfaces provide hierarchy without extra outlines.
     if primary then
         make("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(213, 195, 149), colors.cyan), Rotation = 90}, object)
     end
@@ -319,10 +319,10 @@ local function button(name, caption, y, primary)
 end
 -- One action row keeps the complete key gate visible in phone landscape.
 local verify = button("Verify", "Submit key  →", 170, true)
-verify.Size = UDim2.new(0.64, -36, 0, 48)
+verify.Size = UDim2.new(0.64, -36, 0, 52)
 local getKey = button("GetKey", "Get free key", 170, false)
 getKey.Position = UDim2.new(0.64, 4, 0, 170)
-getKey.Size = UDim2.new(0.36, -32, 0, 48)
+getKey.Size = UDim2.new(0.36, -32, 0, 52)
 -- Restrained action colors stay readable against the charcoal window.
 verify.TextXAlignment = Enum.TextXAlignment.Center
 make("UIPadding", {PaddingLeft = UDim.new(0, 18)}, verify)
@@ -333,7 +333,7 @@ pixelSymbol(verify, "VerifyShield", {
 getKey.BackgroundColor3 = Color3.fromRGB(44, 83, 143)
 getKey.BackgroundTransparency = 0.08
 getKey.TextColor3 = Color3.fromRGB(241, 247, 255)
-stroke(getKey, Color3.fromRGB(122, 174, 244), 0.18, 1)
+-- The blue fill carries the secondary action without an outline.
 make("UIPadding", {PaddingLeft = UDim.new(0, 18)}, getKey)
 pixelSymbol(getKey, "GetKeyIcon", {
     " ###    ", "#   #   ", "# # #   ", "#   #   ",
@@ -366,7 +366,7 @@ local discord = make("TextButton", {
     Position = UDim2.new(1, -152, 0, 10), Size = UDim2.fromOffset(124, 44),
     AutoButtonColor = false, ClipsDescendants = true,
 }, footer)
-round(discord, 7)
+round(discord, 10)
 local discordOutline = stroke(discord, discordBlue, 0.22)
 make("UIGradient", {
     Color = ColorSequence.new(Color3.fromRGB(155, 188, 255), Color3.fromRGB(91, 116, 213)),
@@ -415,7 +415,7 @@ local discordShine = make("Frame", {
     BackgroundColor3 = Color3.fromRGB(255, 255, 255), BorderSizePixel = 0,
     BackgroundTransparency = 0.62, ZIndex = 2, Active = false,
 }, discord)
-round(discordShine, 7)
+round(discordShine, 10)
 local shineGradient = make("UIGradient", {
     Rotation = 20, Offset = Vector2.new(-1.4, 0),
     Transparency = NumberSequence.new({
@@ -699,7 +699,7 @@ end
 bind(verify.Activated, submit)
 bind(input.FocusLost, function(enterPressed) if enterPressed then submit() end end)
 bind(input.Focused, function() animate(inputEdge, 0.12, {Color = colors.cyan, Transparency = 0.12}) end)
-bind(input.FocusLost, function() animate(inputEdge, 0.12, {Color = colors.muted, Transparency = 0.52}) end)
+bind(input.FocusLost, function() animate(inputEdge, 0.12, {Color = colors.lavender, Transparency = 0.95}) end)
 local function focusForManualPaste(message)
     controller:SetStatus(message, "info")
     input:CaptureFocus()
@@ -811,8 +811,8 @@ for index, name in ipairs({"Linkvertise", "LootLabs", "Work.ink"}) do
         Size = UDim2.new(1, -56, 0, 48), BorderSizePixel = 0,
         Text = "", AutoButtonColor = false,
     }, providers)
-    round(option, 9)
-    stroke(option, index == 1 and colors.cyan or colors.muted, index == 1 and 0.25 or 0.6)
+    round(option, 11)
+    stroke(option, index == 1 and colors.cyan or colors.muted, index == 1 and 0.5 or 0.9)
     if index == 1 then
         local accent = make("Frame", {
             BackgroundColor3 = colors.cyan, BorderSizePixel = 0,
@@ -931,7 +931,7 @@ local card = make("Frame", {
     Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(452, 264),
     BackgroundColor3 = Color3.fromRGB(23, 33, 54), BorderSizePixel = 0, ZIndex = 2,
 }, discordModal)
-round(card, 7)
+round(card, 13)
 local discordCardEdge = stroke(card, discordBlue, 0.22)
 local discordTile = make("Frame", {
     Name = "DiscordBadge", Position = UDim2.fromOffset(24, 21),
@@ -981,7 +981,7 @@ local copyInvite = make("TextButton", {
     BackgroundColor3 = Color3.fromRGB(48, 76, 145), BorderSizePixel = 0, AutoButtonColor = false,
     Position = UDim2.fromOffset(24, 174), Size = UDim2.fromOffset(404, 44),
 }, card)
-round(copyInvite, 5)
+round(copyInvite, 10)
 local copyInviteEdge = stroke(copyInvite, discordBlue, 0.2)
 local inviteFeedback = text(card, "Copy the link and open Discord in your browser.", 14,
     UDim2.fromOffset(24, 228), UDim2.fromOffset(404, 22), colors.muted)
