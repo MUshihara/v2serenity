@@ -424,6 +424,8 @@ end
 -- Five non-overlapping strips form a genuine stepped silhouette without corner masks.
 -- Only use on fixed control surfaces, never on containers managed by UIListLayout.
 function Material.PixelSurface(frame,step)
+    if frame:GetAttribute("PixelSurfaceApplied") then return frame end
+    frame:SetAttribute("PixelSurfaceApplied",true)
     step=step or 2
     local opacity=frame.BackgroundTransparency
     frame.BackgroundTransparency=1
@@ -447,6 +449,13 @@ function Material.PixelSurface(frame,step)
         strip.BackgroundColor3=frame.BackgroundColor3;strip.BackgroundTransparency=opacity
         strip.ZIndex=frame.ZIndex;strip.Parent=frame;table.insert(strips,strip)
     end
+    local syncing=false
+    frame:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
+        if syncing then return end
+        local alpha=frame.BackgroundTransparency
+        for _,strip in ipairs(strips) do strip.BackgroundTransparency=alpha end
+        syncing=true;frame.BackgroundTransparency=1;syncing=false
+    end)
     -- Propagate hover, on/off and theme colors only when they change.
     frame:GetPropertyChangedSignal("BackgroundColor3"):Connect(function()
         for _,strip in ipairs(strips) do strip.BackgroundColor3=frame.BackgroundColor3 end
@@ -4834,6 +4843,7 @@ do
         f.LayoutOrder=order or 1;f.Parent=parent;Material.Section(f,Tokens)
         f:SetAttribute("ReadingSurface",true)
         solidSurface(f,"Panel",4)
+        Material.PixelSurface(f,3)
         return f
     end
     local function label(parent,message,x,y,w,h,size,color)
@@ -4848,6 +4858,7 @@ do
         solidSurface(b,"Inset",4)
         runtime:TrackConnection(b.Activated:Connect(function() if serenityInputBlocked(b) then return end;callback() end))
         local normal=b.BackgroundTransparency
+        Material.PixelSurface(b,2)
         runtime:TrackConnection(b.MouseEnter:Connect(function() if serenityInputBlocked(b) then return end; Motion:Tween(b,"Hover",{BackgroundTransparency=0.05}) end))
         runtime:TrackConnection(b.MouseLeave:Connect(function() Motion:Tween(b,"Hover",{BackgroundTransparency=normal}) end))
         runtime:TrackConnection(b.InputBegan:Connect(function(input)
@@ -4883,7 +4894,7 @@ do
     -- Optional cached art: custom asset APIs belong to the executor, not Roblox ImageLabel.
     -- The UI remains usable if HTTP, file access or custom assets are absent.
     local art=Instance.new("ImageLabel")
-    art.Name="CelestialBanner";art.Size=UDim2.fromScale(1,1);art.BackgroundTransparency=1
+    art.Name="CelestialBanner";art.Position=UDim2.fromOffset(6,6);art.Size=UDim2.new(1,-12,1,-12);art.BackgroundTransparency=1
     art.ImageTransparency=0.22;art.ScaleType=Enum.ScaleType.Crop;art.ZIndex=0;art.Parent=hero
     -- Load each small 2D illustration once and reuse the on-device cache.
     local function cachedArt(target,name)
@@ -5028,7 +5039,7 @@ do
         local b=button(workspaces,"",function() local action=app:GetQuickAction(data[4]);if action then app:SetQuickPanelEnabled(data[4],not action.PanelEnabled) end end);shortcuts[i]=b
         b.ClipsDescendants=true
         local illustration=Instance.new("ImageLabel");illustration.Name="QuickActionArt"
-        illustration.Size=UDim2.fromScale(1,1);illustration.BackgroundTransparency=1
+        illustration.Position=UDim2.fromOffset(5,5);illustration.Size=UDim2.new(1,-10,1,-10);illustration.BackgroundTransparency=1
         illustration.ScaleType=Enum.ScaleType.Crop;illustration.ImageTransparency=0.2
         illustration.ZIndex=0;illustration.Parent=b;cachedArt(illustration,data[4])
         local shade=Instance.new("UIGradient");shade.Rotation=90
@@ -5042,10 +5053,10 @@ do
         shortcutText[i]={title,sub,actionIcon}
         local switch=Instance.new("Frame");switch.Size=UDim2.fromOffset(32,19)
         switch.Position=UDim2.new(1,-42,0,10);switch.BorderSizePixel=0;switch.Parent=b
-        local round=Instance.new("UICorner");round.CornerRadius=UDim.new(0,4);round.Parent=switch
+        Material.PixelSurface(switch,2)
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(13,13);dot.BorderSizePixel=0
         serenityColor(dot,"BackgroundColor3",Tokens,"Text");dot.Parent=switch
-        local dotCorner=Instance.new("UICorner");dotCorner.CornerRadius=UDim.new(0,2);dotCorner.Parent=dot
+        Material.PixelSurface(dot,1)
         app:ObserveQuickAction(data[4],function(action)
             sub.Text=action.Busy and "Applying…" or (action.PanelEnabled and "Panel enabled" or "Panel disabled")
             serenityColor(sub,"TextColor3",Tokens,action.PanelEnabled and "Accent" or "TextMuted")
@@ -5082,7 +5093,7 @@ do
     local openSettings=button(quick.Body,"Appearance & presets  ›",function() app:SelectPage("Profile") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new"})
-    for i,data in ipairs({{"Celestial Glass","Flat artwork, transparent portraits and illustrated Quick Menu panels."},{"Lightweight artwork","Small images cache once. No live 3D scenes or background animation loops."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Celestial Glass","Stepped pixel cards, illustrated panels and a transparent avatar."},{"Lightweight artwork","Small images cache once. No live 3D scenes or background animation loops."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
