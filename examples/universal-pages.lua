@@ -4408,13 +4408,13 @@ local function refreshIdentity()
         binding.Object[binding.Property]=hideDashboardName and binding.Hidden or binding.Shown
     end
 end
-local selectedTheme="Midnight"
-local selectedPreset="Serenity Grimoire"
+local selectedTheme="Celestial"
+local selectedPreset="Celestial Glass"
 local presetControl
 local dragControl
-local presetNames={"Custom","Industrial","Serenity Grimoire","Aurora","Deep Ocean","Moonstone","Violet","Rose Quartz","Jade","Ember","Frost","Graphite","Garnet","Antique Gold","Petrol","Dusk","Espresso"}
+local presetNames={"Custom","Celestial Glass","Industrial","Serenity Grimoire","Aurora","Deep Ocean","Moonstone","Violet","Rose Quartz","Jade","Ember","Frost","Graphite","Garnet","Antique Gold","Petrol","Dusk","Espresso"}
 local restoringAppearance=false
-local themeNames={"Industrial","Aurora","Ocean","Lavender","Rose","Emerald","Slate","Amber","Crimson","Arctic","Amethyst","Midnight","Garnet","AntiqueGold","Petrol","Dusk","Espresso"}
+local themeNames={"Celestial","Industrial","Aurora","Ocean","Lavender","Rose","Emerald","Slate","Amber","Crimson","Arctic","Amethyst","Midnight","Garnet","AntiqueGold","Petrol","Dusk","Espresso"}
 local function markCustom()
     if restoringAppearance then return end
     selectedPreset="Custom"
@@ -4424,6 +4424,7 @@ local function markCustom()
 end
 -- Complete low-saturation palettes: surfaces, typography, states and accents.
 local themeSpecs={
+    Celestial={{12,27,39},{239,234,220},{170,197,186},{91,129,140}},
     Industrial={{21,28,34},{242,237,223},{232,174,73},{117,130,139}},
     Garnet={{30,18,22},{241,225,220},{210,100,107},{158,119,110}},
     AntiqueGold={{23,23,21},{239,232,212},{192,168,107},{143,139,112}},
@@ -4698,7 +4699,7 @@ local function restoreAppearance(data)
     if app.Acrylic then app.Acrylic:SetAmount(materialState.Blur) end
     app:SetGlassQuality(materialState.Mode)
     runtime.DragStyle=choice(data.DragStyle,{"Outline","Smooth","Direct"},"Outline")
-    selectedPreset=choice(data.Preset,presetNames,data.Theme and "Custom" or "Serenity Grimoire")
+    selectedPreset=choice(data.Preset,presetNames,data.Theme and "Custom" or "Celestial Glass")
     if dragControl then dragControl:Set(runtime.DragStyle,true) end
     if presetControl then presetControl:Set(selectedPreset,true) end
     restoringAppearance=false
@@ -4710,6 +4711,7 @@ reset.Font=Enum.Font.GothamMedium;reset.TextSize=12;serenityColor(reset,"TextCol
 reset.Parent=appearance.Body;Material.Inset(reset,Tokens)
 reset.Activated:Connect(function() if serenityInputBlocked(reset) then return end; restoreAppearance(nil) end)
 local presets={
+    {Name="Celestial Glass",Theme="Celestial",Mode="Basic",Palette="Match theme",Opacity=98,Edge=55,Blur=0,Color=Color3.fromRGB(170,197,186)},
     {Name="Industrial",Theme="Industrial",Mode="Basic",Palette="Match theme",Opacity=100,Edge=48,Blur=0,Color=Color3.fromRGB(232,174,73)},
     {Name="Serenity Grimoire",Theme="Midnight",Mode="Basic",Palette="Match theme",Opacity=100,Edge=45,Blur=0,Color=Color3.fromRGB(171,149,104)},
     {Name="Aurora",Theme="Aurora",Mode="Enhanced",Palette="Aurora",Opacity=92,Edge=72,Blur=4,Color=Color3.fromRGB(77,193,215)},
@@ -4878,13 +4880,37 @@ do
     runtime:TrackConnection(heading:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHeading));arrangeHeading()
 
     local hero=card(dashboard,150,2);hero.Name="DashboardHero";hero.ClipsDescendants=true
+    -- Optional cached art: custom asset APIs belong to the executor, not Roblox ImageLabel.
+    -- The UI remains usable if HTTP, file access or custom assets are absent.
+    local art=Instance.new("ImageLabel")
+    art.Name="CelestialBanner";art.Size=UDim2.fromScale(1,1);art.BackgroundTransparency=1
+    art.ImageTransparency=0.22;art.ScaleType=Enum.ScaleType.Crop;art.ZIndex=0;art.Parent=hero
+    task.spawn(function()
+        local asset=(getcustomasset or getsynasset)
+        if type(asset)~="function" or type(writefile)~="function" then return end
+        local path="Serenity_Celestial_Banner_v1.png"
+        local exists=type(isfile)=="function" and pcall(isfile,path) and isfile(path)
+        if not exists then
+            local ok,encoded=pcall(function()
+                return game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/d175c74e60a423931439a31ea816a3ab02d83010/assets/celestial/banner.png.b64")
+            end)
+            if not ok or type(encoded)~="string" or #encoded<1000 or #encoded>300000 then return end
+            local decoder=(crypt and crypt.base64 and crypt.base64.decode) or (syn and syn.crypt and syn.crypt.base64 and syn.crypt.base64.decode)
+            if type(decoder)~="function" then return end
+            local decoded,bytes=pcall(decoder,encoded)
+            if not decoded or type(bytes)~="string" or bytes:sub(1,8)~="\137PNG\r\n\026\n" then return end
+            if not pcall(writefile,path,bytes) then return end
+        end
+        local ok,uri=pcall(asset,path)
+        if ok and type(uri)=="string" and not runtime.Destroyed then art.Image=uri end
+    end)
     hideDashboardName=savedAppearance and savedAppearance.HideDashboardName==true or false
     local greeting=label(hero,hideDashboardName and "Welcome back" or "Welcome back, "..player.DisplayName,18,16,-125,30,22)
     registerIdentity(greeting,"Text","Welcome back, "..player.DisplayName,"Welcome back")
     registerIdentity(app.IdentityName,"Text",player.DisplayName,"Hidden profile")
     registerIdentity(app.IdentityAvatar,"ImageTransparency",0,1)
     greeting.TextTruncate=Enum.TextTruncate.AtEnd
-    local note=label(hero,"Quick access to your tools and preferences.",18,51,-125,34,13,Tokens.Color.TextMuted)
+    local note=label(hero,"Everything you need, within reach.",18,51,-125,34,13,Tokens.Color.TextMuted)
     note.TextWrapped=true;note.TextYAlignment=Enum.TextYAlignment.Top
     local portrait=Instance.new("ImageLabel");portrait.Name="DashboardAvatar"
     portrait.AnchorPoint=Vector2.new(1,0);portrait.Position=UDim2.new(1,-18,0,19)
@@ -4952,7 +4978,7 @@ do
     runtime:TrackCleanup(function() if timer then pcall(task.cancel,timer);timer=nil end end)
 
     local workspaces=card(dashboard,118,4);workspaces.Name="DashboardWorkspaces"
-    label(workspaces,"Quick Menu",14,9,-28,24,15)
+    label(workspaces,"Quick Menu",14,9,-28,24,16)
     local destinations={
         {"Fly","Disabled","automation","fly"},
         {"Noclip","Disabled","progression","noclip"},
@@ -4981,7 +5007,7 @@ do
     end
     local function arrangeShortcuts()
         local width=logicalWidth(workspaces);if width<=0 then return end
-        local count=width>=480 and 3 or 1
+        local count=width>=510 and 3 or 1
         local w=(width-28-8*(count-1))/count
         for i,b in ipairs(shortcuts) do
             b.Size=UDim2.fromOffset(w,64)
@@ -4992,7 +5018,7 @@ do
     runtime:TrackConnection(workspaces:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeShortcuts));arrangeShortcuts()
 
     local cols=ColumnLayout.new(dashboard,deps,{LayoutOrder=5,Gap=10})
-    local quick=Section.new(cols.Left,deps,{Title="Make it yours",Tooltip="These preferences change the UI. Game rendering and FPS controls belong in Misc."})
+    local quick=Section.new(cols.Left,deps,{Title="Your space",Tooltip="Change your appearance and interface preferences."})
     Toggle.new(quick.Body,deps,{Title="Hide my name",Default=hideDashboardName,Callback=function(value)
         hideDashboardName=value==true
         refreshIdentity()
@@ -5003,7 +5029,7 @@ do
     local openSettings=button(quick.Body,"Appearance & presets  ›",function() app:SelectPage("Profile") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new"})
-    for i,data in ipairs({{"Dashboard restored","Previous layout with the new industrial colors and styling."},{"Universal layout fixes","Preset rows reserve their full height. Feedback messages scroll inside the field."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Celestial Glass","A calmer dashboard with a cached illustration and compact controls."},{"Universal layout fixes","Preset rows reserve their full height. Feedback messages scroll inside the field."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -5020,7 +5046,7 @@ do
         end
     end
     local community=card(dashboard,88,6)
-    Icons.Create(community,"discord",25,Tokens.Color.Accent,UDim2.fromOffset(14,16))
+    Icons.Create(community,"discord",25,Color3.fromRGB(114,145,245),UDim2.fromOffset(14,16))
     local communityTitle=label(community,"Serenity Hub Discord",48,10,-180,23,15)
     local communityText=label(community,"Help with keys, updates and premium.",48,36,-180,30,12,Tokens.Color.TextMuted)
     communityText.TextWrapped=true
