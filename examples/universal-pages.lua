@@ -4912,23 +4912,31 @@ do
     greeting.TextTruncate=Enum.TextTruncate.AtEnd
     local note=label(hero,"Everything you need, within reach.",18,51,-125,34,13,Tokens.Color.TextMuted)
     note.TextWrapped=true;note.TextYAlignment=Enum.TextYAlignment.Top
-    -- The avatar is a soft, borderless portrait blended into the banner art.
+    -- A flat Roblox thumbnail sits directly on the art, without a card or 3D viewport.
     local avatarPlate=Instance.new("Frame");avatarPlate.Name="DashboardAvatarArea"
-    avatarPlate.AnchorPoint=Vector2.new(1,0);avatarPlate.Position=UDim2.new(1,-11,0,22)
-    avatarPlate.Size=UDim2.fromOffset(118,112);avatarPlate.BackgroundTransparency=1
+    avatarPlate.AnchorPoint=Vector2.new(1,1);avatarPlate.Position=UDim2.new(1,-5,1,0)
+    avatarPlate.Size=UDim2.fromOffset(124,144);avatarPlate.BackgroundTransparency=1
     avatarPlate.BorderSizePixel=0;avatarPlate.ClipsDescendants=true;avatarPlate.Parent=hero
     local portrait=Instance.new("ImageLabel");portrait.Name="DashboardAvatar"
     portrait.Size=UDim2.fromScale(1,1);portrait.BackgroundTransparency=1
     portrait.ScaleType=Enum.ScaleType.Fit
-    portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420"
+    portrait.Image="rbxthumb://type=AvatarBust&id="..player.UserId.."&w=420&h=420"
     portrait.Parent=avatarPlate
+    task.spawn(function()
+        local ok,content=pcall(function()
+            return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.AvatarBust,Enum.ThumbnailSize.Size420x420)
+        end)
+        if ok and type(content)=="string" and content~="" and not runtime.Destroyed then
+            portrait.Image=content
+        end
+    end)
     local dissolve=Instance.new("UIGradient")
-    dissolve.Rotation=0
+    dissolve.Rotation=90
     dissolve.Transparency=NumberSequence.new({
-        NumberSequenceKeypoint.new(0,0.65),
-        NumberSequenceKeypoint.new(0.22,0.08),
-        NumberSequenceKeypoint.new(0.75,0),
-        NumberSequenceKeypoint.new(1,0.26),
+        NumberSequenceKeypoint.new(0,0.16),
+        NumberSequenceKeypoint.new(0.2,0),
+        NumberSequenceKeypoint.new(0.74,0),
+        NumberSequenceKeypoint.new(1,0.68),
     })
     dissolve.Parent=portrait
     registerIdentity(portrait,"ImageTransparency",0,1)
@@ -4940,15 +4948,15 @@ do
     local customize=button(hero,"Customize",function() app:SelectPage("Profile") end)
     customize.Position=UDim2.fromOffset(192,96);customize.Size=UDim2.fromOffset(104,38)
     local function arrangeHero()
-        local wide=logicalWidth(hero)>=390
-        explore.Size=UDim2.fromOffset(math.max(80,math.min(166,logicalWidth(hero)-36)),38)
         local width=logicalWidth(hero)
         local showAvatar=width>=275
         avatarPlate.Visible=showAvatar
         local compact=width<430
-        local avatarWidth=compact and 82 or 118
-        avatarPlate.Size=UDim2.fromOffset(avatarWidth,compact and 82 or 112)
-        avatarPlate.Position=UDim2.new(1,-11,0,compact and 5 or 22)
+        local avatarWidth=compact and 90 or 124
+        local buttonRoom=showAvatar and width-avatarWidth-38 or width-36
+        explore.Size=UDim2.fromOffset(math.max(80,math.min(166,buttonRoom)),38)
+        avatarPlate.Size=UDim2.fromOffset(avatarWidth,compact and 104 or 144)
+        avatarPlate.Position=UDim2.new(1,-5,1,0)
         greeting.Size=UDim2.new(1,showAvatar and -(avatarWidth+36) or -36,0,28)
         note.Size=UDim2.new(1,showAvatar and -(avatarWidth+36) or -36,0,34)
         customize.Visible=width>=430
