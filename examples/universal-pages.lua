@@ -453,6 +453,9 @@ function Material.PixelSurface(frame,step)
     frame:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
         if syncing then return end
         local alpha=frame.BackgroundTransparency
+        -- Roblox may defer this signal: ignore the container reset even after
+        -- the synchronous guard has cleared. Its strips retain the real opacity.
+        if alpha==1 then return end
         for _,strip in ipairs(strips) do strip.BackgroundTransparency=alpha end
         syncing=true;frame.BackgroundTransparency=1;syncing=false
     end)
