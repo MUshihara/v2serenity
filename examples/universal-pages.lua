@@ -4344,20 +4344,39 @@ function SampleUI.Button(parent,title,callback,primary)
     return b,edge
 end
 function SampleUI.Grid(parent,count,height,minWidth,maxColumns)
-    local frame=Instance.new("Frame");frame.BackgroundTransparency=1;frame.Size=UDim2.new(1,-4,0,0);frame.Parent=parent
-    local grid=Instance.new("UIGridLayout");grid.SortOrder=Enum.SortOrder.LayoutOrder;grid.CellPadding=UDim2.fromOffset(8,8);grid.Parent=frame
-    local lastWidth
+    local frame=Instance.new("Frame");frame.BackgroundTransparency=1
+    frame.Size=UDim2.new(1,-4,0,0);frame.ClipsDescendants=true;frame.Parent=parent
+    local grid=Instance.new("UIGridLayout");grid.SortOrder=Enum.SortOrder.LayoutOrder
+    grid.CellPadding=UDim2.fromOffset(8,8);grid.Parent=frame
+    local lastWidth,plannedHeight=nil,0
+    local function reserveHeight()
+        local scale=math.max(deps.UIScale.Scale,0.01)
+        -- Actual rows can exceed the prediction after fractional viewport rounding.
+        -- Never let a later section paint over those rendered rows.
+        local actual=math.ceil(grid.AbsoluteContentSize.Y/scale)
+        local required=math.max(plannedHeight,actual)+2
+        if frame.Size.Y.Offset~=required then frame.Size=UDim2.new(1,-4,0,required) end
+    end
     local function arrange()
-        local width=frame.AbsoluteSize.X/math.max(deps.UIScale.Scale,0.01)
-        if width<=0 or lastWidth==width then return end;lastWidth=width
-        local columns=math.clamp(math.floor((width+8)/(minWidth+8)),1,maxColumns)
-        grid.FillDirectionMaxCells=columns;grid.CellSize=UDim2.new(1/columns,-8*(columns-1)/columns,0,height)
-        frame.Size=UDim2.new(1,-4,0,math.ceil(count/columns)*(height+8)-8)
+        local scale=math.max(deps.UIScale.Scale,0.01)
+        local width=frame.AbsoluteSize.X/scale
+        if width<=0 then return end
+        if lastWidth~=width then
+            lastWidth=width
+            local columns=math.clamp(math.floor((width+8)/(minWidth+8)),1,maxColumns)
+            -- Integer logical sizes plus a one-pixel reserve avoid a phantom wrapped column.
+            local cellWidth=math.max(1,math.floor((width-8*(columns-1))/columns)-1)
+            grid.FillDirectionMaxCells=columns;grid.CellSize=UDim2.fromOffset(cellWidth,height)
+            plannedHeight=math.ceil(count/columns)*(height+8)-8
+        end
+        reserveHeight()
     end
     runtime:TrackConnection(frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrange))
+    runtime:TrackConnection(grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(reserveHeight))
     runtime:TrackConnection(deps.UIScale:GetPropertyChangedSignal("Scale"):Connect(function()lastWidth=nil;arrange()end))
     arrange();return frame,grid
 end
+
 
 local profileCols={Left=profile,Right=profile}
 local settingsCols = ColumnLayout.new(settings, deps, {})
@@ -4984,7 +5003,7 @@ do
     local openSettings=button(quick.Body,"Appearance & presets  ›",function() app:SelectPage("Profile") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new"})
-    for i,data in ipairs({{"Dashboard restored","Previous layout with the new industrial colors and styling."},{"Universal page polish","Language tiles, clearer feedback and a full-width preset gallery."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Dashboard restored","Previous layout with the new industrial colors and styling."},{"Universal layout fixes","Preset rows reserve their full height. Feedback messages scroll inside the field."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -5310,17 +5329,31 @@ do
         b.LayoutOrder=i;chips[name]={Button=b,Edge=edge}
     end
     refreshCategory()
-    local form=SampleUI.Panel(feedback,226,2)
+    local form=SampleUI.Panel(feedback,208,2)
     SampleUI.Text(form,"Your message",14,10,-28,24,14)
     local counter=SampleUI.Text(form,"0 / 1800",0,14,0,18,11,true)
     counter.AnchorPoint=Vector2.new(1,0);counter.Position=UDim2.new(1,-14,0,14);counter.Size=UDim2.fromOffset(84,18);counter.TextXAlignment=Enum.TextXAlignment.Right
-    local input=Instance.new("TextBox");input.Position=UDim2.fromOffset(14,43);input.Size=UDim2.new(1,-28,0,137)
+    local field=Instance.new("ScrollingFrame");field.Name="FeedbackMessageField"
+    field.Position=UDim2.fromOffset(14,43);field.Size=UDim2.new(1,-28,0,120)
+    field.CanvasSize=UDim2.new();field.AutomaticCanvasSize=Enum.AutomaticSize.Y
+    field.ScrollingDirection=Enum.ScrollingDirection.Y;field.ScrollBarThickness=2
+    field.BorderSizePixel=0;field.ClipsDescendants=true;field.Parent=form
+    serenityColor(field,"BackgroundColor3",Tokens,"Inset");serenityColor(field,"ScrollBarImageColor3",Tokens,"Accent")
+    local fieldCorner=Instance.new("UICorner");fieldCorner.CornerRadius=UDim.new(0,4);fieldCorner.Parent=field
+    local fieldEdge=Instance.new("UIStroke");fieldEdge.Transparency=0.68;serenityColor(fieldEdge,"Color",Tokens,"Stroke");fieldEdge.Parent=field
+    local input=Instance.new("TextBox");input.Size=UDim2.new(1,-4,0,120);input.AutomaticSize=Enum.AutomaticSize.Y
     input.MultiLine=true;input.ClearTextOnFocus=false;input.Text="";input.PlaceholderText="What happened? What did you expect?"
     input.TextSize=13;input.Font=Enum.Font.Gotham;input.TextWrapped=true
     input.TextXAlignment=Enum.TextXAlignment.Left;input.TextYAlignment=Enum.TextYAlignment.Top
     serenityColor(input,"TextColor3",Tokens,"Text");serenityColor(input,"PlaceholderColor3",Tokens,"TextMuted")
-    input.Parent=form;Material.Inset(input,Tokens)
+    input.Parent=field;input.BackgroundTransparency=1;input.BorderSizePixel=0
     local padding=Instance.new("UIPadding");padding.PaddingLeft=UDim.new(0,10);padding.PaddingTop=UDim.new(0,10);padding.PaddingRight=UDim.new(0,10);padding.PaddingBottom=UDim.new(0,10);padding.Parent=input
+    runtime:TrackConnection(input.Focused:Connect(function()
+        serenityColor(fieldEdge,"Color",Tokens,"Accent");fieldEdge.Transparency=0.2
+    end))
+    runtime:TrackConnection(input.FocusLost:Connect(function()
+        serenityColor(fieldEdge,"Color",Tokens,"Stroke");fieldEdge.Transparency=0.68
+    end))
     local function updateCount()
         local count=utf8.len(input.Text) or #input.Text
         if count>1800 then
@@ -5330,7 +5363,7 @@ do
         counter.Text=tostring(count).." / 1800"
     end
     runtime:TrackConnection(input:GetPropertyChangedSignal("Text"):Connect(updateCount))
-    SampleUI.Text(form,"Copy your draft, then share it in Discord.",14,190,-28,24,11,true)
+    SampleUI.Text(form,"Copy your draft, then share it in Discord.",14,176,-28,22,11,true)
     local actions=Instance.new("Frame");actions.BackgroundTransparency=1;actions.Size=UDim2.new(1,-4,0,42);actions.LayoutOrder=3;actions.Parent=feedback
     local copied=SampleUI.Button(actions,"Copy draft",function()
         local message=input.Text:match("^%s*(.-)%s*$")
@@ -5359,7 +5392,7 @@ do
     local username=SampleUI.Text(info,"@"..player.Name,84,48,-100,22,12,true)
     registerIdentity(display,"Text",player.DisplayName,"Hidden profile")
     registerIdentity(username,"Text","@"..player.Name,"Username hidden")
-    local privacy=Section.new(profile,deps,{Title="Privacy"});privacy.Frame.LayoutOrder=5
+    local privacy=Section.new(profile,deps,{Title="Privacy"});privacy.Frame.LayoutOrder=0
     Toggle.new(privacy.Body,deps,{Title="Hide my identity",Default=hideDashboardName,Description="Hide your name and avatar across the UI.",Callback=function(v) hideDashboardName=v==true;refreshIdentity();saveAppearance() end})
     refreshIdentity()
 end
@@ -6306,6 +6339,7 @@ end
 print("SERENITY UNIVERSAL PAGES SAMPLE | RightCtrl: toggle | Ctrl+K: search")
 
 return app
+
 
 
 
