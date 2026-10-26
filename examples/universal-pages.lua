@@ -4912,15 +4912,23 @@ do
     greeting.TextTruncate=Enum.TextTruncate.AtEnd
     local note=label(hero,"Everything you need, within reach.",18,51,-125,34,13,Tokens.Color.TextMuted)
     note.TextWrapped=true;note.TextYAlignment=Enum.TextYAlignment.Top
+    -- Avatar lives in its own glass medallion below the banner moon.
+    local avatarPlate=Instance.new("Frame");avatarPlate.Name="DashboardAvatarPlate"
+    avatarPlate.AnchorPoint=Vector2.new(1,0);avatarPlate.Position=UDim2.new(1,-17,0,53)
+    avatarPlate.Size=UDim2.fromOffset(78,78);avatarPlate.BorderSizePixel=0
+    serenityColor(avatarPlate,"BackgroundColor3",Tokens,"ShellDeep")
+    avatarPlate.BackgroundTransparency=0.06;avatarPlate.Parent=hero
+    local plateCorner=Instance.new("UICorner");plateCorner.CornerRadius=UDim.new(1,0);plateCorner.Parent=avatarPlate
+    local plateStroke=Instance.new("UIStroke");plateStroke.Thickness=1.5;plateStroke.Transparency=0.14
+    serenityColor(plateStroke,"Color",Tokens,"Accent");plateStroke.Parent=avatarPlate
     local portrait=Instance.new("ImageLabel");portrait.Name="DashboardAvatar"
-    portrait.AnchorPoint=Vector2.new(1,0);portrait.Position=UDim2.new(1,-18,0,19)
-    portrait.Size=UDim2.fromOffset(68,68);portrait.BackgroundTransparency=0.2
-    serenityColor(portrait,"BackgroundColor3",Tokens,"PanelSoft");portrait.ScaleType=Enum.ScaleType.Fit
-    portrait.ImageTransparency=0
-    portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420";portrait.Parent=hero
-    local curve=Instance.new("UICorner");curve.CornerRadius=UDim.new(1,0);curve.Parent=portrait
-    local ring=Instance.new("UIStroke");serenityColor(ring,"Color",Tokens,"Accent");ring.Transparency=0.5;ring.Parent=portrait
+    portrait.Size=UDim2.new(1,-12,1,-12);portrait.Position=UDim2.fromOffset(6,6)
+    portrait.BackgroundTransparency=1;portrait.ScaleType=Enum.ScaleType.Crop
+    portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420"
+    portrait.Parent=avatarPlate
+    local crop=Instance.new("UICorner");crop.CornerRadius=UDim.new(1,0);crop.Parent=portrait
     registerIdentity(portrait,"ImageTransparency",0,1)
+    registerIdentity(avatarPlate,"BackgroundTransparency",0.06,0.75)
     -- Show the thumbnail directly; executor load flags can remain false after rendering.
     local explore=button(hero,"UI preferences  ›",function() app:SelectPage("Settings") end)
     explore.Position=UDim2.fromOffset(18,96);explore.Size=UDim2.fromOffset(166,38)
@@ -4931,9 +4939,14 @@ do
     local function arrangeHero()
         local wide=logicalWidth(hero)>=390
         explore.Size=UDim2.fromOffset(math.max(80,math.min(166,logicalWidth(hero)-36)),38)
-        portrait.Visible=wide
-        greeting.Size=UDim2.new(1,wide and -125 or -36,0,28)
-        note.Size=UDim2.new(1,wide and -125 or -36,0,34)
+        local width=logicalWidth(hero)
+        local showAvatar=width>=275
+        avatarPlate.Visible=showAvatar
+        local avatarSize=width<390 and 58 or 78
+        avatarPlate.Size=UDim2.fromOffset(avatarSize,avatarSize)
+        avatarPlate.Position=UDim2.new(1,-17,0,width<390 and 12 or 53)
+        greeting.Size=UDim2.new(1,showAvatar and -(avatarSize+50) or -36,0,28)
+        note.Size=UDim2.new(1,showAvatar and -(avatarSize+50) or -36,0,34)
         customize.Visible=logicalWidth(hero)>=320
     end
     runtime:TrackConnection(hero:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHero));arrangeHero()
