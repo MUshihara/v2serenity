@@ -4885,25 +4885,38 @@ do
     local art=Instance.new("ImageLabel")
     art.Name="CelestialBanner";art.Size=UDim2.fromScale(1,1);art.BackgroundTransparency=1
     art.ImageTransparency=0.22;art.ScaleType=Enum.ScaleType.Crop;art.ZIndex=0;art.Parent=hero
-    task.spawn(function()
-        local asset=(getcustomasset or getsynasset)
-        if type(asset)~="function" or type(writefile)~="function" then return end
-        local path="Serenity_Celestial_Banner_v1.png"
-        local exists=type(isfile)=="function" and pcall(isfile,path) and isfile(path)
-        if not exists then
-            local ok,encoded=pcall(function()
-                return game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/d175c74e60a423931439a31ea816a3ab02d83010/assets/celestial/banner.png.b64")
-            end)
-            if not ok or type(encoded)~="string" or #encoded<1000 or #encoded>300000 then return end
-            local decoder=(crypt and crypt.base64 and crypt.base64.decode) or (syn and syn.crypt and syn.crypt.base64 and syn.crypt.base64.decode)
-            if type(decoder)~="function" then return end
-            local decoded,bytes=pcall(decoder,encoded)
-            if not decoded or type(bytes)~="string" or bytes:sub(1,8)~="\137PNG\r\n\026\n" then return end
-            if not pcall(writefile,path,bytes) then return end
-        end
-        local ok,uri=pcall(asset,path)
-        if ok and type(uri)=="string" and not runtime.Destroyed then art.Image=uri end
-    end)
+    -- Load each small 2D illustration once and reuse the on-device cache.
+    local function cachedArt(target,name)
+        task.spawn(function()
+            local asset=(getcustomasset or getsynasset)
+            if type(asset)~="function" or type(writefile)~="function" then return end
+            local path="Serenity_Celestial_"..name.."_v1.png"
+            local okExists,exists=false,false
+            if type(isfile)=="function" then okExists,exists=pcall(isfile,path) end
+            if not (okExists and exists) then
+                local ok,encoded=pcall(function()
+                    return game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/59b7015c137fa839d01ef4d53e13a9adf698c86b/assets/celestial/"..name..".png.b64")
+                end)
+                if not ok or type(encoded)~="string" or #encoded<100 or #encoded>300000 then return end
+                local decode=(crypt and crypt.base64 and crypt.base64.decode) or (syn and syn.crypt and syn.crypt.base64 and syn.crypt.base64.decode)
+                if type(decode)~="function" then return end
+                local valid,bytes=pcall(decode,encoded)
+                if not valid or type(bytes)~="string" or bytes:sub(1,8)~="\137PNG\r\n\026\n" then return end
+                if not pcall(writefile,path,bytes) then return end
+            end
+            if runtime.Destroyed then return end
+            local ok,uri=pcall(asset,path)
+            if ok and type(uri)=="string" and not runtime.Destroyed and target.Parent then target.Image=uri end
+        end)
+    end
+    cachedArt(art,"banner")
+    if app.Sidebar then
+        local scenery=Instance.new("ImageLabel");scenery.Name="CelestialSidebar"
+        scenery.Size=UDim2.fromScale(1,1);scenery.BackgroundTransparency=1
+        scenery.ImageTransparency=0.86;scenery.ScaleType=Enum.ScaleType.Crop
+        scenery.ZIndex=0;scenery.Parent=app.Sidebar
+        cachedArt(scenery,"sidebar")
+    end
     hideDashboardName=savedAppearance and savedAppearance.HideDashboardName==true or false
     local greeting=label(hero,hideDashboardName and "Welcome back" or "Welcome back, "..player.DisplayName,18,16,-125,30,22)
     registerIdentity(greeting,"Text","Welcome back, "..player.DisplayName,"Welcome back")
@@ -5010,15 +5023,25 @@ do
         {"Player ESP","Disabled","settings","esp"},
     }
     local shortcuts={}
+    local shortcutText={}
     for i,data in ipairs(destinations) do
         local b=button(workspaces,"",function() local action=app:GetQuickAction(data[4]);if action then app:SetQuickPanelEnabled(data[4],not action.PanelEnabled) end end);shortcuts[i]=b
-        Icons.Create(b,data[3],20,Tokens.Color.Accent,UDim2.fromOffset(10,11))
-        local title=label(b,data[1],38,8,-90,22,14)
+        b.ClipsDescendants=true
+        local illustration=Instance.new("ImageLabel");illustration.Name="QuickActionArt"
+        illustration.Size=UDim2.fromScale(1,1);illustration.BackgroundTransparency=1
+        illustration.ScaleType=Enum.ScaleType.Crop;illustration.ImageTransparency=0.2
+        illustration.ZIndex=0;illustration.Parent=b;cachedArt(illustration,data[4])
+        local shade=Instance.new("UIGradient");shade.Rotation=90
+        shade.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.05),NumberSequenceKeypoint.new(0.45,0.2),NumberSequenceKeypoint.new(1,0.92)})
+        shade.Parent=illustration
+        local actionIcon=Icons.Create(b,data[3],18,Tokens.Color.Accent,UDim2.fromOffset(12,78))
+        local title=label(b,data[1],36,74,-44,22,14)
         title.Font=Enum.Font.GothamBold
-        local sub=label(b,data[2],10,38,-20,18,12,Tokens.Color.TextMuted)
+        local sub=label(b,data[2],12,100,-24,18,11,Tokens.Color.TextMuted)
         sub.TextTruncate=Enum.TextTruncate.AtEnd
+        shortcutText[i]={title,sub,actionIcon}
         local switch=Instance.new("Frame");switch.Size=UDim2.fromOffset(32,19)
-        switch.Position=UDim2.new(1,-42,0,12);switch.BorderSizePixel=0;switch.Parent=b
+        switch.Position=UDim2.new(1,-42,0,10);switch.BorderSizePixel=0;switch.Parent=b
         local round=Instance.new("UICorner");round.CornerRadius=UDim.new(0,4);round.Parent=switch
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(13,13);dot.BorderSizePixel=0
         serenityColor(dot,"BackgroundColor3",Tokens,"Text");dot.Parent=switch
@@ -5034,11 +5057,16 @@ do
         local width=logicalWidth(workspaces);if width<=0 then return end
         local count=width>=510 and 3 or 1
         local w=(width-28-8*(count-1))/count
+        local tileHeight=count==1 and 80 or 130
         for i,b in ipairs(shortcuts) do
-            b.Size=UDim2.fromOffset(w,64)
-            b.Position=UDim2.fromOffset(14+((i-1)%count)*(w+8),41+math.floor((i-1)/count)*72)
+            local text=shortcutText[i]
+            text[1].Position=UDim2.fromOffset(36,count==1 and 24 or 74)
+            text[2].Position=UDim2.fromOffset(12,count==1 and 50 or 100)
+            if text[3] then text[3].Position=UDim2.fromOffset(12,count==1 and 28 or 78) end
+            b.Size=UDim2.fromOffset(w,tileHeight)
+            b.Position=UDim2.fromOffset(14+((i-1)%count)*(w+8),41+math.floor((i-1)/count)*(tileHeight+8))
         end
-        workspaces.Size=UDim2.new(1,-4,0,41+math.ceil(#shortcuts/count)*72+5)
+        workspaces.Size=UDim2.new(1,-4,0,41+math.ceil(#shortcuts/count)*(tileHeight+8)+5)
     end
     runtime:TrackConnection(workspaces:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeShortcuts));arrangeShortcuts()
 
@@ -5054,7 +5082,7 @@ do
     local openSettings=button(quick.Body,"Appearance & presets  ›",function() app:SelectPage("Profile") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new"})
-    for i,data in ipairs({{"Celestial Glass","A calmer dashboard with a cached illustration and compact controls."},{"Universal layout fixes","Preset rows reserve their full height. Feedback messages scroll inside the field."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Celestial Glass","Flat artwork, transparent portraits and illustrated Quick Menu panels."},{"Lightweight artwork","Small images cache once. No live 3D scenes or background animation loops."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
