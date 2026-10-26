@@ -4869,7 +4869,7 @@ do
     local dashboardSubtitle=label(heading,"Your workspace, at a glance.",0,28,-112,18,13,Tokens.Color.TextMuted)
     local badge=Instance.new("TextLabel");badge.AnchorPoint=Vector2.new(1,0)
     badge.Position=UDim2.new(1,0,0,8);badge.Size=UDim2.fromOffset(92,25)
-    badge.Text="UNIVERSAL";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
+    badge.Text="SERENITY";badge.TextSize=10;badge.Font=Enum.Font.GothamBold
     serenityColor(badge,"TextColor3",Tokens,"Accent");badge.Parent=heading;Material.Inset(badge,Tokens)
     local function arrangeHeading()
         local wide=logicalWidth(heading)>=350
@@ -4912,31 +4912,26 @@ do
     greeting.TextTruncate=Enum.TextTruncate.AtEnd
     local note=label(hero,"Everything you need, within reach.",18,51,-125,34,13,Tokens.Color.TextMuted)
     note.TextWrapped=true;note.TextYAlignment=Enum.TextYAlignment.Top
-    -- Portrait panel: avatar fills the top, with a quiet identity footer.
-    local avatarPlate=Instance.new("Frame");avatarPlate.Name="DashboardAvatarPlate"
-    avatarPlate.AnchorPoint=Vector2.new(1,0);avatarPlate.Position=UDim2.new(1,-16,0,17)
-    avatarPlate.Size=UDim2.fromOffset(102,116);avatarPlate.BorderSizePixel=0
-    serenityColor(avatarPlate,"BackgroundColor3",Tokens,"ShellDeep")
-    avatarPlate.BackgroundTransparency=0.04;avatarPlate.Parent=hero
-    local plateCorner=Instance.new("UICorner");plateCorner.CornerRadius=UDim.new(0,5);plateCorner.Parent=avatarPlate
-    local plateStroke=Instance.new("UIStroke");plateStroke.Thickness=1;plateStroke.Transparency=0.18
-    serenityColor(plateStroke,"Color",Tokens,"Accent");plateStroke.Parent=avatarPlate
+    -- The avatar is a soft, borderless portrait blended into the banner art.
+    local avatarPlate=Instance.new("Frame");avatarPlate.Name="DashboardAvatarArea"
+    avatarPlate.AnchorPoint=Vector2.new(1,0);avatarPlate.Position=UDim2.new(1,-11,0,22)
+    avatarPlate.Size=UDim2.fromOffset(118,112);avatarPlate.BackgroundTransparency=1
+    avatarPlate.BorderSizePixel=0;avatarPlate.ClipsDescendants=true;avatarPlate.Parent=hero
     local portrait=Instance.new("ImageLabel");portrait.Name="DashboardAvatar"
-    portrait.Position=UDim2.fromOffset(5,5);portrait.Size=UDim2.new(1,-10,1,-27)
-    portrait.BackgroundTransparency=1;portrait.ScaleType=Enum.ScaleType.Crop
+    portrait.Size=UDim2.fromScale(1,1);portrait.BackgroundTransparency=1
+    portrait.ScaleType=Enum.ScaleType.Fit
     portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=420"
     portrait.Parent=avatarPlate
-    local crop=Instance.new("UICorner");crop.CornerRadius=UDim.new(0,3);crop.Parent=portrait
-    local avatarCaption=Instance.new("TextLabel");avatarCaption.BackgroundTransparency=1
-    avatarCaption.Position=UDim2.new(0,6,1,-22);avatarCaption.Size=UDim2.new(1,-12,0,16)
-    avatarCaption.Text="PROFILE";avatarCaption.TextSize=9;avatarCaption.Font=Enum.Font.GothamBold
-    avatarCaption.TextXAlignment=Enum.TextXAlignment.Left
-    serenityColor(avatarCaption,"TextColor3",Tokens,"Accent");avatarCaption.Parent=avatarPlate
-    local pixel=Instance.new("Frame");pixel.Name="CornerMark";pixel.BorderSizePixel=0
-    pixel.Size=UDim2.fromOffset(5,5);pixel.Position=UDim2.new(1,-10,1,-17)
-    serenityColor(pixel,"BackgroundColor3",Tokens,"Accent");pixel.Parent=avatarPlate
+    local dissolve=Instance.new("UIGradient")
+    dissolve.Rotation=0
+    dissolve.Transparency=NumberSequence.new({
+        NumberSequenceKeypoint.new(0,0.65),
+        NumberSequenceKeypoint.new(0.22,0.08),
+        NumberSequenceKeypoint.new(0.75,0),
+        NumberSequenceKeypoint.new(1,0.26),
+    })
+    dissolve.Parent=portrait
     registerIdentity(portrait,"ImageTransparency",0,1)
-    registerIdentity(avatarPlate,"BackgroundTransparency",0.04,0.75)
     -- Show the thumbnail directly; executor load flags can remain false after rendering.
     local explore=button(hero,"UI preferences  ›",function() app:SelectPage("Settings") end)
     explore.Position=UDim2.fromOffset(18,96);explore.Size=UDim2.fromOffset(166,38)
@@ -4951,13 +4946,11 @@ do
         local showAvatar=width>=275
         avatarPlate.Visible=showAvatar
         local compact=width<430
-        local avatarWidth=compact and 78 or 102
-        avatarPlate.Size=UDim2.fromOffset(avatarWidth,compact and 84 or 116)
-        avatarPlate.Position=UDim2.new(1,-16,0,compact and 9 or 17)
-        avatarCaption.Visible=not compact
-        portrait.Size=UDim2.new(1,-10,1,compact and -10 or -27)
-        greeting.Size=UDim2.new(1,showAvatar and -(avatarWidth+48) or -36,0,28)
-        note.Size=UDim2.new(1,showAvatar and -(avatarWidth+48) or -36,0,34)
+        local avatarWidth=compact and 82 or 118
+        avatarPlate.Size=UDim2.fromOffset(avatarWidth,compact and 82 or 112)
+        avatarPlate.Position=UDim2.new(1,-11,0,compact and 5 or 22)
+        greeting.Size=UDim2.new(1,showAvatar and -(avatarWidth+36) or -36,0,28)
+        note.Size=UDim2.new(1,showAvatar and -(avatarWidth+36) or -36,0,34)
         customize.Visible=width>=430
     end
     runtime:TrackConnection(hero:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeHero));arrangeHero()
