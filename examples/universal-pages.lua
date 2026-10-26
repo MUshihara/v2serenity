@@ -4294,7 +4294,72 @@ local settings = app:AddPage({Id="Settings", Title="Settings", Icon="settings", 
 
 -- UI SETTINGS: only connected behavior is exposed.
 local profile=app:AddPage({Id="Profile",Title="Profile",Icon="info",Group="Universal",Order=3})
-local profileCols=ColumnLayout.new(profile,deps,{Gap=10})
+-- Small shared presentation helpers; input-driven motion only.
+local SampleUI={}
+function SampleUI.Text(parent,message,x,y,width,height,size,muted)
+    local l=Typography.Label(parent,"Control",Tokens,message,UDim2.fromOffset(x,y),UDim2.new(1,width,0,height),Tokens.Color[muted and "TextMuted" or "Text"],muted and "TextMuted" or "Text")
+    l.TextSize=size or 13;l.Font=(size or 13)>=14 and Enum.Font.GothamBold or Enum.Font.Gotham
+    l.TextTruncate=Enum.TextTruncate.AtEnd
+    return l
+end
+function SampleUI.Panel(parent,height,order)
+    local f=Instance.new("Frame");f.Size=UDim2.new(1,-4,0,height);f.LayoutOrder=order or 1
+    f.BorderSizePixel=0;serenityColor(f,"BackgroundColor3",Tokens,"Panel");f.Parent=parent
+    f:SetAttribute("DashboardSolid",true)
+    local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,5);c.Parent=f
+    local edge=Instance.new("UIStroke");edge.Name="PanelStroke";edge.Transparency=0.72
+    serenityColor(edge,"Color",Tokens,"Stroke");edge.Parent=f
+    return f
+end
+function SampleUI.Heading(parent,title,subtitle)
+    local f=Instance.new("Frame");f.BackgroundTransparency=1;f.Size=UDim2.new(1,-4,0,62);f.LayoutOrder=-10;f.Parent=parent
+    SampleUI.Text(f,title,0,0,-4,28,21)
+    local note=SampleUI.Text(f,subtitle,0,33,-4,24,12,true);note.TextWrapped=true
+    return f
+end
+function SampleUI.Button(parent,title,callback,primary)
+    local b=Instance.new("TextButton");b.Size=UDim2.new(1,0,0,40);b.Text=title
+    b.Font=Enum.Font.GothamMedium;b.TextSize=13;b.AutoButtonColor=false;b.BorderSizePixel=0
+    serenityColor(b,"BackgroundColor3",Tokens,primary and "Accent" or "Inset")
+    serenityColor(b,"TextColor3",Tokens,primary and "ShellDeep" or "Text");b.Parent=parent
+    local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,4);c.Parent=b
+    local edge=Instance.new("UIStroke");edge.Name="SampleButtonEdge";edge.Transparency=primary and 1 or 0.65
+    serenityColor(edge,"Color",Tokens,"Stroke");edge.Parent=b
+    local tween
+    local function animate(props)
+        if tween then tween:Cancel() end
+        tween=Motion:Tween(b,0.12,props)
+    end
+    runtime:TrackConnection(b.MouseEnter:Connect(function() if not serenityInputBlocked(b) then animate({BackgroundTransparency=0.16}) end end))
+    runtime:TrackConnection(b.MouseLeave:Connect(function() animate({BackgroundTransparency=0}) end))
+    runtime:TrackConnection(b.InputBegan:Connect(function(input)
+        if serenityInputBlocked(b) then return end
+        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then animate({BackgroundTransparency=0.28}) end
+    end))
+    runtime:TrackConnection(b.InputEnded:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then animate({BackgroundTransparency=0}) end
+    end))
+    runtime:TrackConnection(b.Activated:Connect(function() if not serenityInputBlocked(b) then callback() end end))
+    runtime:TrackCleanup(function() if tween then tween:Cancel() end end)
+    return b,edge
+end
+function SampleUI.Grid(parent,count,height,minWidth,maxColumns)
+    local frame=Instance.new("Frame");frame.BackgroundTransparency=1;frame.Size=UDim2.new(1,-4,0,0);frame.Parent=parent
+    local grid=Instance.new("UIGridLayout");grid.SortOrder=Enum.SortOrder.LayoutOrder;grid.CellPadding=UDim2.fromOffset(8,8);grid.Parent=frame
+    local lastWidth
+    local function arrange()
+        local width=frame.AbsoluteSize.X/math.max(deps.UIScale.Scale,0.01)
+        if width<=0 or lastWidth==width then return end;lastWidth=width
+        local columns=math.clamp(math.floor((width+8)/(minWidth+8)),1,maxColumns)
+        grid.FillDirectionMaxCells=columns;grid.CellSize=UDim2.new(1/columns,-8*(columns-1)/columns,0,height)
+        frame.Size=UDim2.new(1,-4,0,math.ceil(count/columns)*(height+8)-8)
+    end
+    runtime:TrackConnection(frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrange))
+    runtime:TrackConnection(deps.UIScale:GetPropertyChangedSignal("Scale"):Connect(function()lastWidth=nil;arrange()end))
+    arrange();return frame,grid
+end
+
+local profileCols={Left=profile,Right=profile}
 local settingsCols = ColumnLayout.new(settings, deps, {})
 
 local themeBindings=setmetatable({}, {__mode="k"})
@@ -4578,7 +4643,8 @@ local function glassSelector(parent,title)
     table.insert(glassSelectors,control)
     return control
 end
-local appearance = Section.new(profileCols.Left, deps, {Title="Appearance"})
+local appearance = Section.new(profileCols.Left, deps, {Title="Advanced appearance",Collapsible=true,Open=false})
+appearance.Frame.LayoutOrder=3
 local themeControl=Select.new(appearance.Body,deps,{Title="Color theme",Options=themeNames,Default="Midnight",Callback=applyTheme})
 glassSelector(appearance.Body,"Glass material")
 local paletteControl=Select.new(appearance.Body,deps,{Title="Border colors",Options={"Aurora","Ice","Sunset","Match theme"},Default="Aurora",Callback=function(v) markCustom();materialState.Palette=v;refreshMaterials();saveAppearance() end})
@@ -4660,12 +4726,6 @@ local function usePreset(name)
         end
     end
 end
-local presetSection=Section.new(profileCols.Left,deps,{Title="Style presets",Description="Coordinated complete looks. Your settings save automatically."})
-presetSection.Frame.LayoutOrder=-1
-presetControl=Select.new(presetSection.Body,deps,{Title="Choose a preset",Options=presetNames,Default="Custom",Callback=function(v)
-    if v=="Custom" then selectedPreset=v;highlightPreset();saveAppearance() else usePreset(v) end
-end})
-runtime:TrackConnection(presetControl.Frame:GetPropertyChangedSignal("Visible"):Connect(highlightPreset))
 local dragSection=Section.new(settingsCols.Left,deps,{Title="Window movement",Tooltip="Drag freely beyond the screen edges. Double-tap the floating star or use Reset all floating positions to recover. Outline previews movement; Smooth glides; Direct follows immediately."})
 dragControl=Select.new(dragSection.Body,deps,{Title="Drag style",Options={"Outline","Smooth","Direct"},Default="Outline",Callback=function(v) runtime.DragStyle=v;saveAppearance() end})
 reducedMotionToggle(dragSection.Body)
@@ -4691,25 +4751,39 @@ previewSound.AutoButtonColor=true
 previewSound.Parent=soundSection.Body
 Material.Inset(previewSound,Tokens)
 previewSound.Activated:Connect(function() if serenityInputBlocked(previewSound) then return end; deps.PlayUISound(true) end)
-local gallery=Section.new(profileCols.Right,deps,{Title="Preset gallery",Description="Click a swatch to apply the complete look."})
-local grid=Instance.new("Frame");grid.Size=UDim2.new(1,0,0,math.ceil(#presets/2)*73-8);grid.BackgroundTransparency=1;grid.Parent=gallery.Body
-local layout=Instance.new("UIGridLayout");layout.CellSize=UDim2.new(0.5,-5,0,65);layout.CellPadding=UDim2.fromOffset(10,8)
-layout.SortOrder=Enum.SortOrder.LayoutOrder;layout.FillDirectionMaxCells=2;layout.Parent=grid
+local gallery=Section.new(profileCols.Right,deps,{Title="Preset gallery"})
+gallery.Frame.LayoutOrder=1
+local grid,layout=SampleUI.Grid(gallery.Body,#presets,96,168,3)
 for i,preset in ipairs(presets) do
+    local palette=completePalette(preset.Theme)
     local tile=Instance.new("TextButton");tile.Name=preset.Name;tile.Text="";tile.AutoButtonColor=false
-    serenityColor(tile,"BackgroundColor3",Tokens,"PanelSoft");tile.BackgroundTransparency=0.05;tile.LayoutOrder=i;tile.Parent=grid
-    local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,8);corner.Parent=tile
+    tile.BackgroundColor3=palette.Shell;tile:SetAttribute("FixedPresetColor",true);tile.LayoutOrder=i;tile.BorderSizePixel=0;tile.Parent=grid
+    local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,5);corner.Parent=tile
     local stroke=Instance.new("UIStroke");stroke.Color=preset.Color;stroke.Transparency=0.72;stroke:SetAttribute("FixedPresetColor",true);stroke.Parent=tile
-    local strip=Instance.new("Frame");strip.BorderSizePixel=0;strip.BackgroundColor3=preset.Color;strip:SetAttribute("FixedPresetColor",true)
-    strip.Position=UDim2.fromOffset(10,11);strip.Size=UDim2.new(1,-20,0,5);strip.Parent=tile
-    local round=Instance.new("UICorner");round.CornerRadius=UDim.new(1,0);round.Parent=strip
-    local name=Typography.Label(tile,"Control",Tokens,preset.Name,UDim2.fromOffset(10,24),UDim2.new(1,-31,0,20),Tokens.Color.Text,"Text")
-    name.TextSize=11;name.TextTruncate=Enum.TextTruncate.AtEnd
-    local badge=Typography.Label(tile,"Control",Tokens,"",UDim2.new(1,-21,0,24),UDim2.fromOffset(16,20),preset.Color)
+    local preview=Instance.new("Frame");preview.BorderSizePixel=0;preview.BackgroundColor3=palette.Panel;preview:SetAttribute("FixedPresetColor",true)
+    preview.Position=UDim2.fromOffset(10,10);preview.Size=UDim2.new(1,-20,0,48);preview.Parent=tile
+    local rail=Instance.new("Frame");rail.BorderSizePixel=0;rail.BackgroundColor3=palette.Sidebar;rail:SetAttribute("FixedPresetColor",true);rail.Size=UDim2.new(0.22,0,1,0);rail.Parent=preview
+    for j=1,3 do
+        local bar=Instance.new("Frame");bar.BorderSizePixel=0;bar.BackgroundColor3=j==1 and preset.Color or palette.TextMuted;bar:SetAttribute("FixedPresetColor",true)
+        bar.BackgroundTransparency=j==1 and 0 or 0.55;bar.Position=UDim2.new(0.3,0,0,8+(j-1)*12);bar.Size=UDim2.new(j==1 and 0.5 or 0.38,0,0,j==1 and 5 or 3);bar.Parent=preview
+    end
+    local name=Typography.Label(tile,"Control",Tokens,preset.Name,UDim2.fromOffset(10,66),UDim2.new(1,-38,0,22),palette.Text)
+    name:SetAttribute("FixedPresetColor",true);name:SetAttribute("LocalizationIgnore",true);name.TextSize=12;name.TextTruncate=Enum.TextTruncate.AtEnd
+    local badge=Typography.Label(tile,"Control",Tokens,"",UDim2.new(1,-26,0,66),UDim2.fromOffset(18,22),preset.Color)
     badge:SetAttribute("FixedPresetColor",true)
     presetTiles[preset.Name]={Badge=badge,Stroke=stroke}
-    Material.OptionHover(tile,Tokens,false,Motion)
+    local hover
+    runtime:TrackConnection(tile.MouseEnter:Connect(function()
+        if serenityInputBlocked(tile) then return end
+        if hover then hover:Cancel() end
+        hover=Motion:Tween(stroke,0.12,{Transparency=0.12})
+    end))
+    runtime:TrackConnection(tile.MouseLeave:Connect(function()
+        if hover then hover:Cancel() end
+        hover=Motion:Tween(stroke,0.12,{Transparency=selectedPreset==preset.Name and 0.12 or 0.72})
+    end))
     runtime:TrackConnection(tile.Activated:Connect(function() if serenityInputBlocked(tile) then return end; usePreset(preset.Name) end))
+    runtime:TrackCleanup(function() if hover then hover:Cancel() end end)
 end
 
 -- Selection changes are reflected through the stored preset value, including custom edits.
@@ -4910,7 +4984,7 @@ do
     local openSettings=button(quick.Body,"Appearance & presets  ›",function() app:SelectPage("Profile") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new"})
-    for i,data in ipairs({{"Dashboard restored","Previous layout with the new industrial colors and styling."},{"Universal pages","About, Dashboard, Feedback, Profile, Settings and Languages."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Dashboard restored","Previous layout with the new industrial colors and styling."},{"Universal page polish","Language tiles, clearer feedback and a full-width preset gallery."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -5212,57 +5286,81 @@ do
 end
 
 
--- Universal pages example: local feedback drafts, session utilities and privacy.
+-- Universal feedback: a local draft, never an automatic submission.
 do
-    local function text(parent,message,height)
-        local l=Typography.Label(parent,"Control",Tokens,message,UDim2.new(),UDim2.new(1,0,0,height or 30),Tokens.Color.Text,"Text")
-        l.TextWrapped=true;l.TextSize=12
-        return l
-    end
-    local function button(parent,title,callback)
-        local b=Instance.new("TextButton");b.Size=UDim2.new(1,0,0,38);b.Text=title
-        b.Font=Enum.Font.GothamMedium;b.TextSize=12;b.AutoButtonColor=false
-        serenityColor(b,"TextColor3",Tokens,"Text");b.Parent=parent;Material.Inset(b,Tokens)
-        Material.OptionHover(b,Tokens,false,Motion)
-        runtime:TrackConnection(b.Activated:Connect(function() if serenityInputBlocked(b) then return end;callback() end))
-        return b
-    end
     local function copy(value)
         local fn=setclipboard or toclipboard
         return type(fn)=="function" and pcall(fn,tostring(value))
     end
     local feedback=app:AddPage({Id="Feedback",Title="Feedback",Icon="webhook",Group="Universal",Order=1})
-    local section=Section.new(feedback,deps,{Title="Feedback",Description="Prepare a bug report, suggestion or help request."})
+    SampleUI.Heading(feedback,"Feedback","Report a problem or share an idea.")
     local category="Bug report"
-    Select.new(section.Body,deps,{Title="Type",Options={"Bug report","Suggestion","Key help","Other"},Default=category,Callback=function(v) category=v end})
-    text(section.Body,"Describe what happened and what you expected. Copy your draft, then share it in Serenity Hub Discord.",48)
-    local input=Instance.new("TextBox");input.Size=UDim2.new(1,0,0,120)
-    input.MultiLine=true;input.ClearTextOnFocus=false;input.Text="";input.PlaceholderText="Write your feedback here…"
+    local categories=SampleUI.Grid(feedback,4,38,118,4);categories.LayoutOrder=1
+    local chips={}
+    local function refreshCategory()
+        for name,item in pairs(chips) do
+            serenityColor(item.Button,"BackgroundColor3",Tokens,name==category and "NavActive" or "Inset")
+            serenityColor(item.Button,"TextColor3",Tokens,name==category and "Accent" or "TextMuted")
+            serenityColor(item.Edge,"Color",Tokens,name==category and "Accent" or "Stroke")
+            item.Edge.Transparency=name==category and 0.2 or 0.7
+        end
+    end
+    for i,name in ipairs({"Bug report","Suggestion","Key help","Other"}) do
+        local b,edge=SampleUI.Button(categories,name,function() category=name;refreshCategory() end)
+        b.LayoutOrder=i;chips[name]={Button=b,Edge=edge}
+    end
+    refreshCategory()
+    local form=SampleUI.Panel(feedback,226,2)
+    SampleUI.Text(form,"Your message",14,10,-28,24,14)
+    local counter=SampleUI.Text(form,"0 / 1800",0,14,0,18,11,true)
+    counter.AnchorPoint=Vector2.new(1,0);counter.Position=UDim2.new(1,-14,0,14);counter.Size=UDim2.fromOffset(84,18);counter.TextXAlignment=Enum.TextXAlignment.Right
+    local input=Instance.new("TextBox");input.Position=UDim2.fromOffset(14,43);input.Size=UDim2.new(1,-28,0,137)
+    input.MultiLine=true;input.ClearTextOnFocus=false;input.Text="";input.PlaceholderText="What happened? What did you expect?"
     input.TextSize=13;input.Font=Enum.Font.Gotham;input.TextWrapped=true
     input.TextXAlignment=Enum.TextXAlignment.Left;input.TextYAlignment=Enum.TextYAlignment.Top
     serenityColor(input,"TextColor3",Tokens,"Text");serenityColor(input,"PlaceholderColor3",Tokens,"TextMuted")
-    input.Parent=section.Body;Material.Inset(input,Tokens)
-    local padding=Instance.new("UIPadding");padding.PaddingLeft=UDim.new(0,10);padding.PaddingTop=UDim.new(0,10);padding.PaddingRight=UDim.new(0,10);padding.Parent=input
-    button(section.Body,"Copy feedback draft",function()
+    input.Parent=form;Material.Inset(input,Tokens)
+    local padding=Instance.new("UIPadding");padding.PaddingLeft=UDim.new(0,10);padding.PaddingTop=UDim.new(0,10);padding.PaddingRight=UDim.new(0,10);padding.PaddingBottom=UDim.new(0,10);padding.Parent=input
+    local function updateCount()
+        local count=utf8.len(input.Text) or #input.Text
+        if count>1800 then
+            local cut=utf8.offset(input.Text,1801)
+            input.Text=input.Text:sub(1,cut and cut-1 or 1800);count=utf8.len(input.Text) or #input.Text
+        end
+        counter.Text=tostring(count).." / 1800"
+    end
+    runtime:TrackConnection(input:GetPropertyChangedSignal("Text"):Connect(updateCount))
+    SampleUI.Text(form,"Copy your draft, then share it in Discord.",14,190,-28,24,11,true)
+    local actions=Instance.new("Frame");actions.BackgroundTransparency=1;actions.Size=UDim2.new(1,-4,0,42);actions.LayoutOrder=3;actions.Parent=feedback
+    local copied=SampleUI.Button(actions,"Copy draft",function()
         local message=input.Text:match("^%s*(.-)%s*$")
-        if message=="" then app:Notify("Add a message","Describe your feedback first.",3,"Info");return end
+        if message=="" then input:CaptureFocus();return end
         local draft=string.format("Serenity Hub — %s\nPlace: %s\nDevice: %s\n\n%s",category,tostring(game.PlaceId),deps.Mobile and "Mobile / touch" or "PC",message)
         local ok=copy(draft)
         app:Notify(ok and "Draft copied" or "Clipboard unavailable",ok and "Share it in Serenity Hub Discord. Nothing was sent automatically." or "Select and copy the message manually.",4,ok and "Success" or "Info")
-    end)
-    button(section.Body,"Copy Discord invite",function()
+    end,true)
+    copied.Size=UDim2.new(0.62,-4,1,0)
+    local discord=SampleUI.Button(actions,"Discord",function()
         local ok=copy("https://discord.gg/pWPs7428wE")
         app:Notify(ok and "Invite copied" or "Serenity Hub Discord",ok and "Paste into Discord or your browser." or "discord.gg/pWPs7428wE",4,"Info")
     end)
+    discord.Position=UDim2.new(0.62,4,0,0);discord.Size=UDim2.new(0.38,-4,1,0)
+    local icon=Icons.Create(discord,"discord",18,Color3.fromRGB(118,137,255),UDim2.fromOffset(10,12));if icon then icon:SetAttribute("FixedPresetColor",true) end
+
     local player=game:GetService("Players").LocalPlayer
     runtime:TrackConnection(app.ProfileButton.Activated:Connect(function() if not serenityInputBlocked(app.ProfileButton) then app:SelectPage("Profile") end end))
-    local info=Section.new(profileCols.Left,deps,{Title="Your profile"})
-    info.Frame.LayoutOrder=-2
-    registerIdentity(text(info.Body,player.DisplayName,30),"Text",player.DisplayName,"Hidden profile")
-    registerIdentity(text(info.Body,"@"..player.Name,30),"Text","@"..player.Name,"Username hidden")
-    registerIdentity(text(info.Body,"User ID: "..player.UserId,30),"Text","User ID: "..player.UserId,"User ID hidden")
-    Toggle.new(info.Body,deps,{Title="Hide my identity",Default=hideDashboardName,Callback=function(v) hideDashboardName=v==true;refreshIdentity();saveAppearance() end})
-    button(info.Body,"Open UI settings",function() app:SelectPage("Settings") end)
+    SampleUI.Heading(profile,"Profile","Your identity and interface style.")
+    local info=SampleUI.Panel(profile,94,-5)
+    local portrait=Instance.new("ImageLabel");portrait.Position=UDim2.fromOffset(14,17);portrait.Size=UDim2.fromOffset(56,56)
+    portrait.BackgroundTransparency=1;portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=150&h=150";portrait.Parent=info
+    local cover=Icons.Create(info,"info",30,Tokens.Color.TextMuted,UDim2.fromOffset(27,30))
+    registerIdentity(portrait,"ImageTransparency",0,1);registerIdentity(cover,"Visible",false,true)
+    local display=SampleUI.Text(info,player.DisplayName,84,19,-100,26,18)
+    local username=SampleUI.Text(info,"@"..player.Name,84,48,-100,22,12,true)
+    registerIdentity(display,"Text",player.DisplayName,"Hidden profile")
+    registerIdentity(username,"Text","@"..player.Name,"Username hidden")
+    local privacy=Section.new(profile,deps,{Title="Privacy"});privacy.Frame.LayoutOrder=5
+    Toggle.new(privacy.Body,deps,{Title="Hide my identity",Default=hideDashboardName,Description="Hide your name and avatar across the UI.",Callback=function(v) hideDashboardName=v==true;refreshIdentity();saveAppearance() end})
     refreshIdentity()
 end
 
@@ -5397,6 +5495,711 @@ I18N.Packs={
  ["ru"]={["About"]="О программе",["Rewards"]="Награды",["Misc"]="Разное",["Settings"]="Настройки",["Feedback"]="Обратная связь",["Appearance"]="Оформление",["Interface"]="Интерфейс",["Language"]="Язык",["Language preview"]="Предпросмотр языков",["Session"]="Сеанс",["Community"]="Сообщество",["Farm"]="Фарм",["Pets"]="Питомцы",["Status"]="Состояние",["Movement"]="Движение",["Transparency"]="Прозрачность",["Rose"]="Розовый",["Cyan"]="Голубой",["Lavender"]="Лавандовый",["No matching options"]="Варианты не найдены",["No options"]="Нет вариантов",["Select all"]="Выбрать всё",["Clear"]="Очистить",["Cancel"]="Отмена",["Reset"]="Сбросить",["Preview"]="Предпросмотр",["Dashboard"]="Панель",["Server"]="Сервер",["ESP"]="ESP",["Eggs"]="Яйца",["Player ESP"]="ESP игроков",["Ride A Pet"]="Ride A Pet",["Unknown"]="Неизвестно",["Selection"]="Выбор",["Shortcuts"]="Горячие клавиши",["Target"]="Цель",["Dice"]="Dice",["Waiting"]="Ожидание",["locked"]="заблокировано",["base"]="база",["ready"]="готово",["Ended"]="Завершено",["Error"]="Ошибка",["Forge"]="Кузница",["Common"]="Обычный",["Rare"]="Редкий",["Epic"]="Эпический",["Legendary"]="Легендарный",["Mythic"]="Мифический",["Automatic"]="Автоматически",["Auto"]="Авто",["Ready"]="Готово",["Coin"]="Монета",["Ore"]="Руда",["Rune"]="Руна",["Reward"]="Награда",["ore"]="руда",["max"]="макс.",["Paused"]="Пауза",["Profile"]="Профили",["Languages"]="Язык",["UNIVERSAL"]="ОБЩЕЕ",["SESSION"]="Сеанс"},
 }
 
+
+-- Extended shared-page copy, bundled locally.
+I18N.Packs["fil"]["Choose your language. Changes save automatically."]="Piliin ang wika. Awtomatikong nase-save ang mga pagbabago."
+I18N.Packs["id"]["Choose your language. Changes save automatically."]="Pilih bahasa. Perubahan disimpan otomatis."
+I18N.Packs["vi"]["Choose your language. Changes save automatically."]="Chọn ngôn ngữ. Thay đổi được lưu tự động."
+I18N.Packs["th"]["Choose your language. Changes save automatically."]="เลือกภาษา บันทึกการเปลี่ยนแปลงอัตโนมัติ"
+I18N.Packs["es"]["Choose your language. Changes save automatically."]="Elige tu idioma. Los cambios se guardan automáticamente."
+I18N.Packs["pt"]["Choose your language. Changes save automatically."]="Escolha seu idioma. As alterações são salvas automaticamente."
+I18N.Packs["fr"]["Choose your language. Changes save automatically."]="Choisissez votre langue. Les modifications sont enregistrées automatiquement."
+I18N.Packs["de"]["Choose your language. Changes save automatically."]="Sprache wählen. Änderungen werden automatisch gespeichert."
+I18N.Packs["ru"]["Choose your language. Changes save automatically."]="Выберите язык. Изменения сохраняются автоматически."
+I18N.Packs["fil"]["Report a problem or share an idea."]="Mag-ulat ng problema o magbahagi ng ideya."
+I18N.Packs["id"]["Report a problem or share an idea."]="Laporkan masalah atau bagikan ide."
+I18N.Packs["vi"]["Report a problem or share an idea."]="Báo lỗi hoặc chia sẻ ý tưởng."
+I18N.Packs["th"]["Report a problem or share an idea."]="รายงานปัญหาหรือแบ่งปันไอเดีย"
+I18N.Packs["es"]["Report a problem or share an idea."]="Informa de un problema o comparte una idea."
+I18N.Packs["pt"]["Report a problem or share an idea."]="Relate um problema ou compartilhe uma ideia."
+I18N.Packs["fr"]["Report a problem or share an idea."]="Signalez un problème ou partagez une idée."
+I18N.Packs["de"]["Report a problem or share an idea."]="Problem melden oder eine Idee teilen."
+I18N.Packs["ru"]["Report a problem or share an idea."]="Сообщите о проблеме или поделитесь идеей."
+I18N.Packs["fil"]["Your message"]="Mensahe mo"
+I18N.Packs["id"]["Your message"]="Pesan Anda"
+I18N.Packs["vi"]["Your message"]="Tin nhắn của bạn"
+I18N.Packs["th"]["Your message"]="ข้อความของคุณ"
+I18N.Packs["es"]["Your message"]="Tu mensaje"
+I18N.Packs["pt"]["Your message"]="Sua mensagem"
+I18N.Packs["fr"]["Your message"]="Votre message"
+I18N.Packs["de"]["Your message"]="Deine Nachricht"
+I18N.Packs["ru"]["Your message"]="Ваше сообщение"
+I18N.Packs["fil"]["What happened? What did you expect?"]="Ano ang nangyari? Ano ang inaasahan mo?"
+I18N.Packs["id"]["What happened? What did you expect?"]="Apa yang terjadi? Apa yang Anda harapkan?"
+I18N.Packs["vi"]["What happened? What did you expect?"]="Chuyện gì đã xảy ra? Bạn mong đợi điều gì?"
+I18N.Packs["th"]["What happened? What did you expect?"]="เกิดอะไรขึ้น และคุณคาดหวังอะไร"
+I18N.Packs["es"]["What happened? What did you expect?"]="¿Qué ocurrió? ¿Qué esperabas?"
+I18N.Packs["pt"]["What happened? What did you expect?"]="O que aconteceu? O que você esperava?"
+I18N.Packs["fr"]["What happened? What did you expect?"]="Que s’est-il passé ? À quoi vous attendiez-vous ?"
+I18N.Packs["de"]["What happened? What did you expect?"]="Was ist passiert? Was hast du erwartet?"
+I18N.Packs["ru"]["What happened? What did you expect?"]="Что произошло? Чего вы ожидали?"
+I18N.Packs["fil"]["Copy your draft, then share it in Discord."]="Kopyahin ang draft, saka ibahagi sa Discord."
+I18N.Packs["id"]["Copy your draft, then share it in Discord."]="Salin draf, lalu bagikan di Discord."
+I18N.Packs["vi"]["Copy your draft, then share it in Discord."]="Sao chép bản nháp rồi chia sẻ trên Discord."
+I18N.Packs["th"]["Copy your draft, then share it in Discord."]="คัดลอกฉบับร่างแล้วแชร์ใน Discord"
+I18N.Packs["es"]["Copy your draft, then share it in Discord."]="Copia el borrador y compártelo en Discord."
+I18N.Packs["pt"]["Copy your draft, then share it in Discord."]="Copie o rascunho e compartilhe no Discord."
+I18N.Packs["fr"]["Copy your draft, then share it in Discord."]="Copiez le brouillon, puis partagez-le sur Discord."
+I18N.Packs["de"]["Copy your draft, then share it in Discord."]="Entwurf kopieren und auf Discord teilen."
+I18N.Packs["ru"]["Copy your draft, then share it in Discord."]="Скопируйте черновик и отправьте его в Discord."
+I18N.Packs["fil"]["Copy draft"]="Kopyahin ang draft"
+I18N.Packs["id"]["Copy draft"]="Salin draf"
+I18N.Packs["vi"]["Copy draft"]="Sao chép bản nháp"
+I18N.Packs["th"]["Copy draft"]="คัดลอกฉบับร่าง"
+I18N.Packs["es"]["Copy draft"]="Copiar borrador"
+I18N.Packs["pt"]["Copy draft"]="Copiar rascunho"
+I18N.Packs["fr"]["Copy draft"]="Copier le brouillon"
+I18N.Packs["de"]["Copy draft"]="Entwurf kopieren"
+I18N.Packs["ru"]["Copy draft"]="Копировать черновик"
+I18N.Packs["fil"]["Your identity and interface style."]="Ang iyong pagkakakilanlan at estilo ng UI."
+I18N.Packs["id"]["Your identity and interface style."]="Identitas dan gaya antarmuka Anda."
+I18N.Packs["vi"]["Your identity and interface style."]="Danh tính và phong cách giao diện của bạn."
+I18N.Packs["th"]["Your identity and interface style."]="ตัวตนและรูปแบบหน้าตาของคุณ"
+I18N.Packs["es"]["Your identity and interface style."]="Tu identidad y estilo de interfaz."
+I18N.Packs["pt"]["Your identity and interface style."]="Sua identidade e estilo de interface."
+I18N.Packs["fr"]["Your identity and interface style."]="Votre identité et le style de l’interface."
+I18N.Packs["de"]["Your identity and interface style."]="Deine Identität und dein Oberflächenstil."
+I18N.Packs["ru"]["Your identity and interface style."]="Ваш профиль и стиль интерфейса."
+I18N.Packs["fil"]["Privacy"]="Privacy"
+I18N.Packs["id"]["Privacy"]="Privasi"
+I18N.Packs["vi"]["Privacy"]="Quyền riêng tư"
+I18N.Packs["th"]["Privacy"]="ความเป็นส่วนตัว"
+I18N.Packs["es"]["Privacy"]="Privacidad"
+I18N.Packs["pt"]["Privacy"]="Privacidade"
+I18N.Packs["fr"]["Privacy"]="Confidentialité"
+I18N.Packs["de"]["Privacy"]="Datenschutz"
+I18N.Packs["ru"]["Privacy"]="Конфиденциальность"
+I18N.Packs["fil"]["Hide my identity"]="Itago ang pagkakakilanlan ko"
+I18N.Packs["id"]["Hide my identity"]="Sembunyikan identitas saya"
+I18N.Packs["vi"]["Hide my identity"]="Ẩn danh tính của tôi"
+I18N.Packs["th"]["Hide my identity"]="ซ่อนตัวตนของฉัน"
+I18N.Packs["es"]["Hide my identity"]="Ocultar mi identidad"
+I18N.Packs["pt"]["Hide my identity"]="Ocultar minha identidade"
+I18N.Packs["fr"]["Hide my identity"]="Masquer mon identité"
+I18N.Packs["de"]["Hide my identity"]="Identität verbergen"
+I18N.Packs["ru"]["Hide my identity"]="Скрыть мою личность"
+I18N.Packs["fil"]["Hide your name and avatar across the UI."]="Itago ang pangalan at avatar mo sa buong UI."
+I18N.Packs["id"]["Hide your name and avatar across the UI."]="Sembunyikan nama dan avatar di seluruh antarmuka."
+I18N.Packs["vi"]["Hide your name and avatar across the UI."]="Ẩn tên và ảnh đại diện trên toàn giao diện."
+I18N.Packs["th"]["Hide your name and avatar across the UI."]="ซ่อนชื่อและอวาตาร์ของคุณทั่วทั้งหน้าต่าง"
+I18N.Packs["es"]["Hide your name and avatar across the UI."]="Oculta tu nombre y avatar en toda la interfaz."
+I18N.Packs["pt"]["Hide your name and avatar across the UI."]="Oculte seu nome e avatar em toda a interface."
+I18N.Packs["fr"]["Hide your name and avatar across the UI."]="Masquez votre nom et votre avatar dans l’interface."
+I18N.Packs["de"]["Hide your name and avatar across the UI."]="Namen und Avatar in der Oberfläche ausblenden."
+I18N.Packs["ru"]["Hide your name and avatar across the UI."]="Скрыть имя и аватар во всём интерфейсе."
+I18N.Packs["fil"]["Preset gallery"]="Mga preset"
+I18N.Packs["id"]["Preset gallery"]="Galeri preset"
+I18N.Packs["vi"]["Preset gallery"]="Bộ sưu tập giao diện"
+I18N.Packs["th"]["Preset gallery"]="แกลเลอรีธีม"
+I18N.Packs["es"]["Preset gallery"]="Galería de temas"
+I18N.Packs["pt"]["Preset gallery"]="Galeria de temas"
+I18N.Packs["fr"]["Preset gallery"]="Galerie de thèmes"
+I18N.Packs["de"]["Preset gallery"]="Designgalerie"
+I18N.Packs["ru"]["Preset gallery"]="Галерея тем"
+I18N.Packs["fil"]["Advanced appearance"]="Mas detalyadong hitsura"
+I18N.Packs["id"]["Advanced appearance"]="Tampilan lanjutan"
+I18N.Packs["vi"]["Advanced appearance"]="Giao diện nâng cao"
+I18N.Packs["th"]["Advanced appearance"]="การปรับแต่งขั้นสูง"
+I18N.Packs["es"]["Advanced appearance"]="Apariencia avanzada"
+I18N.Packs["pt"]["Advanced appearance"]="Aparência avançada"
+I18N.Packs["fr"]["Advanced appearance"]="Apparence avancée"
+I18N.Packs["de"]["Advanced appearance"]="Erweiterte Darstellung"
+I18N.Packs["ru"]["Advanced appearance"]="Расширенное оформление"
+I18N.Packs["fil"]["Bug report"]="Ulat ng bug"
+I18N.Packs["id"]["Bug report"]="Laporan bug"
+I18N.Packs["vi"]["Bug report"]="Báo lỗi"
+I18N.Packs["th"]["Bug report"]="รายงานบั๊ก"
+I18N.Packs["es"]["Bug report"]="Informe de error"
+I18N.Packs["pt"]["Bug report"]="Relato de erro"
+I18N.Packs["fr"]["Bug report"]="Signaler un bug"
+I18N.Packs["de"]["Bug report"]="Fehlerbericht"
+I18N.Packs["ru"]["Bug report"]="Сообщение об ошибке"
+I18N.Packs["fil"]["Suggestion"]="Mungkahi"
+I18N.Packs["id"]["Suggestion"]="Saran"
+I18N.Packs["vi"]["Suggestion"]="Đề xuất"
+I18N.Packs["th"]["Suggestion"]="ข้อเสนอแนะ"
+I18N.Packs["es"]["Suggestion"]="Sugerencia"
+I18N.Packs["pt"]["Suggestion"]="Sugestão"
+I18N.Packs["fr"]["Suggestion"]="Suggestion"
+I18N.Packs["de"]["Suggestion"]="Vorschlag"
+I18N.Packs["ru"]["Suggestion"]="Предложение"
+I18N.Packs["fil"]["Key help"]="Tulong sa key"
+I18N.Packs["id"]["Key help"]="Bantuan kunci"
+I18N.Packs["vi"]["Key help"]="Hỗ trợ khóa"
+I18N.Packs["th"]["Key help"]="ช่วยเหลือเรื่องคีย์"
+I18N.Packs["es"]["Key help"]="Ayuda con claves"
+I18N.Packs["pt"]["Key help"]="Ajuda com chaves"
+I18N.Packs["fr"]["Key help"]="Aide pour les clés"
+I18N.Packs["de"]["Key help"]="Hilfe mit Schlüsseln"
+I18N.Packs["ru"]["Key help"]="Помощь с ключом"
+I18N.Packs["fil"]["Other"]="Iba pa"
+I18N.Packs["id"]["Other"]="Lainnya"
+I18N.Packs["vi"]["Other"]="Khác"
+I18N.Packs["th"]["Other"]="อื่น ๆ"
+I18N.Packs["es"]["Other"]="Otro"
+I18N.Packs["pt"]["Other"]="Outro"
+I18N.Packs["fr"]["Other"]="Autre"
+I18N.Packs["de"]["Other"]="Sonstiges"
+I18N.Packs["ru"]["Other"]="Другое"
+I18N.Packs["fil"]["About"]="Tungkol"
+I18N.Packs["id"]["About"]="Tentang"
+I18N.Packs["vi"]["About"]="Giới thiệu"
+I18N.Packs["th"]["About"]="เกี่ยวกับ"
+I18N.Packs["es"]["About"]="Acerca de"
+I18N.Packs["pt"]["About"]="Sobre"
+I18N.Packs["fr"]["About"]="À propos"
+I18N.Packs["de"]["About"]="Über"
+I18N.Packs["ru"]["About"]="О программе"
+I18N.Packs["fil"]["Rewards"]="Mga gantimpala"
+I18N.Packs["id"]["Rewards"]="Hadiah"
+I18N.Packs["vi"]["Rewards"]="Phần thưởng"
+I18N.Packs["th"]["Rewards"]="รางวัล"
+I18N.Packs["es"]["Rewards"]="Recompensas"
+I18N.Packs["pt"]["Rewards"]="Recompensas"
+I18N.Packs["fr"]["Rewards"]="Récompenses"
+I18N.Packs["de"]["Rewards"]="Belohnungen"
+I18N.Packs["ru"]["Rewards"]="Награды"
+I18N.Packs["fil"]["Misc"]="Iba pa"
+I18N.Packs["id"]["Misc"]="Lainnya"
+I18N.Packs["vi"]["Misc"]="Khác"
+I18N.Packs["th"]["Misc"]="อื่น ๆ"
+I18N.Packs["es"]["Misc"]="Varios"
+I18N.Packs["pt"]["Misc"]="Diversos"
+I18N.Packs["fr"]["Misc"]="Divers"
+I18N.Packs["de"]["Misc"]="Sonstiges"
+I18N.Packs["ru"]["Misc"]="Разное"
+I18N.Packs["fil"]["Settings"]="Mga setting"
+I18N.Packs["id"]["Settings"]="Pengaturan"
+I18N.Packs["vi"]["Settings"]="Cài đặt"
+I18N.Packs["th"]["Settings"]="การตั้งค่า"
+I18N.Packs["es"]["Settings"]="Configuración"
+I18N.Packs["pt"]["Settings"]="Configurações"
+I18N.Packs["fr"]["Settings"]="Paramètres"
+I18N.Packs["de"]["Settings"]="Einstellungen"
+I18N.Packs["ru"]["Settings"]="Настройки"
+I18N.Packs["fil"]["Feedback"]="Puna"
+I18N.Packs["id"]["Feedback"]="Masukan"
+I18N.Packs["vi"]["Feedback"]="Góp ý"
+I18N.Packs["th"]["Feedback"]="ข้อเสนอแนะ"
+I18N.Packs["es"]["Feedback"]="Comentarios"
+I18N.Packs["pt"]["Feedback"]="Comentários"
+I18N.Packs["fr"]["Feedback"]="Commentaires"
+I18N.Packs["de"]["Feedback"]="Feedback"
+I18N.Packs["ru"]["Feedback"]="Обратная связь"
+I18N.Packs["fil"]["Appearance"]="Hitsura"
+I18N.Packs["id"]["Appearance"]="Tampilan"
+I18N.Packs["vi"]["Appearance"]="Giao diện"
+I18N.Packs["th"]["Appearance"]="รูปลักษณ์"
+I18N.Packs["es"]["Appearance"]="Apariencia"
+I18N.Packs["pt"]["Appearance"]="Aparência"
+I18N.Packs["fr"]["Appearance"]="Apparence"
+I18N.Packs["de"]["Appearance"]="Darstellung"
+I18N.Packs["ru"]["Appearance"]="Оформление"
+I18N.Packs["fil"]["Interface"]="Interface"
+I18N.Packs["id"]["Interface"]="Antarmuka"
+I18N.Packs["vi"]["Interface"]="Giao diện điều khiển"
+I18N.Packs["th"]["Interface"]="ส่วนติดต่อ"
+I18N.Packs["es"]["Interface"]="Interfaz"
+I18N.Packs["pt"]["Interface"]="Interface"
+I18N.Packs["fr"]["Interface"]="Interface"
+I18N.Packs["de"]["Interface"]="Oberfläche"
+I18N.Packs["ru"]["Interface"]="Интерфейс"
+I18N.Packs["fil"]["Language"]="Wika"
+I18N.Packs["id"]["Language"]="Bahasa"
+I18N.Packs["vi"]["Language"]="Ngôn ngữ"
+I18N.Packs["th"]["Language"]="ภาษา"
+I18N.Packs["es"]["Language"]="Idioma"
+I18N.Packs["pt"]["Language"]="Idioma"
+I18N.Packs["fr"]["Language"]="Langue"
+I18N.Packs["de"]["Language"]="Sprache"
+I18N.Packs["ru"]["Language"]="Язык"
+I18N.Packs["fil"]["Language preview"]="Preview ng wika"
+I18N.Packs["id"]["Language preview"]="Pratinjau Bahasa"
+I18N.Packs["vi"]["Language preview"]="Xem thử ngôn ngữ"
+I18N.Packs["th"]["Language preview"]="ตัวอย่างภาษา"
+I18N.Packs["es"]["Language preview"]="Vista previa de idiomas"
+I18N.Packs["pt"]["Language preview"]="Prévia de idiomas"
+I18N.Packs["fr"]["Language preview"]="Aperçu des langues"
+I18N.Packs["de"]["Language preview"]="Sprachvorschau"
+I18N.Packs["ru"]["Language preview"]="Предпросмотр языков"
+I18N.Packs["fil"]["Language changed"]="Napalitan ang wika"
+I18N.Packs["id"]["Language changed"]="Bahasa diubah"
+I18N.Packs["vi"]["Language changed"]="Đã đổi ngôn ngữ"
+I18N.Packs["th"]["Language changed"]="เปลี่ยนภาษาแล้ว"
+I18N.Packs["es"]["Language changed"]="Idioma cambiado"
+I18N.Packs["pt"]["Language changed"]="Idioma alterado"
+I18N.Packs["fr"]["Language changed"]="Langue modifiée"
+I18N.Packs["de"]["Language changed"]="Sprache geändert"
+I18N.Packs["ru"]["Language changed"]="Язык изменён"
+I18N.Packs["fil"]["Session"]="Sesyon"
+I18N.Packs["id"]["Session"]="Sesi"
+I18N.Packs["vi"]["Session"]="Phiên"
+I18N.Packs["th"]["Session"]="เซสชัน"
+I18N.Packs["es"]["Session"]="Sesión"
+I18N.Packs["pt"]["Session"]="Sessão"
+I18N.Packs["fr"]["Session"]="Session"
+I18N.Packs["de"]["Session"]="Sitzung"
+I18N.Packs["ru"]["Session"]="Сеанс"
+I18N.Packs["fil"]["Community"]="Komunidad"
+I18N.Packs["id"]["Community"]="Komunitas"
+I18N.Packs["vi"]["Community"]="Cộng đồng"
+I18N.Packs["th"]["Community"]="ชุมชน"
+I18N.Packs["es"]["Community"]="Comunidad"
+I18N.Packs["pt"]["Community"]="Comunidade"
+I18N.Packs["fr"]["Community"]="Communauté"
+I18N.Packs["de"]["Community"]="Community"
+I18N.Packs["ru"]["Community"]="Сообщество"
+I18N.Packs["fil"]["Farm"]="Pag-farm"
+I18N.Packs["id"]["Farm"]="Farming"
+I18N.Packs["vi"]["Farm"]="Cày tài nguyên"
+I18N.Packs["th"]["Farm"]="ฟาร์ม"
+I18N.Packs["es"]["Farm"]="Farmeo"
+I18N.Packs["pt"]["Farm"]="Farm"
+I18N.Packs["fr"]["Farm"]="Farm"
+I18N.Packs["de"]["Farm"]="Farmen"
+I18N.Packs["ru"]["Farm"]="Фарм"
+I18N.Packs["fil"]["Pets"]="Mga pet"
+I18N.Packs["id"]["Pets"]="Pet"
+I18N.Packs["vi"]["Pets"]="Thú cưng"
+I18N.Packs["th"]["Pets"]="สัตว์เลี้ยง"
+I18N.Packs["es"]["Pets"]="Mascotas"
+I18N.Packs["pt"]["Pets"]="Pets"
+I18N.Packs["fr"]["Pets"]="Animaux"
+I18N.Packs["de"]["Pets"]="Begleiter"
+I18N.Packs["ru"]["Pets"]="Питомцы"
+I18N.Packs["fil"]["Status"]="Katayuan"
+I18N.Packs["id"]["Status"]="Status"
+I18N.Packs["vi"]["Status"]="Trạng thái"
+I18N.Packs["th"]["Status"]="สถานะ"
+I18N.Packs["es"]["Status"]="Estado"
+I18N.Packs["pt"]["Status"]="Status"
+I18N.Packs["fr"]["Status"]="État"
+I18N.Packs["de"]["Status"]="Status"
+I18N.Packs["ru"]["Status"]="Состояние"
+I18N.Packs["fil"]["Movement"]="Paggalaw"
+I18N.Packs["id"]["Movement"]="Gerakan"
+I18N.Packs["vi"]["Movement"]="Di chuyển"
+I18N.Packs["th"]["Movement"]="การเคลื่อนที่"
+I18N.Packs["es"]["Movement"]="Movimiento"
+I18N.Packs["pt"]["Movement"]="Movimento"
+I18N.Packs["fr"]["Movement"]="Déplacement"
+I18N.Packs["de"]["Movement"]="Bewegung"
+I18N.Packs["ru"]["Movement"]="Движение"
+I18N.Packs["fil"]["Transparency"]="Transparency"
+I18N.Packs["id"]["Transparency"]="Transparansi"
+I18N.Packs["vi"]["Transparency"]="Độ trong suốt"
+I18N.Packs["th"]["Transparency"]="ความโปร่งใส"
+I18N.Packs["es"]["Transparency"]="Transparencia"
+I18N.Packs["pt"]["Transparency"]="Transparência"
+I18N.Packs["fr"]["Transparency"]="Transparence"
+I18N.Packs["de"]["Transparency"]="Transparenz"
+I18N.Packs["ru"]["Transparency"]="Прозрачность"
+I18N.Packs["fil"]["Rose"]="Rosas"
+I18N.Packs["id"]["Rose"]="Merah Muda"
+I18N.Packs["vi"]["Rose"]="Hồng"
+I18N.Packs["th"]["Rose"]="ชมพู"
+I18N.Packs["es"]["Rose"]="Rosa"
+I18N.Packs["pt"]["Rose"]="Rosa"
+I18N.Packs["fr"]["Rose"]="Rose"
+I18N.Packs["de"]["Rose"]="Rosa"
+I18N.Packs["ru"]["Rose"]="Розовый"
+I18N.Packs["fil"]["Cyan"]="Cyan"
+I18N.Packs["id"]["Cyan"]="Sian"
+I18N.Packs["vi"]["Cyan"]="Xanh lơ"
+I18N.Packs["th"]["Cyan"]="ฟ้า"
+I18N.Packs["es"]["Cyan"]="Cian"
+I18N.Packs["pt"]["Cyan"]="Ciano"
+I18N.Packs["fr"]["Cyan"]="Cyan"
+I18N.Packs["de"]["Cyan"]="Cyan"
+I18N.Packs["ru"]["Cyan"]="Голубой"
+I18N.Packs["fil"]["Lavender"]="Lavender"
+I18N.Packs["id"]["Lavender"]="Lavender"
+I18N.Packs["vi"]["Lavender"]="Tím nhạt"
+I18N.Packs["th"]["Lavender"]="ม่วงอ่อน"
+I18N.Packs["es"]["Lavender"]="Lavanda"
+I18N.Packs["pt"]["Lavender"]="Lavanda"
+I18N.Packs["fr"]["Lavender"]="Lavande"
+I18N.Packs["de"]["Lavender"]="Lavendel"
+I18N.Packs["ru"]["Lavender"]="Лавандовый"
+I18N.Packs["fil"]["No matching options"]="Walang tumugmang opsiyon"
+I18N.Packs["id"]["No matching options"]="Tidak ada opsi yang cocok"
+I18N.Packs["vi"]["No matching options"]="Không có tùy chọn phù hợp"
+I18N.Packs["th"]["No matching options"]="ไม่พบตัวเลือก"
+I18N.Packs["es"]["No matching options"]="No hay opciones coincidentes"
+I18N.Packs["pt"]["No matching options"]="Nenhuma opção encontrada"
+I18N.Packs["fr"]["No matching options"]="Aucune option correspondante"
+I18N.Packs["de"]["No matching options"]="Keine passenden Optionen"
+I18N.Packs["ru"]["No matching options"]="Варианты не найдены"
+I18N.Packs["fil"]["No options"]="Walang opsiyon"
+I18N.Packs["id"]["No options"]="Tidak ada opsi"
+I18N.Packs["vi"]["No options"]="Không có tùy chọn"
+I18N.Packs["th"]["No options"]="ไม่มีตัวเลือก"
+I18N.Packs["es"]["No options"]="Sin opciones"
+I18N.Packs["pt"]["No options"]="Sem opções"
+I18N.Packs["fr"]["No options"]="Aucune option"
+I18N.Packs["de"]["No options"]="Keine Optionen"
+I18N.Packs["ru"]["No options"]="Нет вариантов"
+I18N.Packs["fil"]["Select all"]="Piliin lahat"
+I18N.Packs["id"]["Select all"]="Pilih Semua"
+I18N.Packs["vi"]["Select all"]="Chọn tất cả"
+I18N.Packs["th"]["Select all"]="เลือกทั้งหมด"
+I18N.Packs["es"]["Select all"]="Seleccionar todo"
+I18N.Packs["pt"]["Select all"]="Selecionar tudo"
+I18N.Packs["fr"]["Select all"]="Tout sélectionner"
+I18N.Packs["de"]["Select all"]="Alle auswählen"
+I18N.Packs["ru"]["Select all"]="Выбрать всё"
+I18N.Packs["fil"]["Clear"]="Alisin lahat"
+I18N.Packs["id"]["Clear"]="Hapus"
+I18N.Packs["vi"]["Clear"]="Xóa"
+I18N.Packs["th"]["Clear"]="ล้าง"
+I18N.Packs["es"]["Clear"]="Limpiar"
+I18N.Packs["pt"]["Clear"]="Limpar"
+I18N.Packs["fr"]["Clear"]="Effacer"
+I18N.Packs["de"]["Clear"]="Leeren"
+I18N.Packs["ru"]["Clear"]="Очистить"
+I18N.Packs["fil"]["Cancel"]="Kanselahin"
+I18N.Packs["id"]["Cancel"]="Batal"
+I18N.Packs["vi"]["Cancel"]="Hủy"
+I18N.Packs["th"]["Cancel"]="ยกเลิก"
+I18N.Packs["es"]["Cancel"]="Cancelar"
+I18N.Packs["pt"]["Cancel"]="Cancelar"
+I18N.Packs["fr"]["Cancel"]="Annuler"
+I18N.Packs["de"]["Cancel"]="Abbrechen"
+I18N.Packs["ru"]["Cancel"]="Отмена"
+I18N.Packs["fil"]["Reset"]="I-reset"
+I18N.Packs["id"]["Reset"]="Reset"
+I18N.Packs["vi"]["Reset"]="Đặt lại"
+I18N.Packs["th"]["Reset"]="รีเซ็ต"
+I18N.Packs["es"]["Reset"]="Restablecer"
+I18N.Packs["pt"]["Reset"]="Redefinir"
+I18N.Packs["fr"]["Reset"]="Réinitialiser"
+I18N.Packs["de"]["Reset"]="Zurücksetzen"
+I18N.Packs["ru"]["Reset"]="Сбросить"
+I18N.Packs["fil"]["characters"]="karakter"
+I18N.Packs["id"]["characters"]="karakter"
+I18N.Packs["vi"]["characters"]="ký tự"
+I18N.Packs["th"]["characters"]="ตัวอักษร"
+I18N.Packs["es"]["characters"]="caracteres"
+I18N.Packs["pt"]["characters"]="caracteres"
+I18N.Packs["fr"]["characters"]="caractères"
+I18N.Packs["de"]["characters"]="Zeichen"
+I18N.Packs["ru"]["characters"]="символов"
+I18N.Packs["fil"]["Preview"]="Preview"
+I18N.Packs["id"]["Preview"]="Pratinjau"
+I18N.Packs["vi"]["Preview"]="Xem thử"
+I18N.Packs["th"]["Preview"]="ตัวอย่าง"
+I18N.Packs["es"]["Preview"]="Vista previa"
+I18N.Packs["pt"]["Preview"]="Prévia"
+I18N.Packs["fr"]["Preview"]="Aperçu"
+I18N.Packs["de"]["Preview"]="Vorschau"
+I18N.Packs["ru"]["Preview"]="Предпросмотр"
+I18N.Packs["fil"]["Dashboard"]="Dashboard"
+I18N.Packs["id"]["Dashboard"]="Dasbor"
+I18N.Packs["vi"]["Dashboard"]="Bảng điều khiển"
+I18N.Packs["th"]["Dashboard"]="แดชบอร์ด"
+I18N.Packs["es"]["Dashboard"]="Panel"
+I18N.Packs["pt"]["Dashboard"]="Painel"
+I18N.Packs["fr"]["Dashboard"]="Tableau de bord"
+I18N.Packs["de"]["Dashboard"]="Übersicht"
+I18N.Packs["ru"]["Dashboard"]="Панель"
+I18N.Packs["fil"]["Server"]="Server"
+I18N.Packs["id"]["Server"]="Server"
+I18N.Packs["vi"]["Server"]="Máy chủ"
+I18N.Packs["th"]["Server"]="เซิร์ฟเวอร์"
+I18N.Packs["es"]["Server"]="Servidor"
+I18N.Packs["pt"]["Server"]="Servidor"
+I18N.Packs["fr"]["Server"]="Serveur"
+I18N.Packs["de"]["Server"]="Server"
+I18N.Packs["ru"]["Server"]="Сервер"
+I18N.Packs["fil"]["ESP"]="ESP"
+I18N.Packs["id"]["ESP"]="ESP"
+I18N.Packs["vi"]["ESP"]="ESP"
+I18N.Packs["th"]["ESP"]="ESP"
+I18N.Packs["es"]["ESP"]="ESP"
+I18N.Packs["pt"]["ESP"]="ESP"
+I18N.Packs["fr"]["ESP"]="ESP"
+I18N.Packs["de"]["ESP"]="ESP"
+I18N.Packs["ru"]["ESP"]="ESP"
+I18N.Packs["fil"]["Eggs"]="Mga Itlog"
+I18N.Packs["id"]["Eggs"]="Telur"
+I18N.Packs["vi"]["Eggs"]="Trứng"
+I18N.Packs["th"]["Eggs"]="ไข่"
+I18N.Packs["es"]["Eggs"]="Huevos"
+I18N.Packs["pt"]["Eggs"]="Ovos"
+I18N.Packs["fr"]["Eggs"]="Œufs"
+I18N.Packs["de"]["Eggs"]="Eier"
+I18N.Packs["ru"]["Eggs"]="Яйца"
+I18N.Packs["fil"]["Player ESP"]="Player ESP"
+I18N.Packs["id"]["Player ESP"]="ESP Pemain"
+I18N.Packs["vi"]["Player ESP"]="ESP người chơi"
+I18N.Packs["th"]["Player ESP"]="ESP ผู้เล่น"
+I18N.Packs["es"]["Player ESP"]="ESP de jugadores"
+I18N.Packs["pt"]["Player ESP"]="ESP de jogadores"
+I18N.Packs["fr"]["Player ESP"]="ESP des joueurs"
+I18N.Packs["de"]["Player ESP"]="Spieler-ESP"
+I18N.Packs["ru"]["Player ESP"]="ESP игроков"
+I18N.Packs["fil"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["id"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["vi"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["th"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["es"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["pt"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["fr"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["de"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["ru"]["Ride A Pet"]="Ride A Pet"
+I18N.Packs["fil"]["Unknown"]="Hindi Kilala"
+I18N.Packs["id"]["Unknown"]="Tidak Diketahui"
+I18N.Packs["vi"]["Unknown"]="Không xác định"
+I18N.Packs["th"]["Unknown"]="ไม่ทราบ"
+I18N.Packs["es"]["Unknown"]="Desconocido"
+I18N.Packs["pt"]["Unknown"]="Desconhecido"
+I18N.Packs["fr"]["Unknown"]="Inconnu"
+I18N.Packs["de"]["Unknown"]="Unbekannt"
+I18N.Packs["ru"]["Unknown"]="Неизвестно"
+I18N.Packs["fil"]["Farming"]="Pag-farm"
+I18N.Packs["id"]["Farming"]="Farming"
+I18N.Packs["vi"]["Farming"]="Cày tài nguyên"
+I18N.Packs["th"]["Farming"]="ฟาร์ม"
+I18N.Packs["es"]["Farming"]="Farmeo"
+I18N.Packs["pt"]["Farming"]="Farm"
+I18N.Packs["fr"]["Farming"]="Farm"
+I18N.Packs["de"]["Farming"]="Farmen"
+I18N.Packs["ru"]["Farming"]="Фарм"
+I18N.Packs["fil"]["Selection"]="Mga Napili"
+I18N.Packs["id"]["Selection"]="Pilihan"
+I18N.Packs["vi"]["Selection"]="Lựa chọn"
+I18N.Packs["th"]["Selection"]="การเลือก"
+I18N.Packs["es"]["Selection"]="Selección"
+I18N.Packs["pt"]["Selection"]="Seleção"
+I18N.Packs["fr"]["Selection"]="Sélection"
+I18N.Packs["de"]["Selection"]="Auswahl"
+I18N.Packs["ru"]["Selection"]="Выбор"
+I18N.Packs["fil"]["Shortcuts"]="Mga Shortcut"
+I18N.Packs["id"]["Shortcuts"]="Pintasan"
+I18N.Packs["vi"]["Shortcuts"]="Phím tắt"
+I18N.Packs["th"]["Shortcuts"]="ปุ่มลัด"
+I18N.Packs["es"]["Shortcuts"]="Atajos"
+I18N.Packs["pt"]["Shortcuts"]="Atalhos"
+I18N.Packs["fr"]["Shortcuts"]="Raccourcis"
+I18N.Packs["de"]["Shortcuts"]="Tastenkürzel"
+I18N.Packs["ru"]["Shortcuts"]="Горячие клавиши"
+I18N.Packs["fil"]["Target"]="Target"
+I18N.Packs["id"]["Target"]="Target"
+I18N.Packs["vi"]["Target"]="Mục tiêu"
+I18N.Packs["th"]["Target"]="เป้าหมาย"
+I18N.Packs["es"]["Target"]="Objetivo"
+I18N.Packs["pt"]["Target"]="Alvo"
+I18N.Packs["fr"]["Target"]="Cible"
+I18N.Packs["de"]["Target"]="Ziel"
+I18N.Packs["ru"]["Target"]="Цель"
+I18N.Packs["fil"]["Dice"]="Dice"
+I18N.Packs["id"]["Dice"]="Dice"
+I18N.Packs["vi"]["Dice"]="Dice"
+I18N.Packs["th"]["Dice"]="Dice"
+I18N.Packs["es"]["Dice"]="Dice"
+I18N.Packs["pt"]["Dice"]="Dice"
+I18N.Packs["fr"]["Dice"]="Dice"
+I18N.Packs["de"]["Dice"]="Dice"
+I18N.Packs["ru"]["Dice"]="Dice"
+I18N.Packs["fil"]["Waiting"]="Naghihintay"
+I18N.Packs["id"]["Waiting"]="Menunggu"
+I18N.Packs["vi"]["Waiting"]="Đang chờ"
+I18N.Packs["th"]["Waiting"]="กำลังรอ"
+I18N.Packs["es"]["Waiting"]="Esperando"
+I18N.Packs["pt"]["Waiting"]="Aguardando"
+I18N.Packs["fr"]["Waiting"]="En attente"
+I18N.Packs["de"]["Waiting"]="Wartet"
+I18N.Packs["ru"]["Waiting"]="Ожидание"
+I18N.Packs["fil"]["locked"]="naka-lock"
+I18N.Packs["id"]["locked"]="terkunci"
+I18N.Packs["vi"]["locked"]="đã khóa"
+I18N.Packs["th"]["locked"]="ล็อกอยู่"
+I18N.Packs["es"]["locked"]="bloqueadas"
+I18N.Packs["pt"]["locked"]="bloqueadas"
+I18N.Packs["fr"]["locked"]="verrouillées"
+I18N.Packs["de"]["locked"]="gesperrt"
+I18N.Packs["ru"]["locked"]="заблокировано"
+I18N.Packs["fil"]["base"]="base"
+I18N.Packs["id"]["base"]="base"
+I18N.Packs["vi"]["base"]="base"
+I18N.Packs["th"]["base"]="base"
+I18N.Packs["es"]["base"]="base"
+I18N.Packs["pt"]["base"]="base"
+I18N.Packs["fr"]["base"]="base"
+I18N.Packs["de"]["base"]="Basis"
+I18N.Packs["ru"]["base"]="база"
+I18N.Packs["fil"]["ready"]="handa"
+I18N.Packs["id"]["ready"]="siap"
+I18N.Packs["vi"]["ready"]="sẵn sàng"
+I18N.Packs["th"]["ready"]="พร้อม"
+I18N.Packs["es"]["ready"]="listas"
+I18N.Packs["pt"]["ready"]="prontas"
+I18N.Packs["fr"]["ready"]="prêtes"
+I18N.Packs["de"]["ready"]="bereit"
+I18N.Packs["ru"]["ready"]="готово"
+I18N.Packs["fil"]["Ended"]="Tapos na"
+I18N.Packs["id"]["Ended"]="Selesai"
+I18N.Packs["vi"]["Ended"]="Đã kết thúc"
+I18N.Packs["th"]["Ended"]="จบแล้ว"
+I18N.Packs["es"]["Ended"]="Finalizado"
+I18N.Packs["pt"]["Ended"]="Finalizado"
+I18N.Packs["fr"]["Ended"]="Terminé"
+I18N.Packs["de"]["Ended"]="Beendet"
+I18N.Packs["ru"]["Ended"]="Завершено"
+I18N.Packs["fil"]["Error"]="Error"
+I18N.Packs["id"]["Error"]="Error"
+I18N.Packs["vi"]["Error"]="Lỗi"
+I18N.Packs["th"]["Error"]="ข้อผิดพลาด"
+I18N.Packs["es"]["Error"]="Error"
+I18N.Packs["pt"]["Error"]="Erro"
+I18N.Packs["fr"]["Error"]="Erreur"
+I18N.Packs["de"]["Error"]="Fehler"
+I18N.Packs["ru"]["Error"]="Ошибка"
+I18N.Packs["fil"]["Forge"]="Forge"
+I18N.Packs["id"]["Forge"]="Tempa"
+I18N.Packs["vi"]["Forge"]="Rèn"
+I18N.Packs["th"]["Forge"]="ตีเหล็ก"
+I18N.Packs["es"]["Forge"]="Forja"
+I18N.Packs["pt"]["Forge"]="Forja"
+I18N.Packs["fr"]["Forge"]="Forge"
+I18N.Packs["de"]["Forge"]="Schmiede"
+I18N.Packs["ru"]["Forge"]="Кузница"
+I18N.Packs["fil"]["Common"]="Karaniwan"
+I18N.Packs["id"]["Common"]="Umum"
+I18N.Packs["vi"]["Common"]="Thường"
+I18N.Packs["th"]["Common"]="ทั่วไป"
+I18N.Packs["es"]["Common"]="Común"
+I18N.Packs["pt"]["Common"]="Comum"
+I18N.Packs["fr"]["Common"]="Commun"
+I18N.Packs["de"]["Common"]="Gewöhnlich"
+I18N.Packs["ru"]["Common"]="Обычный"
+I18N.Packs["fil"]["Rare"]="Bihira"
+I18N.Packs["id"]["Rare"]="Langka"
+I18N.Packs["vi"]["Rare"]="Hiếm"
+I18N.Packs["th"]["Rare"]="หายาก"
+I18N.Packs["es"]["Rare"]="Raro"
+I18N.Packs["pt"]["Rare"]="Raro"
+I18N.Packs["fr"]["Rare"]="Rare"
+I18N.Packs["de"]["Rare"]="Selten"
+I18N.Packs["ru"]["Rare"]="Редкий"
+I18N.Packs["fil"]["Epic"]="Epiko"
+I18N.Packs["id"]["Epic"]="Epik"
+I18N.Packs["vi"]["Epic"]="Sử thi"
+I18N.Packs["th"]["Epic"]="อีพิก"
+I18N.Packs["es"]["Epic"]="Épico"
+I18N.Packs["pt"]["Epic"]="Épico"
+I18N.Packs["fr"]["Epic"]="Épique"
+I18N.Packs["de"]["Epic"]="Episch"
+I18N.Packs["ru"]["Epic"]="Эпический"
+I18N.Packs["fil"]["Legendary"]="Maalamat"
+I18N.Packs["id"]["Legendary"]="Legendaris"
+I18N.Packs["vi"]["Legendary"]="Huyền thoại"
+I18N.Packs["th"]["Legendary"]="ตำนาน"
+I18N.Packs["es"]["Legendary"]="Legendario"
+I18N.Packs["pt"]["Legendary"]="Lendário"
+I18N.Packs["fr"]["Legendary"]="Légendaire"
+I18N.Packs["de"]["Legendary"]="Legendär"
+I18N.Packs["ru"]["Legendary"]="Легендарный"
+I18N.Packs["fil"]["Mythic"]="Mitiko"
+I18N.Packs["id"]["Mythic"]="Mitos"
+I18N.Packs["vi"]["Mythic"]="Thần thoại"
+I18N.Packs["th"]["Mythic"]="เทพนิยาย"
+I18N.Packs["es"]["Mythic"]="Mítico"
+I18N.Packs["pt"]["Mythic"]="Mítico"
+I18N.Packs["fr"]["Mythic"]="Mythique"
+I18N.Packs["de"]["Mythic"]="Mythisch"
+I18N.Packs["ru"]["Mythic"]="Мифический"
+I18N.Packs["fil"]["Automatic"]="Awtomatiko"
+I18N.Packs["id"]["Automatic"]="Otomatis"
+I18N.Packs["vi"]["Automatic"]="Tự động"
+I18N.Packs["th"]["Automatic"]="อัตโนมัติ"
+I18N.Packs["es"]["Automatic"]="Automático"
+I18N.Packs["pt"]["Automatic"]="Automático"
+I18N.Packs["fr"]["Automatic"]="Automatique"
+I18N.Packs["de"]["Automatic"]="Automatisch"
+I18N.Packs["ru"]["Automatic"]="Автоматически"
+I18N.Packs["fil"]["Auto"]="Auto"
+I18N.Packs["id"]["Auto"]="Auto"
+I18N.Packs["vi"]["Auto"]="Tự động"
+I18N.Packs["th"]["Auto"]="อัตโนมัติ"
+I18N.Packs["es"]["Auto"]="Auto"
+I18N.Packs["pt"]["Auto"]="Auto"
+I18N.Packs["fr"]["Auto"]="Auto"
+I18N.Packs["de"]["Auto"]="Auto"
+I18N.Packs["ru"]["Auto"]="Авто"
+I18N.Packs["fil"]["Ready"]="Handa"
+I18N.Packs["id"]["Ready"]="Siap"
+I18N.Packs["vi"]["Ready"]="Sẵn sàng"
+I18N.Packs["th"]["Ready"]="พร้อม"
+I18N.Packs["es"]["Ready"]="Listo"
+I18N.Packs["pt"]["Ready"]="Pronto"
+I18N.Packs["fr"]["Ready"]="Prêt"
+I18N.Packs["de"]["Ready"]="Bereit"
+I18N.Packs["ru"]["Ready"]="Готово"
+I18N.Packs["fil"]["Coin"]="Coin"
+I18N.Packs["id"]["Coin"]="Koin"
+I18N.Packs["vi"]["Coin"]="Xu"
+I18N.Packs["th"]["Coin"]="เหรียญ"
+I18N.Packs["es"]["Coin"]="Moneda"
+I18N.Packs["pt"]["Coin"]="Moeda"
+I18N.Packs["fr"]["Coin"]="Pièce"
+I18N.Packs["de"]["Coin"]="Münze"
+I18N.Packs["ru"]["Coin"]="Монета"
+I18N.Packs["fil"]["Ore"]="Ore"
+I18N.Packs["id"]["Ore"]="Ore"
+I18N.Packs["vi"]["Ore"]="Quặng"
+I18N.Packs["th"]["Ore"]="แร่"
+I18N.Packs["es"]["Ore"]="Mineral"
+I18N.Packs["pt"]["Ore"]="Minério"
+I18N.Packs["fr"]["Ore"]="Minerai"
+I18N.Packs["de"]["Ore"]="Erz"
+I18N.Packs["ru"]["Ore"]="Руда"
+I18N.Packs["fil"]["Rune"]="Rune"
+I18N.Packs["id"]["Rune"]="Rune"
+I18N.Packs["vi"]["Rune"]="Rune"
+I18N.Packs["th"]["Rune"]="รูน"
+I18N.Packs["es"]["Rune"]="Runa"
+I18N.Packs["pt"]["Rune"]="Runa"
+I18N.Packs["fr"]["Rune"]="Rune"
+I18N.Packs["de"]["Rune"]="Rune"
+I18N.Packs["ru"]["Rune"]="Руна"
+I18N.Packs["fil"]["Reward"]="Reward"
+I18N.Packs["id"]["Reward"]="Hadiah"
+I18N.Packs["vi"]["Reward"]="Phần thưởng"
+I18N.Packs["th"]["Reward"]="รางวัล"
+I18N.Packs["es"]["Reward"]="Recompensa"
+I18N.Packs["pt"]["Reward"]="Recompensa"
+I18N.Packs["fr"]["Reward"]="Récompense"
+I18N.Packs["de"]["Reward"]="Belohnung"
+I18N.Packs["ru"]["Reward"]="Награда"
+I18N.Packs["fil"]["ore"]="ore"
+I18N.Packs["id"]["ore"]="ore"
+I18N.Packs["vi"]["ore"]="quặng"
+I18N.Packs["th"]["ore"]="แร่"
+I18N.Packs["es"]["ore"]="mineral"
+I18N.Packs["pt"]["ore"]="minério"
+I18N.Packs["fr"]["ore"]="minerai"
+I18N.Packs["de"]["ore"]="Erz"
+I18N.Packs["ru"]["ore"]="руда"
+I18N.Packs["fil"]["max"]="max"
+I18N.Packs["id"]["max"]="max"
+I18N.Packs["vi"]["max"]="tối đa"
+I18N.Packs["th"]["max"]="สูงสุด"
+I18N.Packs["es"]["max"]="máx."
+I18N.Packs["pt"]["max"]="máx."
+I18N.Packs["fr"]["max"]="max."
+I18N.Packs["de"]["max"]="max."
+I18N.Packs["ru"]["max"]="макс."
+I18N.Packs["fil"]["Paused"]="Naka-pause"
+I18N.Packs["id"]["Paused"]="Dijeda"
+I18N.Packs["vi"]["Paused"]="Tạm dừng"
+I18N.Packs["th"]["Paused"]="พัก"
+I18N.Packs["es"]["Paused"]="Pausado"
+I18N.Packs["pt"]["Paused"]="Pausado"
+I18N.Packs["fr"]["Paused"]="En pause"
+I18N.Packs["de"]["Paused"]="Pausiert"
+I18N.Packs["ru"]["Paused"]="Пауза"
+
     local translator=I18N.new(selectedLanguage)
     selectedLanguage=translator.Selection
     local bound=setmetatable({}, {__mode="k"})
@@ -5410,20 +6213,38 @@ I18N.Packs={
         end
     end
     local languages=app:AddPage({Id="Languages",Title="Languages",Icon="world",Group="Universal",Order=5})
-    local section=Section.new(languages,deps,{Title="Language"})
-    local hint=Typography.Label(section.Body,"Control",Tokens,"English is the default. Your language choice saves automatically.",UDim2.new(),UDim2.new(1,0,0,48),Tokens.Color.TextMuted,"TextMuted")
-    hint.TextWrapped=true;hint.TextSize=12
-    local control
+    SampleUI.Heading(languages,"Languages","Choose your language. Changes save automatically.")
+    local languageGrid=SampleUI.Grid(languages,10,66,196,2);languageGrid.LayoutOrder=1
+    local tiles={}
+    local english={"English","Filipino","Indonesian","Vietnamese","Thai","Spanish","Brazilian Portuguese","French","German","Russian"}
+    local short={"EN","FIL","ID","VI","TH","ES","PT-BR","FR","DE","RU"}
+    local function refreshLanguages()
+        for name,tile in pairs(tiles) do
+            local selected=name==selectedLanguage
+            serenityColor(tile.Button,"BackgroundColor3",Tokens,selected and "NavActive" or "Panel")
+            serenityColor(tile.Edge,"Color",Tokens,selected and "Accent" or "Stroke")
+            Motion:Tween(tile.Edge,0.13,{Transparency=selected and 0.18 or 0.72})
+            tile.Check.Visible=selected
+        end
+    end
     function app:SetLanguage(selection)
         translator:Set(selection);selectedLanguage=translator.Selection
-        if control then control:Set(selectedLanguage,true) end
-        saveAppearance()
+        refreshLanguages();saveAppearance()
     end
     function app:GetLanguage() return selectedLanguage end
-    control=Select.new(section.Body,deps,{Title="Language",Options=I18N.Options,Default=selectedLanguage,Callback=function(v) app:SetLanguage(v) end})
-    local preview=Section.new(languages,deps,{Title="Language preview"})
-    Typography.Label(preview.Body,"Control",Tokens,"Welcome to Serenity",UDim2.new(),UDim2.new(1,0,0,34),Tokens.Color.Text,"Text")
-    Typography.Label(preview.Body,"Control",Tokens,"Appearance",UDim2.new(),UDim2.new(1,0,0,30),Tokens.Color.Text,"Text")
+    for i,name in ipairs(I18N.Options) do
+        local b,edge=SampleUI.Button(languageGrid,"",function() app:SetLanguage(name) end)
+        b.LayoutOrder=i
+        local title=SampleUI.Text(b,name,14,9,-64,24,14)
+        title:SetAttribute("LocalizationIgnore",true)
+        if name=="ไทย" then title.Font=Enum.Font.SourceSans;title.TextSize=17 end
+        local sub=SampleUI.Text(b,english[i],14,36,-64,19,11,true);sub:SetAttribute("LocalizationIgnore",true)
+        local check=SampleUI.Text(b,"✓",0,10,0,22,16)
+        check.Position=UDim2.new(1,-33,0,9);check.Size=UDim2.fromOffset(22,22);serenityColor(check,"TextColor3",Tokens,"Accent")
+        local code=SampleUI.Text(b,short[i],0,38,0,16,9,true);code.Position=UDim2.new(1,-54,0,38);code.Size=UDim2.fromOffset(40,16);code.TextXAlignment=Enum.TextXAlignment.Right
+        tiles[name]={Button=b,Edge=edge,Check=check}
+    end
+    refreshLanguages()
     local scopes={app.ScreenGui}
     if app.NotificationScreenGui then table.insert(scopes,app.NotificationScreenGui) end
     for _,root in ipairs(scopes) do
@@ -5485,6 +6306,7 @@ end
 print("SERENITY UNIVERSAL PAGES SAMPLE | RightCtrl: toggle | Ctrl+K: search")
 
 return app
+
 
 
 
