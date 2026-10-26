@@ -447,7 +447,7 @@ function Material.PixelSurface(frame,step)
         strip.Position=UDim2.new(0,spec[1],index>=4 and 1 or 0,spec[2])
         strip.Size=UDim2.new(spec[3],spec[4],spec[5],spec[6])
         strip.BackgroundColor3=frame.BackgroundColor3;strip.BackgroundTransparency=opacity
-        strip.ZIndex=frame.ZIndex;strip.Parent=frame;table.insert(strips,strip)
+        strip.ZIndex=math.max(0,frame.ZIndex-1);strip.Parent=frame;table.insert(strips,strip)
     end
     local syncing=false
     frame:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
@@ -464,7 +464,7 @@ function Material.PixelSurface(frame,step)
         for _,strip in ipairs(strips) do strip.BackgroundColor3=frame.BackgroundColor3 end
     end)
     frame:GetPropertyChangedSignal("ZIndex"):Connect(function()
-        for _,strip in ipairs(strips) do strip.ZIndex=frame.ZIndex end
+        for _,strip in ipairs(strips) do strip.ZIndex=math.max(0,frame.ZIndex-1) end
     end)
     return frame
 end
@@ -4862,6 +4862,18 @@ do
         runtime:TrackConnection(b.Activated:Connect(function() if serenityInputBlocked(b) then return end;callback() end))
         local normal=b.BackgroundTransparency
         Material.PixelSurface(b,2)
+        -- Native button text paints below children; keep its caption above the pixel fill.
+        local caption=Instance.new("TextLabel");caption.Name="ButtonCaption"
+        caption.BackgroundTransparency=1;caption.Size=UDim2.fromScale(1,1)
+        caption.ZIndex=3;caption.Parent=b
+        local function syncCaption()
+            caption.Text=b.Text;caption.TextColor3=b.TextColor3
+            caption.Font=b.Font;caption.TextSize=b.TextSize
+        end
+        b.TextTransparency=1;syncCaption()
+        for _,property in ipairs({"Text","TextColor3","Font","TextSize"}) do
+            runtime:TrackConnection(b:GetPropertyChangedSignal(property):Connect(syncCaption))
+        end
         runtime:TrackConnection(b.MouseEnter:Connect(function() if serenityInputBlocked(b) then return end; Motion:Tween(b,"Hover",{BackgroundTransparency=0.05}) end))
         runtime:TrackConnection(b.MouseLeave:Connect(function() Motion:Tween(b,"Hover",{BackgroundTransparency=normal}) end))
         runtime:TrackConnection(b.InputBegan:Connect(function(input)
@@ -4898,7 +4910,7 @@ do
     -- The UI remains usable if HTTP, file access or custom assets are absent.
     local art=Instance.new("ImageLabel")
     art.Name="CelestialBanner";art.Position=UDim2.fromOffset(6,6);art.Size=UDim2.new(1,-12,1,-12);art.BackgroundTransparency=1
-    art.ImageTransparency=0.22;art.ScaleType=Enum.ScaleType.Crop;art.ZIndex=0;art.Parent=hero
+    art.ImageTransparency=0.22;art.ScaleType=Enum.ScaleType.Crop;art.ZIndex=1;art.Parent=hero
     -- Load each small 2D illustration once and reuse the on-device cache.
     local function cachedArt(target,name)
         task.spawn(function()
@@ -5044,7 +5056,7 @@ do
         local illustration=Instance.new("ImageLabel");illustration.Name="QuickActionArt"
         illustration.Position=UDim2.fromOffset(5,5);illustration.Size=UDim2.new(1,-10,1,-10);illustration.BackgroundTransparency=1
         illustration.ScaleType=Enum.ScaleType.Crop;illustration.ImageTransparency=0.2
-        illustration.ZIndex=0;illustration.Parent=b;cachedArt(illustration,data[4])
+        illustration.ZIndex=1;illustration.Parent=b;cachedArt(illustration,data[4])
         local shade=Instance.new("UIGradient");shade.Rotation=90
         shade.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.05),NumberSequenceKeypoint.new(0.45,0.2),NumberSequenceKeypoint.new(1,0.92)})
         shade.Parent=illustration
