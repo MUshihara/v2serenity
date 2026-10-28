@@ -3377,7 +3377,7 @@ function Desktop.Mount(deps, options)
             collapse.BackgroundTransparency=1;serenityColor(collapse,"TextColor3",tokens,"TextMuted");collapse.AutoButtonColor=false
             collapse.Size=UDim2.fromOffset(28,30);collapse.Position=UDim2.new(1,-83,0,3);collapse.ZIndex=102;collapse.Parent=panel
             local switch=Instance.new("TextButton");switch.Text="";switch.AutoButtonColor=false
-            switch.Size=UDim2.fromOffset(32,19);switch.Position=UDim2.new(1,-44,0,9)
+            switch.Size=UDim2.fromOffset(38,22);switch.Position=UDim2.new(1,-44,0,9)
             switch.BorderSizePixel=0;switch.ZIndex=102;switch.Parent=panel;corner(switch,4)
             local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(13,13);serenityColor(dot,"BackgroundColor3",tokens,"Text")
             dot.BorderSizePixel=0;dot.ZIndex=103;dot.Parent=switch;corner(dot,2)
@@ -4321,6 +4321,7 @@ function SampleUI.Panel(parent,height,order)
     local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,5);c.Parent=f
     local edge=Instance.new("UIStroke");edge.Name="PanelStroke";edge.Transparency=0.72
     serenityColor(edge,"Color",Tokens,"Stroke");edge.Parent=f
+    Material.PixelSurface(f,3)
     return f
 end
 function SampleUI.Heading(parent,title,subtitle)
@@ -4337,6 +4338,16 @@ function SampleUI.Button(parent,title,callback,primary)
     local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,4);c.Parent=b
     local edge=Instance.new("UIStroke");edge.Name="SampleButtonEdge";edge.Transparency=primary and 1 or 0.65
     serenityColor(edge,"Color",Tokens,"Stroke");edge.Parent=b
+    Material.PixelSurface(b,2)
+    local caption=Instance.new("TextLabel");caption.BackgroundTransparency=1
+    caption.Size=UDim2.fromScale(1,1);caption.ZIndex=3;caption.Parent=b
+    local function syncCaption()
+        caption.Text=b.Text;caption.TextColor3=b.TextColor3;caption.Font=b.Font;caption.TextSize=b.TextSize
+    end
+    b.TextTransparency=1;syncCaption()
+    for _,property in ipairs({"Text","TextColor3","Font","TextSize"}) do
+        runtime:TrackConnection(b:GetPropertyChangedSignal(property):Connect(syncCaption))
+    end
     local tween
     local function animate(props)
         if tween then tween:Cancel() end
@@ -4437,7 +4448,7 @@ end
 -- Complete low-saturation palettes: surfaces, typography, states and accents.
 local themeSpecs={
     Celestial={{12,27,39},{239,234,220},{170,197,186},{91,129,140}},
-    Industrial={{21,28,34},{242,237,223},{232,174,73},{117,130,139}},
+    Industrial={{21,28,34},{242,237,223},{192,166,112},{117,130,139}},
     Garnet={{30,18,22},{241,225,220},{210,100,107},{158,119,110}},
     AntiqueGold={{23,23,21},{239,232,212},{192,168,107},{143,139,112}},
     Petrol={{14,29,31},{216,235,228},{78,179,168},{151,170,132}},
@@ -5005,13 +5016,25 @@ do
     local metrics=Instance.new("Frame");metrics.Size=UDim2.new(1,-4,0,60)
     metrics.BackgroundTransparency=1;metrics.LayoutOrder=3;metrics.Parent=dashboard
     local tiles,values={},{}
-    for i,data in ipairs({{"SESSION","00:00","activity"},{"CURRENT PLACE",tostring(game.PlaceId),"server"},{"CONNECTION","Preview only","info"}}) do
+    for i,data in ipairs({{"SESSION","00:00","activity"},{"CURRENT GAME",app.GameTitle or "Loading…","server"},{"CONNECTION","Preview only","info"}}) do
         local tile=card(metrics,60);tiles[i]=tile
         local icon=Icons.Create(tile,data[3],15,Tokens.Color.Accent,UDim2.fromOffset(12,11))
         label(tile,data[1],34,9,-42,18,10,Tokens.Color.TextMuted)
         values[i]=label(tile,data[2],12,30,-24,22,i==2 and 13 or 15)
         values[i].TextTruncate=Enum.TextTruncate.AtEnd
     end
+    local previousGameTitleChanged=app.OnGameTitleChanged
+    app.OnGameTitleChanged=function(name)
+        if previousGameTitleChanged then previousGameTitleChanged(name) end
+        if not runtime.Destroyed then values[2].Text=name end
+    end
+    local copyPlace=Instance.new("TextButton");copyPlace.Text="";copyPlace.BackgroundTransparency=1
+    copyPlace.Size=UDim2.fromScale(1,1);copyPlace.ZIndex=4;copyPlace.Parent=tiles[2]
+    runtime:TrackConnection(copyPlace.Activated:Connect(function()
+        if serenityInputBlocked(copyPlace) then return end
+        local ok=type(setclipboard)=="function" and pcall(setclipboard,tostring(game.PlaceId))
+        app:Notify(ok and "Place ID copied" or "Place ID",tostring(game.PlaceId),3,"Info")
+    end))
     local function arrangeMetrics()
         local width=logicalWidth(metrics);if width<=0 then return end
         local count=width>=480 and 3 or (width>=310 and 2 or 1)
@@ -5066,17 +5089,17 @@ do
         local sub=label(b,data[2],12,100,-24,18,11,Tokens.Color.TextMuted)
         sub.TextTruncate=Enum.TextTruncate.AtEnd
         shortcutText[i]={title,sub,actionIcon}
-        local switch=Instance.new("Frame");switch.Size=UDim2.fromOffset(32,19)
-        switch.Position=UDim2.new(1,-42,0,10);switch.BorderSizePixel=0;switch.Parent=b
+        local switch=Instance.new("Frame");switch.Size=UDim2.fromOffset(38,22)
+        switch.Position=UDim2.new(1,-48,0,10);switch.BorderSizePixel=0;switch.ZIndex=3;switch.Parent=b
         Material.PixelSurface(switch,2)
-        local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(13,13);dot.BorderSizePixel=0
+        local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(16,16);dot.BorderSizePixel=0;dot.ZIndex=4
         serenityColor(dot,"BackgroundColor3",Tokens,"Text");dot.Parent=switch
         Material.PixelSurface(dot,1)
         app:ObserveQuickAction(data[4],function(action)
             sub.Text=action.Busy and "Applying…" or (action.PanelEnabled and "Panel enabled" or "Panel disabled")
             serenityColor(sub,"TextColor3",Tokens,action.PanelEnabled and "Accent" or "TextMuted")
-            serenityColor(switch,"BackgroundColor3",Tokens,action.PanelEnabled and "Accent" or "Inset")
-            dot.Position=UDim2.fromOffset(action.PanelEnabled and 16 or 3,3)
+            serenityColor(switch,"BackgroundColor3",Tokens,action.PanelEnabled and "Accent" or "Stroke")
+            Motion:Tween(dot,0.12,{Position=UDim2.fromOffset(action.PanelEnabled and 19 or 3,3)})
         end)
     end
     local function arrangeShortcuts()
@@ -5108,7 +5131,7 @@ do
     local openSettings=button(quick.Body,"Appearance & presets  ›",function() app:SelectPage("Profile") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new"})
-    for i,data in ipairs({{"Celestial Glass","Stepped pixel cards, illustrated panels and a transparent avatar."},{"Lightweight artwork","Small images cache once. No live 3D scenes or background animation loops."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
+    for i,data in ipairs({{"Your refreshed dashboard","Find your game, session and Quick Menu in one place."},{"Make it yours","Choose an appearance preset and control your profile privacy."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
         local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
         row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
         local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
@@ -5488,13 +5511,13 @@ do
     local player=game:GetService("Players").LocalPlayer
     runtime:TrackConnection(app.ProfileButton.Activated:Connect(function() if not serenityInputBlocked(app.ProfileButton) then app:SelectPage("Profile") end end))
     SampleUI.Heading(profile,"Profile","Your identity and interface style.")
-    local info=SampleUI.Panel(profile,94,-5)
-    local portrait=Instance.new("ImageLabel");portrait.Position=UDim2.fromOffset(14,17);portrait.Size=UDim2.fromOffset(56,56)
-    portrait.BackgroundTransparency=1;portrait.Image="rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=150&h=150";portrait.Parent=info
-    local cover=Icons.Create(info,"info",30,Tokens.Color.TextMuted,UDim2.fromOffset(27,30))
+    local info=SampleUI.Panel(profile,112,-5)
+    local portrait=Instance.new("ImageLabel");portrait.Position=UDim2.fromOffset(10,8);portrait.Size=UDim2.fromOffset(96,96)
+    portrait.BackgroundTransparency=1;portrait.Image="rbxthumb://type=AvatarBust&id="..player.UserId.."&w=420&h=420";portrait.Parent=info
+    local cover=Icons.Create(info,"info",30,Tokens.Color.TextMuted,UDim2.fromOffset(43,40))
     registerIdentity(portrait,"ImageTransparency",0,1);registerIdentity(cover,"Visible",false,true)
-    local display=SampleUI.Text(info,player.DisplayName,84,19,-100,26,18)
-    local username=SampleUI.Text(info,"@"..player.Name,84,48,-100,22,12,true)
+    local display=SampleUI.Text(info,player.DisplayName,122,28,-138,26,18)
+    local username=SampleUI.Text(info,"@"..player.Name,122,58,-138,22,12,true)
     registerIdentity(display,"Text",player.DisplayName,"Hidden profile")
     registerIdentity(username,"Text","@"..player.Name,"Username hidden")
     local privacy=Section.new(profile,deps,{Title="Privacy"});privacy.Frame.LayoutOrder=0
