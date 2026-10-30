@@ -1,4 +1,4 @@
--- Serenity Luarmor key-window test. Opens the UI only from the protected test payload.
+-- Serenity Luarmor key-window test: public SDK validation, then local test dashboard.
 -- Test repository only; no production games are loaded.
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -19,7 +19,6 @@ local connections, tweens = {}, {}
 local destroyed, closing = false, false
 local controller = {}
 local verifying, authenticated, attempt = false, false, 0
-local authLoader = "https://api.luarmor.net/files/v4/loaders/fb38fdcaac18ad317303fa4cc15421b6.lua"
 local testUI = "https://raw.githubusercontent.com/MUshihara/v2serenity/e1fc7f889c7af27cbf02226888ebcc8398ee41ef/examples/universal-pages.lua"
 local pendingKey
 local cacheFile = "Serenity_Test_Luarmor_Key.txt"
@@ -539,7 +538,7 @@ local function setVerifying(value)
     input.TextEditable = not value
 end
 function controller:CompleteAuthentication()
-    -- Only the authenticated Luarmor test payload completes this handoff.
+    -- Test-preview handoff after the public SDK returns KEY_VALID.
     if destroyed or closing or not verifying or authenticated then return false end
     authenticated = true
     saveVerifiedKey(pendingKey)
@@ -573,7 +572,7 @@ function controller:CompleteAuthentication()
     end)
     return true
 end
--- Called only by the protected custom verifier while a submission is pending.
+-- Legacy controller helpers retained for compatibility with earlier test windows.
 function controller:GetPendingKey()
     if destroyed or closing or not verifying or authenticated then return nil end
     return pendingKey
@@ -706,19 +705,9 @@ local function submit()
         end
         controller:SetStatus("Key accepted. Loading Serenity...","info")
         environment.script_key=key
-        local loaded=pcall(function()
-            local source=game:HttpGet(authLoader)
-            if not current() then return end
-            local run=assert(loadstring(source,"Serenity Luarmor test"))
-            run()
-        end)
-        if not current() then return end
-        if not loaded then
-            fail("Luarmor could not load the test script. Please try again.")
-            return
-        end
-        -- Do not treat a loader returning as proof that its protected payload ran.
-        controller:SetStatus("Waiting for the protected Serenity test payload...","info")
+        -- This preview uses the SDK result directly; no uploaded callback is needed.
+        -- Production protection must be enforced by its own Luarmor payload.
+        controller:CompleteAuthentication()
     end)
 end
 bind(verify.Activated, submit)
