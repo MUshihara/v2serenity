@@ -539,32 +539,37 @@ local function setVerifying(value)
     input.TextEditable = not value
 end
 function controller:CompleteAuthentication()
-    -- Called by the Luarmor-protected test payload, never inferred from a loader return value.
+    -- Only the authenticated Luarmor test payload completes this handoff.
     if destroyed or closing or not verifying or authenticated then return false end
     authenticated = true
     saveVerifiedKey(pendingKey)
     pendingKey = nil
+    input.Text = ""
+    input:ReleaseFocus()
     self:SetStatus("Key verified. Opening Serenity...", "info")
+    -- Hide immediately: dashboard startup must never leave a key window over it.
+    gui.Enabled = false
     task.spawn(function()
-        local ok = pcall(function()
+        local ok, run = pcall(function()
             local source = game:HttpGet(testUI)
-            if destroyed then return end
-            local run, compileError = loadstring(source, "Serenity authenticated UI test")
-            if not run then error(compileError or "UI unavailable", 0) end
-            run()
+            if destroyed then return nil end
+            return assert(loadstring(source, "Serenity authenticated UI test"))
         end)
         if destroyed then return end
-        if not ok then
+        if not ok or type(run) ~= "function" then
             authenticated = false
+            gui.Enabled = true
             setVerifying(false)
-            self:SetStatus("Key verified, but the UI could not load. Try again.", "error")
+            self:SetStatus("Key verified, but the UI could not download. Try again.", "error")
             return
         end
         closing = true
-        input.Text = ""
-        input:ReleaseFocus()
-        animate(panel, 0.16, {GroupTransparency = 1})
-        task.delay(0.18, function() self:Destroy() end)
+        -- Remove input handlers and the ScreenGui before the dashboard starts.
+        self:Destroy()
+        local started, failure = pcall(run)
+        if not started then
+            warn("[Serenity test] Dashboard initialization failed: " .. tostring(failure))
+        end
     end)
     return true
 end
