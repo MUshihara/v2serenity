@@ -5196,7 +5196,7 @@ do
     -- Keep this independent of the preserved Dashboard and Settings.
     -- Statuses are maintained by Serenity; dates are runtime-file commit times.
     -- Date snapshot: Serenity-hub @ 195d62265876dc08c1bc6504dbf9ee1ddefe115c.
-    -- Refresh the date snapshot when rebuilding this directory; no runtime API polling.
+    -- Bundled fallback. A single asynchronous JSON fetch refreshes it each execution.
     local aboutGames={
         -- Name, UniverseId, launch PlaceId, status, last runtime update (PHT), UTC sort timestamp.
         {"MM2",66654135,142823291,"Supported","21 Oct 2026 · 02:29",1792520940},
@@ -5236,12 +5236,13 @@ do
         return a[6]>b[6]
     end)
 
+    local directoryReady=false
     local intro=card(about,100,1)
     Icons.Create(intro,"about",21,Tokens.Color.Accent,UDim2.fromOffset(14,12))
     label(intro,"Supported Games",44,8,-60,26,18)
     local introSub=label(intro,"Find your game and check its availability and latest script update.",14,42,-28,35,12,Tokens.Color.TextMuted)
     introSub.TextWrapped=true
-    label(intro,"22 SUPPORTED   ·   3 PATCHED   ·   4 DISCONTINUED",14,78,-28,18,10,Tokens.Color.Cyan)
+    local overviewCount=label(intro,"Loading directory…",14,78,-28,18,10,Tokens.Color.Cyan)
 
     local directorySearch=card(about,105,2)
     local findInput=Instance.new("TextBox")
@@ -5332,7 +5333,7 @@ do
     listLayout.Parent=directoryList
 
     local emptyHint=card(directoryList,55,999)
-    local emptyText=label(emptyHint,"No matching games. Try another search or filter.",12,11,-24,34,12,Tokens.Color.TextMuted)
+    local emptyText=label(emptyHint,"Loading game directory…",12,11,-24,34,12,Tokens.Color.TextMuted)
     emptyText.TextWrapped=true
     local gameRows={}
     local builtDirectory=false
@@ -5371,7 +5372,7 @@ do
         title:SetAttribute("LocalizationIgnore",true)
         title.TextTruncate=Enum.TextTruncate.AtEnd
         local isCurrent=universe and game.GameId==universe
-        local info=label(row,(isCurrent and "Current · " or "").."Updated "..data[5],56,29,-72,19,11,Tokens.Color.TextMuted)
+        local info=label(row,(isCurrent and "Current · " or "")..(data[6]>0 and "Updated "..data[5] or "Update date unavailable"),56,29,-72,19,11,Tokens.Color.TextMuted)
         info.TextTruncate=Enum.TextTruncate.AtEnd
         local stateRole=state=="Supported" and "Mint" or state=="Patched" and "Amber" or "TextDim"
         local stateLabel=label(row,string.upper(state),0,14,-12,18,10,Tokens.Color[stateRole])
@@ -5430,8 +5431,9 @@ do
         end
     end
     local function buildDirectory()
-        if builtDirectory or runtime.Destroyed then return end
+        if builtDirectory or runtime.Destroyed or not directoryReady then return end
         builtDirectory=true
+        emptyText.Text="No matching games. Try another search or filter."
         -- Pictures are requested only on first visit to About, not at startup.
         for i,data in ipairs(aboutGames) do addGameRow(data,i) end
         refreshDirectory()
@@ -5447,9 +5449,60 @@ do
     local aboutFooter=card(about,75,5)
     label(aboutFooter,"ABOUT SERENITY HUB",12,9,-24,20,12)
     local footerDescription=label(aboutFooter,
-        "Availability is maintained by Serenity. Updated = latest runtime-file commit, in PHT (UTC+8). Date snapshot: 25 Oct 2026.",
+        "Loading availability. Update dates use Philippine time (UTC+8).",
         12,31,-24,38,11,Tokens.Color.TextMuted)
     footerDescription.TextWrapped=true
+    -- Accept only display data, never executable Lua from the directory feed.
+    local function validateDirectory(document)
+        if type(document)~="table" or document.schemaVersion~=1 or type(document.games)~="table" then return nil end
+        local rows,seen={},{}
+        local validStatus={Supported=true,Patched=true,Discontinued=true}
+        local function validId(value)
+            return value==nil or (type(value)=="number" and value>0 and value<9007199254740992 and value%1==0)
+        end
+        for index,item in ipairs(document.games) do
+            if index>250 or type(item)~="table" then return nil end
+            local name,status,stamp=item.name,item.status,item.updatedAt
+            if type(name)~="string" or #name==0 or #name>120 or name:find("[%c]") or seen[string.lower(name)] then return nil end
+            if not validStatus[status] or not validId(item.universeId) or not validId(item.placeId) then return nil end
+            if type(stamp)~="number" or stamp~=stamp or stamp<0 or stamp>4102444800 or stamp%1~=0 then return nil end
+            seen[string.lower(name)]=true
+            local date=stamp>0 and os.date("!%d %b %Y · %H:%M",stamp+8*3600) or "Not available"
+            rows[#rows+1]={name,item.universeId,item.placeId,status,date,stamp}
+        end
+        if #rows==0 then return nil end
+        table.sort(rows,function(a,b)
+            if a[6]==b[6] then return string.lower(a[1])<string.lower(b[1]) end
+            return a[6]>b[6]
+        end)
+        return rows
+    end
+    local function finishDirectory(rows)
+        if directoryReady or runtime.Destroyed then return end
+        if rows then aboutGames=rows end
+        directoryReady=true
+        app.SupportedGamesDirectorySource=rows and "Published" or "Bundled"
+        local counts={Supported=0,Patched=0,Discontinued=0}
+        for _,row in ipairs(aboutGames) do counts[row[4]]=counts[row[4]]+1 end
+        overviewCount.Text=string.format("%d SUPPORTED   ·   %d PATCHED   ·   %d DISCONTINUED",counts.Supported,counts.Patched,counts.Discontinued)
+        directoryCount.Text=tostring(#aboutGames).." games"
+        footerDescription.Text=(rows and "Availability refreshed for this session. " or "Showing bundled availability. ").."Updated = runtime-file change, in Philippine time (UTC+8)."
+        if about.Visible then buildDirectory() end
+    end
+    local directoryTimeout=task.delay(6,function() finishDirectory(nil) end)
+    runtime:TrackCleanup(function() if directoryTimeout then pcall(task.cancel,directoryTimeout) end end)
+    task.spawn(function()
+        local ok,rows=pcall(function()
+            local url="https://raw.githubusercontent.com/MUshihara/v2serenity/main/data/supported-games.json"
+            local body=game:HttpGet(url.."?v="..tostring(os.time())..tostring(math.random(100000,999999)),true)
+            if runtime.Destroyed or directoryReady or type(body)~="string" or #body>150000 then return nil end
+            return validateDirectory(HttpService:JSONDecode(body))
+        end)
+        if directoryReady or runtime.Destroyed then return end
+        if directoryTimeout then pcall(task.cancel,directoryTimeout);directoryTimeout=nil end
+        finishDirectory(ok and rows or nil)
+    end)
+
 end
 
 
@@ -6490,6 +6543,7 @@ end
 print("SERENITY UNIVERSAL PAGES SAMPLE | RightCtrl: toggle | Ctrl+K: search")
 
 return app
+
 
 
 
