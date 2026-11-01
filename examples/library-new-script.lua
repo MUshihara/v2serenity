@@ -1,8 +1,8 @@
 -- Serenity Official Test RC1: UI integration example; no gameplay actions.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/8aad7f52cc5040a26ca2f1e8e4cd5f70282a68a1/dist/ui/serenity-test.lua"))()
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/a3174802732a87b84ad0e430cc03bc9d43dea74c/dist/ui/serenity-test.lua"))()
 local CFG={Enabled=false,Delay=1,Target="Nearest",Rarities={}}
 local ui=Library.Create({Key="Serenity_MyGame_Test",Subtitle="My Game",AppearancePath="Serenity_MyGame_Test_Appearance.json"})
-local page=ui:AddPage({Id="Automation",Title="Automation",Icon="automation",Group="Game",Order=1})
+local page=ui:AddPage({Id="Automation",Title="Automation",Icon="automation",Order=1})
 local section=ui:AddSection(page,{Id="Main",Title="Main"})
 local toggle=ui:AddToggle(section,{Id="Enabled",Title="Enabled",Default=CFG.Enabled,Callback=function(v)CFG.Enabled=v end})
 ui:AddSlider(section,{Id="Delay",Title="Action delay",Min=0.1,Max=5,Step=0.1,Default=CFG.Delay,Callback=function(v)CFG.Delay=v end})
