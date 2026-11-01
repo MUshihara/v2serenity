@@ -1,6 +1,6 @@
 -- Serenity Official Test RC1: bridge for the common V3 manifest shape.
 -- Keep existing CFG, remotes, controllers and callbacks; replace only UI construction.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/851a212c92c12454eaaf012c08bbf21c6c7ed055/dist/ui/serenity-test.lua"))()
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/8aad7f52cc5040a26ca2f1e8e4cd5f70282a68a1/dist/ui/serenity-test.lua"))()
 local CFG={AutoFarm=false,Target="Nearest"}
 local manifest={SerenityAPIVersion=3,Pages={{
     Id="Automation",Title="Automation",Icon="automation",Features={{
