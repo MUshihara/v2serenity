@@ -2081,7 +2081,7 @@ local function makeDraggable(runtime, frame, handles)
     local UIS = game:GetService("UserInputService")
     local TweenService = game:GetService("TweenService")
     local dragging, press, start, pointer, ghost, target, glide
-    runtime.DragStyle = "Outline"
+    runtime.DragStyle = "Smooth"
     local function stopTween()
         if glide then glide:Cancel(); glide=nil end
     end
@@ -2128,7 +2128,10 @@ local function makeDraggable(runtime, frame, handles)
         dragging=false;pointer=nil;destroyGhost();stopTween()
         if target and not runtime.Destroyed and not runtime.ModalActive then
             if runtime.ReducedMotion or runtime.DragStyle=="Direct" then frame.Position=target
-            else glide=TweenService:Create(frame,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Position=target});glide:Play() end
+            else
+                local settle=runtime.DragStyle=="Smooth" and 0.12 or 0.22
+                glide=TweenService:Create(frame,TweenInfo.new(settle,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Position=target});glide:Play()
+            end
         end
     end
     runtime:TrackConnection(UIS.InputEnded:Connect(function(input)
@@ -4556,7 +4559,7 @@ saveAppearance=function()
         saveTimer=nil
         if runtime.Destroyed or revision~=saveRevision or type(writefile)~="function" then return end
         pcall(function()
-            writefile(appearancePath,HttpService:JSONEncode({Version=1,DesignVersion=2,MotionVersion=1,HideDashboardName=hideDashboardName,Language=selectedLanguage,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,MusicReactive=app.MusicReactive==true,UI=app:GetUIPreferences(),View=app:GetViewState()}))
+            writefile(appearancePath,HttpService:JSONEncode({Version=1,DesignVersion=2,MotionVersion=2,HideDashboardName=hideDashboardName,Language=selectedLanguage,Theme=selectedTheme,Preset=selectedPreset,DragStyle=runtime.DragStyle,ReducedMotion=Motion.Reduced,Mode=materialState.Mode,Opacity=materialState.Opacity,Edge=materialState.Edge,Palette=materialState.Palette,Blur=materialState.Blur,UISoundsEnabled=uiSoundsEnabled,UISoundVolume=uiSoundVolume,MusicReactive=app.MusicReactive==true,UI=app:GetUIPreferences(),View=app:GetViewState()}))
         end)
     end)
 end
@@ -4735,7 +4738,7 @@ local function restoreAppearance(data)
     applyTheme(theme)
     if app.Acrylic then app.Acrylic:SetAmount(materialState.Blur) end
     app:SetGlassQuality(materialState.Mode)
-    runtime.DragStyle=choice(data.DragStyle,{"Outline","Smooth","Direct"},"Outline")
+    runtime.DragStyle=choice(data.DragStyle,{"Outline","Smooth","Direct"},"Smooth")
     selectedPreset=choice(data.Preset,presetNames,data.Theme and "Custom" or "Celestial Glass")
     if dragControl then dragControl:Set(runtime.DragStyle,true) end
     if presetControl then presetControl:Set(selectedPreset,true) end
@@ -4785,7 +4788,7 @@ local function usePreset(name)
     end
 end
 local dragSection=Section.new(settingsCols.Left,deps,{Title="Window movement",Tooltip="Drag freely beyond the screen edges. Double-tap the floating star or use Reset all floating positions to recover. Outline previews movement; Smooth glides; Direct follows immediately."})
-dragControl=Select.new(dragSection.Body,deps,{Title="Drag style",Options={"Outline","Smooth","Direct"},Default="Outline",Callback=function(v) runtime.DragStyle=v;saveAppearance() end})
+dragControl=Select.new(dragSection.Body,deps,{Title="Drag style",Options={"Smooth","Outline","Direct"},Default="Smooth",Callback=function(v) runtime.DragStyle=v;saveAppearance() end})
 reducedMotionToggle(dragSection.Body)
 do
     local reset=Instance.new("TextButton");reset.Size=UDim2.new(1,0,0,34)
@@ -6435,7 +6438,10 @@ I18N.Packs["ru"]["Paused"]="Пауза"
 end
 
 app:SelectPage("Dashboard")
-if savedAppearance and savedAppearance.MotionVersion~=1 then savedAppearance.DragStyle="Outline" end
+if savedAppearance and savedAppearance.MotionVersion~=2 then
+    savedAppearance.DragStyle="Smooth"
+    savedAppearance.MotionVersion=2
+end
 -- Apply the approved trial once, then retain subsequent user palette changes.
 if not savedAppearance or savedAppearance.DesignVersion~=2 then
     savedAppearance=savedAppearance or {}
