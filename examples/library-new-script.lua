@@ -1,5 +1,5 @@
 -- Serenity Official Test RC1: UI integration example; no gameplay actions.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/851a212c92c12454eaaf012c08bbf21c6c7ed055/dist/ui/serenity-test.lua"))()
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/8aad7f52cc5040a26ca2f1e8e4cd5f70282a68a1/dist/ui/serenity-test.lua"))()
 local CFG={Enabled=false,Delay=1,Target="Nearest",Rarities={}}
 local ui=Library.Create({Key="Serenity_MyGame_Test",Subtitle="My Game",AppearancePath="Serenity_MyGame_Test_Appearance.json"})
 local page=ui:AddPage({Id="Automation",Title="Automation",Icon="automation",Group="Game",Order=1})
