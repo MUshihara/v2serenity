@@ -2651,14 +2651,9 @@ function Desktop.Mount(deps, options)
     local glint=Instance.new("Frame");glint.Name="TileHighlight"
     glint.Size=UDim2.new(1,-22,0,1);glint.Position=UDim2.fromOffset(11,2)
     glint.ZIndex=91;serenityColor(glint,"BackgroundColor3",tokens,"Text");glint.BackgroundTransparency=0.82;glint.BorderSizePixel=0;glint.Parent=restore
-    local industrialTokens={Color={
-        ShellDeep=Color3.fromRGB(21,28,34),Inset=Color3.fromRGB(27,35,42),
-        Stroke=Color3.fromRGB(83,96,106),Accent=Color3.fromRGB(232,174,73),
-        Text=Color3.fromRGB(242,237,223),TextMuted=Color3.fromRGB(169,179,190),
-        Mint=Color3.fromRGB(232,174,73)}}
-    local function industrialColor(object,property,_,role)
-        object[property]=industrialTokens.Color[role]
-        object:SetAttribute("FixedPresetColor",true)
+    -- Status surfaces use the same semantic palette as the main window.
+    local function statusColor(object,property,_,role)
+        serenityColor(object,property,tokens,role)
     end
     -- Activity capsule: a stable header with a deliberate, compact detail shelf.
     local statusDock=Instance.new("TextButton")
@@ -2679,12 +2674,12 @@ function Desktop.Mount(deps, options)
     end
     local function surface(parent,name,role,radius,z)
         local f=Instance.new("Frame");f.Name=name;f.BorderSizePixel=0
-        industrialColor(f,"BackgroundColor3",tokens,role);f.ZIndex=z;f.Parent=parent;local rounding=corner(f,radius)
+        statusColor(f,"BackgroundColor3",tokens,role);f.ZIndex=z;f.Parent=parent;local rounding=corner(f,radius)
         return f,rounding
     end
     local function label(parent,text,size,role,z)
-        local f=deps.Typography.Label(parent,"Control",tokens,text,UDim2.fromOffset(0,0),UDim2.fromOffset(0,0),industrialTokens.Color[role],role)
-        f:SetAttribute("FixedPresetColor",true);f.TextSize=size;f.TextTruncate=Enum.TextTruncate.AtEnd;f.ZIndex=z
+        local f=deps.Typography.Label(parent,"Control",tokens,text,UDim2.fromOffset(0,0),UDim2.fromOffset(0,0),tokens.Color[role],role)
+        serenityColor(f,"TextColor3",tokens,role);f.TextSize=size;f.TextTruncate=Enum.TextTruncate.AtEnd;f.ZIndex=z
         return f
     end
     local statusBody,statusRound=surface(statusDock,"StatusBody","ShellDeep",24,88)
@@ -2718,14 +2713,14 @@ function Desktop.Mount(deps, options)
 
     local shellShade=Instance.new("UIGradient");shellShade.Rotation=70
     shellShade.Color=ColorSequence.new(Color3.new(1,1,1),Color3.new(0.88,0.90,0.94));shellShade.Parent=statusBody
-    local dockEdge=Instance.new("UIStroke");industrialColor(dockEdge,"Color",tokens,"Stroke")
+    local dockEdge=Instance.new("UIStroke");statusColor(dockEdge,"Color",tokens,"Stroke")
     dockEdge.Enabled=false;dockEdge.Transparency=0.46;dockEdge.Thickness=1;dockEdge.Parent=statusBody
     local headerLight=surface(statusBody,"HeaderLight","Accent",1,89)
     headerLight.BackgroundTransparency=0.32;headerLight.Position=UDim2.fromOffset(24,0)
     headerLight.Size=UDim2.new(1,-48,0,1);headerLight.Visible=false
     local activityBadge=surface(statusBody,"ActivityBadge","Inset",2,89)
     activityBadge.BackgroundTransparency=0
-    local badgeEdge=Instance.new("UIStroke");industrialColor(badgeEdge,"Color",tokens,"Accent")
+    local badgeEdge=Instance.new("UIStroke");statusColor(badgeEdge,"Color",tokens,"Accent")
     badgeEdge.Transparency=0.6;badgeEdge.Parent=activityBadge
     local badgeScale=Instance.new("UIScale");badgeScale.Scale=1;badgeScale.Parent=activityBadge
     local noticeSheen=surface(statusBody,"RewardSheen","Accent",0,89)
@@ -2805,14 +2800,14 @@ function Desktop.Mount(deps, options)
     detailText.TextYAlignment=Enum.TextYAlignment.Center
     local detailRestore=Instance.new("TextButton");detailRestore.Text="Open UI  ›"
     detailRestore.Font=Enum.Font.GothamSemibold;detailRestore.TextSize=11
-    industrialColor(detailRestore,"TextColor3",tokens,"Accent");industrialColor(detailRestore,"BackgroundColor3",tokens,"Accent")
+    statusColor(detailRestore,"TextColor3",tokens,"Accent");statusColor(detailRestore,"BackgroundColor3",tokens,"Accent")
     detailRestore.BackgroundTransparency=0.9
     detailRestore.BorderSizePixel=0;detailRestore.AutoButtonColor=false;detailRestore.ZIndex=95
     detailRestore.Parent=details;corner(detailRestore,2)
     local petsShortcut=Instance.new("TextButton");petsShortcut.Text="Server pets  ›"
     petsShortcut.Font=Enum.Font.GothamMedium;petsShortcut.TextSize=10
     petsShortcut.TextXAlignment=Enum.TextXAlignment.Left;petsShortcut.BackgroundTransparency=1
-    industrialColor(petsShortcut,"TextColor3",tokens,"Accent");petsShortcut.AutoButtonColor=false
+    statusColor(petsShortcut,"TextColor3",tokens,"Accent");petsShortcut.AutoButtonColor=false
     petsShortcut.ZIndex=95;petsShortcut.Parent=details
     local progressTrack=surface(statusBody,"StatusProgress","Stroke",1,90)
     progressTrack.BackgroundTransparency=0.8;progressTrack.Visible=false
@@ -2820,7 +2815,7 @@ function Desktop.Mount(deps, options)
     progressFill.Size=UDim2.fromScale(0,1)
     local activityTile=surface(statusDock,"MusicOrb","ShellDeep",20,89)
     activityTile.Size=UDim2.fromOffset(38,38);activityTile.Visible=false
-    local orbEdge=Instance.new("UIStroke");industrialColor(orbEdge,"Color",tokens,"Stroke")
+    local orbEdge=Instance.new("UIStroke");statusColor(orbEdge,"Color",tokens,"Stroke")
     orbEdge.Transparency=0.5;orbEdge.Parent=activityTile
     local activityBars={}
     for i=1,4 do
@@ -4483,6 +4478,22 @@ local function completePalette(name)
 end
 local originalColors={}
 for key,color in pairs(Tokens.Color) do originalColors[key]=color end
+-- Native, static tint layers: theme changes update existing images, never refetch them.
+local function refreshArtworkTheme(image)
+    local name=image:GetAttribute("ThemeArtwork")
+    if not name then return end
+    local neutral=selectedTheme=="Celestial"
+    image.ImageColor3=neutral and Color3.new(1,1,1) or Color3.new(1,1,1):Lerp(Tokens.Color.Accent,0.24)
+    local filter=image:FindFirstChild("ThemeArtworkFilter")
+    if not filter then
+        filter=Instance.new("Frame");filter.Name="ThemeArtworkFilter"
+        filter.Size=UDim2.fromScale(1,1);filter.BorderSizePixel=0;filter.Active=false
+        filter.ZIndex=image.ZIndex;filter:SetAttribute("FixedPresetColor",true)
+        filter.Parent=image
+    end
+    filter.BackgroundColor3=Tokens.Color.Accent:Lerp(Tokens.Color.ShellDeep,0.55)
+    filter.BackgroundTransparency=neutral and 1 or (name=="sidebar" and 0.86 or 0.64)
+end
 local function applyTheme(name)
     markCustom()
     selectedTheme=name
@@ -4519,6 +4530,9 @@ local function applyTheme(name)
 
             end
         end
+    end
+    for _,object in ipairs(themedObjects) do
+        if object:IsA("ImageLabel") and object:GetAttribute("ThemeArtwork") then refreshArtworkTheme(object) end
     end
     if refreshMaterials then refreshMaterials() end
     saveAppearance()
@@ -4924,6 +4938,9 @@ do
     art.ImageTransparency=0.22;art.ScaleType=Enum.ScaleType.Crop;art.ZIndex=1;art.Parent=hero
     -- Load each small 2D illustration once and reuse the on-device cache.
     local function cachedArt(target,name)
+        target:SetAttribute("ThemeArtwork",name)
+        target:SetAttribute("FixedPresetColor",true)
+        refreshArtworkTheme(target)
         task.spawn(function()
             local asset=(getcustomasset or getsynasset)
             if type(asset)~="function" or type(writefile)~="function" then return end
@@ -6467,6 +6484,7 @@ end
 print("SERENITY UNIVERSAL PAGES SAMPLE | RightCtrl: toggle | Ctrl+K: search")
 
 return app
+
 
 
 
