@@ -1,7 +1,8 @@
 {
-  "version": "1.0.0-test.1",
+  "version": "1.0.0-test.2",
   "channel": "OfficialTest",
-  "libraryURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/8aad7f52cc5040a26ca2f1e8e4cd5f70282a68a1/dist/ui/serenity-test.lua",
+  "libraryURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/a3174802732a87b84ad0e430cc03bc9d43dea74c/dist/ui/serenity-test.lua",
   "previewURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/951318d08f6f9d8c5e725cebfa1a4cc4da22d1a2/examples/universal-pages.lua",
-  "production": false
+  "production": false,
+  "integrationExampleURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/b91fd79b2e45e46427f3ce19b9af73d6ab2a0237/examples/library-new-script.lua"
 }
