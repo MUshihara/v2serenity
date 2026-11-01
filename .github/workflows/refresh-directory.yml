@@ -1,0 +1,35 @@
+name: Refresh supported games directory
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+  push:
+    paths:
+      - data/supported-games-config.json
+      - scripts/refresh-directory.py
+      - .github/workflows/refresh-directory.yml
+permissions:
+  contents: write
+concurrency:
+  group: supported-games-directory
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read latest production metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/refresh-directory.py
+      - name: Publish directory if changed
+        run: |
+          if git diff --quiet -- data/supported-games.json; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/supported-games.json
+          git commit -m 'Refresh supported games update dates'
+          git push
