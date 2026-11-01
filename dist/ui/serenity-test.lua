@@ -6689,6 +6689,12 @@ function app:Build(manifest)
                 local id=page.Id.."."..feature.Id.."."..(control.Id or ("Paragraph"..index))
                 assert(not self.Controls[id],"Control already exists: "..id)
                 local p=propsCopy(control)
+                if control.Type=="Live"or control.Type=="Progress"then p.Default=control.Value or control.Default end
+                local callback=control.Type=="Action"and(control.Callback or control.Changed)or(control.Changed or control.Callback)
+                if callback then
+                    if control.Type=="Action"then p.Callback=function()callback(self,self)end
+                    else p.Callback=function(value)callback(value,self,self)end end
+                end
                 if options.InitialValues and options.InitialValues[id]~=nil then p.Default=options.InitialValues[id]end
                 self.Controls[id]=self[constructors[control.Type]](self,section,p)
             end
@@ -6700,6 +6706,8 @@ function app:SetLive(id,value)
     local item=self.Controls[id];if type(item)=="table"and type(item.Set)=="function"then item:Set(value,true);return true end
     return false
 end
+app:SetStatus("Idle")
+app:SetStatusProgress(nil)
 if options.Minimized==true then app:SetVisible(false)end
 
 return app
