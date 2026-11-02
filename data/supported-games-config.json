@@ -213,14 +213,14 @@
     },
     {
       "name": "Bike For Egg!",
-      "universeId": null,
+      "universeId": 10766620257,
       "placeId": 74023858073178,
       "status": "Supported",
       "runtimePath": "dist/runtime/games/2.lua"
     },
     {
       "name": "Steal a Pet and Ride It",
-      "universeId": null,
+      "universeId": 10769315427,
       "placeId": 95168737547508,
       "status": "Supported",
       "runtimePath": "dist/runtime/games/3.lua"
