@@ -1,5 +1,5 @@
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.0",Channel="V2",APIVersion=1}
+local Library={Version="2.0.1",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -5218,11 +5218,11 @@ do
     local metrics=Instance.new("Frame");metrics.Size=UDim2.new(1,-4,0,60)
     metrics.BackgroundTransparency=1;metrics.LayoutOrder=3;metrics.Parent=dashboard
     local tiles,values={},{}
-    for i,data in ipairs({{"SESSION","00:00","activity"},{"CURRENT GAME",app.GameTitle or "Loading…","server"},{"CONNECTION","Preview only","info"}}) do
+    for i,data in ipairs({{"SESSION","00:00","activity"},{"CURRENT GAME",app.GameTitle or "Loading…","server"},{"KEY STATUS","Not checked","shield"}}) do
         local tile=card(metrics,60);tiles[i]=tile
         local icon=Icons.Create(tile,data[3],15,Tokens.Color.Accent,UDim2.fromOffset(12,11))
         label(tile,data[1],34,9,-42,18,10,Tokens.Color.TextMuted)
-        values[i]=label(tile,data[2],12,30,-24,22,i==2 and 13 or 15)
+        values[i]=label(tile,data[2],12,30,-24,22,i==3 and 12 or (i==2 and 13 or 15))
         values[i].TextTruncate=Enum.TextTruncate.AtEnd
     end
     local previousGameTitleChanged=app.OnGameTitleChanged
@@ -5248,13 +5248,34 @@ do
         metrics.Size=UDim2.new(1,-4,0,math.ceil(#tiles/count)*68-8)
     end
     runtime:TrackConnection(metrics:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeMetrics));arrangeMetrics()
-    app:Tooltip(tiles[3],"This preview does not connect game automation, authentication or active-user services.")
+    local keyStatusData=normalizeKeyStatus(nil)
+    local function refreshKeyStatus()
+        if runtime.Destroyed then return end
+        local state=keyStatusSnapshot(keyStatusData,os.time())
+        values[3].Text=keyStatusText(state)
+        serenityColor(values[3],"TextColor3",Tokens,(state.State=="Expired" or state.State=="Invalid") and "Amber" or "Text")
+    end
+    function app:SetKeyStatus(data)
+        local nextStatus=normalizeKeyStatus(data) -- Invalid updates retain the old display.
+        keyStatusData=nextStatus
+        refreshKeyStatus()
+        return self
+    end
+    function app:SetLuarmorKeyStatus(result)
+        return self:SetKeyStatus(keyStatusFromLuarmor(result))
+    end
+    function app:GetKeyStatus()
+        return keyStatusSnapshot(keyStatusData,os.time())
+    end
+    app:Tooltip(tiles[3],"Key availability and time remaining, supplied by the authenticated loader. This display does not validate or enforce access.")
+    app:SetKeyStatus(options.KeyStatus)
     local timer
     local function updateSession()
         timer=nil
         if runtime.Destroyed or not dashboard.Visible or not app.Holder.Visible then return end
         local elapsed=math.floor(os.clock()-started)
         values[1].Text=string.format("%02d:%02d",math.floor(elapsed/60),elapsed%60)
+        refreshKeyStatus()
         timer=task.delay(1,updateSession)
     end
     local function refreshSession()
@@ -5810,7 +5831,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.0"},
+                {name="UI build",value="Serenity V2 2.0.1"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
