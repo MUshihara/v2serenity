@@ -1,8 +1,8 @@
--- Serenity V2 2.0.0: UI integration example; no gameplay actions.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/7edcdd4539ed5684d00520604a3c49e10bce7576/dist/ui/serenity-v2.lua"))()
+-- Serenity V2 2.0.1: UI integration example; no gameplay actions.
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/fa228efdb1524a017f6fe1f948dec70a043970e6/dist/ui/serenity-v2.lua"))()
 -- Important game releases must supply dated WhatsNew entries; see the integration guide.
 local CFG={Enabled=false,Delay=1,Target="Nearest",Rarities={}}
-local ui=Library.Create({Key="Serenity_MyGame_Test",Subtitle="My Game",AppearancePath="Serenity_MyGame_Test_Appearance.json"})
+local ui=Library.Create({Key="Serenity_MyGame_Test",KeyStatus={State="Keyless"},Subtitle="My Game",AppearancePath="Serenity_MyGame_Test_Appearance.json"})
 local page=ui:AddPage({Id="Automation",Title="Automation",Icon="automation",Order=1})
 local section=ui:AddSection(page,{Id="Main",Title="Main"})
 local toggle=ui:AddToggle(section,{Id="Enabled",Title="Enabled",Default=CFG.Enabled,Callback=function(v)CFG.Enabled=v end})
