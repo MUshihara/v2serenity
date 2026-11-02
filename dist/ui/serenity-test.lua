@@ -1,5 +1,5 @@
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="1.0.0-test.6",Channel="OfficialTest",APIVersion=1}
+local Library={Version="1.0.0-test.7",Channel="OfficialTest",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -3830,8 +3830,8 @@ function Desktop.Mount(deps, options)
     sidebar.Position=UDim2.new();sidebar.Size=UDim2.new(0,tokens.Size.Sidebar,1,0)
     topbar.Position=UDim2.fromOffset(tokens.Size.Sidebar,0)
     topbar.Size=UDim2.new(1,-tokens.Size.Sidebar,0,tokens.Size.Topbar)
-    heading.Parent=sidebar;heading.TextSize=13;heading.Position=UDim2.fromOffset(deps.Mobile and 44 or 54,15)
-    heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-(deps.Mobile and 50 or 64),22)
+    heading.Parent=sidebar;heading.TextSize=13;heading.Position=UDim2.fromOffset(deps.Mobile and 44 or 58,15)
+    heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-(deps.Mobile and 50 or 68),22)
     star.Parent=sidebar;star.Position=UDim2.fromOffset(16,17);star.Size=UDim2.fromOffset(26,26)
     brandSub.Parent=sidebar;brandSub.Position=UDim2.fromOffset(54,37);brandSub.Text="Interface preview"
     brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,16)
@@ -3839,8 +3839,8 @@ function Desktop.Mount(deps, options)
     brandSub.TextTruncate=Enum.TextTruncate.AtEnd
     if deps.Mobile then
         -- Fit branding inside existing sidebar width; game names get two readable lines.
-        heading.Position=UDim2.fromOffset(36,8)
-        heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-46,22)
+        heading.Position=UDim2.fromOffset(38,8)
+        heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-48,22)
         heading.TextSize=13;heading.Font=deps.Typography.Font.Semibold;heading.TextScaled=false
         brandSub.Position=UDim2.fromOffset(12,33)
         brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-24,32)
@@ -3851,8 +3851,8 @@ function Desktop.Mount(deps, options)
     end
     pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(deps.Mobile and 160 or 190,40)
     pageButton.BackgroundTransparency=1;pageText.TextSize=17;serenityColor(pageText,"TextColor3",tokens,"Text")
-    navHolder.Position=UDim2.fromOffset(10,deps.Mobile and 76 or 66)
-    navHolder.Size=UDim2.new(1,-20,1,-((deps.Mobile and 76 or 66)+tokens.Size.SidebarUser+8))
+    navHolder.Position=UDim2.fromOffset(10,deps.Mobile and 70 or 66)
+    navHolder.Size=UDim2.new(1,-20,1,-((deps.Mobile and 70 or 66)+tokens.Size.SidebarUser+8))
     content.Position=UDim2.fromOffset(tokens.Size.Sidebar+(deps.Mobile and 12 or 20),tokens.Size.Topbar+4)
     content.Size=UDim2.new(1,-(tokens.Size.Sidebar+(deps.Mobile and 24 or 40)),1,-(tokens.Size.Topbar+14))
     -- A static divider replaces the bright full-window glass rim.
@@ -4894,7 +4894,7 @@ local edgeControl=Slider.new(appearance.Body,deps,{Title="Border intensity",Min=
 local opacityControl=Slider.new(appearance.Body,deps,{Title="Material opacity",Min=50,Max=100,Step=1,Default=85,Suffix="%",Callback=function(v) markCustom();materialState.Opacity=v;refreshMaterials();saveAppearance() end})
 local blurControl=Slider.new(appearance.Body, deps, {Title="Blur Amount", Min=0, Max=8, Step=1, Default=3, Callback=function(v) markCustom();materialState.Blur=v;if app.Acrylic then app.Acrylic:SetAmount(v) end;saveAppearance() end})
 local function restoreAppearance(data)
-    data=data or {}
+    data=data or {Theme="Celestial",Preset="Celestial Glass",Mode="Basic",Palette="Match theme",Opacity=98,Edge=55,Blur=0,DragStyle="Smooth"}
     restoringAppearance=true
     if data.ReducedMotion~=nil then
         Motion.Reduced=data.ReducedMotion==true;runtime.ReducedMotion=Motion.Reduced
@@ -5453,12 +5453,13 @@ do
     end)
 
     local directoryReady=false
-    local intro=card(about,100,1)
+    local intro=card(about,deps.Mobile and 66 or 100,1)
     Icons.Create(intro,"about",21,Tokens.Color.Accent,UDim2.fromOffset(14,12))
     label(intro,"Supported Games",44,8,-60,26,18)
-    local introSub=label(intro,"Find your game and check its availability and latest script update.",14,42,-28,35,12,Tokens.Color.TextMuted)
+    local introSub=label(intro,"Find your game and check its availability and latest script update.",14,deps.Mobile and 34 or 42,-28,deps.Mobile and 0 or 35,12,Tokens.Color.TextMuted)
     introSub.TextWrapped=true
-    local overviewCount=label(intro,"Loading directory…",14,78,-28,18,10,Tokens.Color.Cyan)
+    introSub.Visible=not deps.Mobile
+    local overviewCount=label(intro,"Loading directory…",14,deps.Mobile and 40 or 78,-28,18,10,Tokens.Color.Cyan)
 
     local directorySearch=card(about,105,2)
     local findInput=Instance.new("TextBox")
@@ -5483,7 +5484,7 @@ do
     filterWrap.Name="DirectoryFilters"
     filterWrap.BackgroundTransparency=1
     filterWrap.Size=UDim2.new(1,-24,0,37)
-    filterWrap.Position=UDim2.fromOffset(12,55)
+    filterWrap.Position=UDim2.fromOffset(12,deps.Mobile and 48 or 55)
     filterWrap.Parent=directorySearch
 
     local filter="All"
@@ -5521,7 +5522,7 @@ do
         end
         local height=columns==2 and 74 or 37
         filterWrap.Size=UDim2.new(1,-24,0,height)
-        directorySearch.Size=UDim2.new(1,-4,0,55+height+12)
+        directorySearch.Size=UDim2.new(1,-4,0,(deps.Mobile and 48 or 55)+height+(deps.Mobile and 6 or 12))
     end
     runtime:TrackConnection(directorySearch:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrangeDirectoryFilters))
     arrangeDirectoryFilters()
@@ -5597,7 +5598,7 @@ do
         stateLabel.TextXAlignment=Enum.TextXAlignment.Right
         local function arrangeGameRow()
             local narrow=logicalWidth(row)<420
-            row.Size=UDim2.new(1,0,0,narrow and 82 or 62)
+            row.Size=UDim2.new(1,0,0,narrow and 76 or (deps.Mobile and 56 or 62))
             title.Size=UDim2.new(1,narrow and -70 or -190,0,23)
             stateLabel.AnchorPoint=Vector2.new(narrow and 0 or 1,0)
             stateLabel.Position=narrow and UDim2.fromOffset(56,52) or UDim2.new(1,-12,0,10)
@@ -5809,7 +5810,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity Official Test 1.0.0-test.6"},
+                {name="UI build",value="Serenity Official Test 1.0.0-test.7"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
@@ -6746,13 +6747,10 @@ if savedAppearance and savedAppearance.MotionVersion~=2 then
     savedAppearance.DragStyle="Smooth"
     savedAppearance.MotionVersion=2
 end
--- Apply the approved trial once, then retain subsequent user palette changes.
-if not savedAppearance or savedAppearance.DesignVersion~=2 then
-    savedAppearance=savedAppearance or {}
-    savedAppearance.Theme="Industrial";savedAppearance.Preset="Industrial"
-    savedAppearance.Mode="Basic";savedAppearance.Palette="Match theme"
-    savedAppearance.Opacity=100;savedAppearance.Edge=48;savedAppearance.Blur=0
-    savedAppearance.DesignVersion=2
+-- First run uses the Celestial Glass gallery preset. Never overwrite a saved choice.
+if not savedAppearance then
+    savedAppearance={Theme="Celestial",Preset="Celestial Glass",Mode="Basic",Palette="Match theme",
+        Opacity=98,Edge=55,Blur=0,DragStyle="Smooth",MotionVersion=2,DesignVersion=2}
 end
 restoreAppearance(savedAppearance)
 saveAppearance()
