@@ -1,6 +1,6 @@
--- Serenity Official Test 1.0.0-test.4: bridge for the common V3 manifest shape.
+-- Serenity Official Test 1.0.0-test.5: bridge for the common V3 manifest shape.
 -- Keep existing CFG, remotes, controllers and callbacks; replace only UI construction.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/c5dc896b067b1eaac139d763f696ea8c1d2624ef/dist/ui/serenity-test.lua"))()
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/0ad33a3e3d1e087660fd65dcc16b85a592066866/dist/ui/serenity-test.lua"))()
 -- Important game releases must supply dated WhatsNew entries; see the integration guide.
 local CFG={AutoFarm=false,Target="Nearest"}
 local manifest={SerenityAPIVersion=3,Pages={{
