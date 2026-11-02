@@ -203,6 +203,27 @@
       "placeId": null,
       "status": "Patched",
       "runtimePath": "dist/runtime/games/jump-to-steal-soccer-players.lua"
+    },
+    {
+      "name": "Throw Food for Animals",
+      "universeId": 10766972131,
+      "placeId": 120219252362013,
+      "status": "Supported",
+      "runtimePath": "dist/runtime/games/1.lua"
+    },
+    {
+      "name": "Bike For Egg!",
+      "universeId": null,
+      "placeId": 74023858073178,
+      "status": "Supported",
+      "runtimePath": "dist/runtime/games/2.lua"
+    },
+    {
+      "name": "Steal a Pet and Ride It",
+      "universeId": null,
+      "placeId": 95168737547508,
+      "status": "Supported",
+      "runtimePath": "dist/runtime/games/3.lua"
     }
   ]
 }
