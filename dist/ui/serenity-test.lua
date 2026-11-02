@@ -1,5 +1,5 @@
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="1.0.0-test.4",Channel="OfficialTest",APIVersion=1}
+local Library={Version="1.0.0-test.5",Channel="OfficialTest",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -1961,8 +1961,11 @@ function RankedPets.Normalize(items)
                 local icon=tostring(item.Image or "")
                 if icon:match("^%d+$") then icon="rbxassetid://"..icon end
                 if not icon:match("^rbxassetid://%d+$") then icon="" end
+                local stage=item.Stage~=nil and tostring(item.Stage):sub(1,64)or nil
+                if stage and stage:match("^%d+$")then stage="Stage "..stage end
+                local income=item.IncomePerSecond~=nil and math.max(0,finite(item.IncomePerSecond,0))or nil
                 table.insert(result,{Id=id,Name=name,Rarity=tostring(item.Rarity or "Unknown"):sub(1,32),Count=count,
-                    Score=math.max(0,finite(item.Score,0)),Location=tostring(item.Location or "Location unavailable"):sub(1,100),Image=icon})
+                    Score=math.max(0,finite(item.Score,income or 0)),Location=tostring(item.Location or "Location unavailable"):sub(1,100),Image=icon,Stage=stage,IncomePerSecond=income})
             end
         end
     end
@@ -2081,8 +2084,9 @@ function RankedPets.new(parent,deps,options)
             local item=ordered[i];entry.Item=item
             entry.Frame.Visible=true;entry.Frame.LayoutOrder=10+i
             entry.Rank.Text=string.format("%02d",i);serenityColor(entry.Rank,"TextColor3",tokens,i==1 and "Accent" or "TextMuted")
-            entry.Name.Text=item.Name;entry.Rarity.Text=item.Rarity
-            entry.Count.Text="×"..compact(item.Count);entry.Score.Text=compact(item.Score).." pts"
+            entry.Name.Text=item.Name;entry.Rarity.Text=item.Stage or item.Rarity
+            entry.Count.Text=item.IncomePerSecond~=nil and (compact(item.IncomePerSecond).."/s")or ("×"..compact(item.Count))
+            entry.Score.Text=item.IncomePerSecond~=nil and ""or (compact(item.Score).." pts")
             if entry.Image.Image~=item.Image then entry.Image.Image=item.Image end
             entry.Fallback.Visible=item.Image=="" or not entry.Image.IsLoaded
             local colors={Mythic=tokens.Color.Lavender,Legendary=tokens.Color.Amber,Epic=tokens.Color.Pink,Rare=tokens.Color.Cyan,Common=tokens.Color.Mint}
@@ -2091,7 +2095,7 @@ function RankedPets.new(parent,deps,options)
             entry.Mark.Visible=self.Selected==item.Id;entry.Frame.BackgroundTransparency=entry.Mark.Visible and 0.25 or 0.65
             entry.Detail.Visible=entry.Mark.Visible
             if entry.Mark.Visible then
-                entry.Detail.Text=item.Name.." · "..item.Rarity.."\nLocation: "..item.Location
+                entry.Detail.Text=item.Stage and (item.Name.." · "..item.Stage..(item.IncomePerSecond~=nil and (" · "..compact(item.IncomePerSecond).."/s")or ""))or (item.Name.." · "..item.Rarity.."\nLocation: "..item.Location)
                 local width=math.max(100,root.AbsoluteSize.X/math.max(0.001,deps.UIScale and deps.UIScale.Scale or 1)-24)
                 local measured=game:GetService("TextService"):GetTextSize(entry.Detail.Text,12,entry.Detail.Font,Vector2.new(width,10000))
                 local height=math.ceil(measured.Y)+6
@@ -4393,6 +4397,55 @@ do
     end)
 end
 
+-- Explicit user submissions only. Dependency injection keeps transport testable without real posts.
+local function makeFeedbackSender(config)
+    local pending=false
+    local last=-math.huge
+    local serial=0
+    local timer
+    local sender={}
+    local function alive()return not config.Destroyed()end
+    local function state(busy,message)if alive()then config.OnState(busy,message)end end
+    function sender:Submit(text,category)
+        if not alive()or pending then return false end
+        local message=tostring(text or ""):match("^%s*(.-)%s*$")
+        local length=utf8.len(message)or #message
+        if length<3 or length>1800 then state(false,"Write 3–1800 characters.");return false end
+        if config.Now()-last<30 then state(false,"Please wait 30 seconds.");return false end
+        local request=config.GetRequest()
+        if type(request)~="function"then state(false,"HTTP requests unavailable on this device.");return false end
+        local ok,body=pcall(function()return config.Encode(config.Report(message,category))end)
+        if not ok then state(false,"Could not prepare report. Your draft is kept.");return false end
+        pending=true;last=config.Now();serial=serial+1
+        local ticket=serial
+        state(true,"Sending…")
+        timer=config.Delay(15,function()
+            if not pending or serial~=ticket then return end
+            pending=false;serial=serial+1;timer=nil
+            state(false,"Delivery unconfirmed. Your draft is kept.")
+        end)
+        config.Spawn(function()
+            local success,response=pcall(request,{Url=config.Endpoint,Method="POST",Timeout=12,Headers={["Content-Type"]="application/json"},Body=body})
+            if not alive()or not pending or serial~=ticket then return end
+            if timer then pcall(config.Cancel,timer);timer=nil end
+            pending=false
+            local code=success and type(response)=="table"and tonumber(response.StatusCode or response.Status)
+            if code and code>=200 and code<300 then
+                config.ClearIfUnchanged(message)
+                state(false,"Sent. Thank you.")
+            elseif code==429 then state(false,"Rate limited. Please try later.")
+            elseif code==401 or code==403 or code==404 then state(false,"Report destination unavailable.")
+            else state(false,"Not sent. Your draft is kept.")end
+        end)
+        return true
+    end
+    function sender:Destroy()
+        serial=serial+1;pending=false
+        if timer then pcall(config.Cancel,timer);timer=nil end
+    end
+    return sender
+end
+
 -- Release notes are explicit content: a file timestamp cannot describe a gameplay change.
 local function normalizeWhatsNew(entries)
     assert(type(entries)=="table","WhatsNew must be an array")
@@ -4416,9 +4469,8 @@ local function normalizeWhatsNew(entries)
     return result
 end
 local defaultWhatsNew=normalizeWhatsNew({
-    {Title="Profile restored",Description="Profile is visible again between Feedback and Settings. Change your presets, appearance and privacy there.",UpdatedAt=1793602607,Version="1.0.0-test.4",Source="Serenity library"},
-    {Title="Consistent text styling",Description="Language changes preserve each component's font, weight and size instead of forcing regular SourceSans across the UI.",UpdatedAt=1793602607,Version="1.0.0-test.4",Source="Serenity library"},
-    {Title="Three games added",Description="Throw Food for Animals, Bike For Egg! and Steal a Pet and Ride It now appear in About with runtime update times.",UpdatedAt=1793601893,Version="1.0.0-test.3",Source="Serenity library"},
+    {Title="Feedback connected",Description="Send reports directly to Serenity.",UpdatedAt=1793604898,Version="1.0.0-test.5",Source="Serenity library"},
+    {Title="Pet list details",Description="Pet rows support stage and income per second.",UpdatedAt=1793604898,Version="1.0.0-test.5",Source="Serenity library"},
 })
 
 -- Game-owned callbacks only; no sample gameplay actions are registered.
@@ -5724,16 +5776,53 @@ do
         counter.Text=tostring(count).." / 1800"
     end
     runtime:TrackConnection(input:GetPropertyChangedSignal("Text"):Connect(updateCount))
-    SampleUI.Text(form,"Copy your draft, then share it in Discord.",14,176,-28,22,11,true)
+    local feedbackOptions=options
+    local function validWebhook(url)
+        return type(url)=="string"and url:match("^https://discord%.com/api/webhooks/%d+/[%w_%-]+$")~=nil
+    end
+    local endpoint=feedbackOptions.FeedbackWebhook or G.SerenityFeedbackWebhook
+    if not validWebhook(endpoint)then endpoint="https://discord.com/api/webhooks/1546188887808938128/TXP6NrlEBnS9HX4lZLRb0_UEUkd8cEJgr-BXz-fOpQ5-O6GuAaV0DiAYSDHQXESydyoo" end
+    local relay=feedbackOptions.FeedbackRelay or G.SerenityFeedbackRelay
+    if type(relay)=="string"and relay:match("^https://[%w%.%-]+/")then endpoint=relay end
+    local reportStatus=SampleUI.Text(form,"Sends your message and game details to Serenity.",14,176,-28,28,11,true)
+    reportStatus.TextWrapped=true;reportStatus.TextTruncate=Enum.TextTruncate.None
     local actions=Instance.new("Frame");actions.BackgroundTransparency=1;actions.Size=UDim2.new(1,-4,0,42);actions.LayoutOrder=3;actions.Parent=feedback
-    local copied=SampleUI.Button(actions,"Copy draft",function()
-        local message=input.Text:match("^%s*(.-)%s*$")
-        if message=="" then input:CaptureFocus();return end
-        local draft=string.format("Serenity Hub — %s\nPlace: %s\nDevice: %s\n\n%s",category,tostring(game.PlaceId),deps.Mobile and "Mobile / touch" or "PC",message)
-        local ok=copy(draft)
-        app:Notify(ok and "Draft copied" or "Clipboard unavailable",ok and "Share it in Serenity Hub Discord. Nothing was sent automatically." or "Select and copy the message manually.",4,ok and "Success" or "Info")
-    end,true)
-    copied.Size=UDim2.new(0.62,-4,1,0)
+    local sendButton
+    local sender=makeFeedbackSender({
+        Endpoint=endpoint,Now=os.clock,Delay=task.delay,Cancel=task.cancel,Spawn=task.spawn,
+        Destroyed=function()return runtime.Destroyed end,
+        Encode=function(report)return game:GetService("HttpService"):JSONEncode(report)end,
+        GetRequest=function()
+            return type(G.request)=="function"and G.request
+                or type(G.http_request)=="function"and G.http_request
+                or type(request)=="function"and request
+                or type(http_request)=="function"and http_request
+                or type(syn)=="table"and type(syn.request)=="function"and syn.request
+                or type(fluxus)=="table"and type(fluxus.request)=="function"and fluxus.request
+        end,
+        Report=function(message,kind)
+            return {allowed_mentions={parse={}},embeds={{title="Serenity · "..tostring(kind or "Feedback"),description=message,fields={
+                {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
+                {name="Place ID",value=tostring(game.PlaceId)},
+                {name="Job ID",value=tostring(game.JobId or "Unavailable")},
+                {name="UI build",value="Serenity Official Test 1.0.0-test.5"},
+                {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
+            }}}}
+        end,
+        OnState=function(busy,message)
+            reportStatus.Text=message
+            if sendButton then sendButton.Text=busy and "Sending…"or "Send";sendButton.Active=not busy end
+        end,
+        ClearIfUnchanged=function(message)
+            if input.Text:match("^%s*(.-)%s*$")==message then input.Text=""end
+        end,
+    })
+    sendButton=SampleUI.Button(actions,"Send",function()sender:Submit(input.Text,category)end,true)
+    sendButton.Size=UDim2.new(0.62,-4,1,0)
+    app.Feedback={Submit=function()return sender:Submit(input.Text,category)end,Draft=input,Status=reportStatus,Button=sendButton,Category=function()return category end}
+    runtime:TrackCleanup(function()sender:Destroy()end)
+
+
     local discord=SampleUI.Button(actions,"Discord",function()
         local ok=copy("https://discord.gg/pWPs7428wE")
         app:Notify(ok and "Invite copied" or "Serenity Hub Discord",ok and "Paste into Discord or your browser." or "discord.gg/pWPs7428wE",4,"Info")
