@@ -214,14 +214,14 @@
     },
     {
       "name": "Bike For Egg!",
-      "universeId": null,
+      "universeId": 10766620257,
       "placeId": 74023858073178,
       "status": "Supported",
       "updatedAt": 1793564206
     },
     {
       "name": "Steal a Pet and Ride It",
-      "universeId": null,
+      "universeId": 10769315427,
       "placeId": 95168737547508,
       "status": "Supported",
       "updatedAt": 1793564228
