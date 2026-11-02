@@ -1,5 +1,5 @@
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="1.0.0-test.5",Channel="OfficialTest",APIVersion=1}
+local Library={Version="1.0.0-test.6",Channel="OfficialTest",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -1057,7 +1057,7 @@ function Section.new(parent, deps, props)
     serenityColor(headerEdge,"Color",tokens,"Stroke");headerEdge.Transparency=1;headerEdge.Parent=header
     header.Text = ""
     header.AutoButtonColor = false
-    header.Size = UDim2.new(1, 0, 0, 24)
+    header.Size = UDim2.new(1, 0, 0, deps.Mobile and 36 or 24)
     header.LayoutOrder = 1
     header.Parent = frame
 
@@ -1072,7 +1072,7 @@ function Section.new(parent, deps, props)
     ,"TextDim")
     title.TextTransparency = 0
     title.Text = props.Title or "Section"
-    title.TextSize = 13
+    title.TextSize = deps.Mobile and 14 or 13
     title.Font = deps.Typography.Font.Semibold
     title.TextTruncate = Enum.TextTruncate.AtEnd
     title.Position = UDim2.fromOffset(20,0)
@@ -1649,7 +1649,8 @@ function Select.new(parent, deps, props)
         local searchable=props.Searchable~=false and (props.Searchable==true or #self.Options>6)
         local top=searchable and 44 or 6
         local footer=self.Multi and 36 or 0
-        local heightPopup = math.min(270, top+footer+6+math.max(34,#self.Options*34))
+        local optionHeight=deps.Mobile and 42 or 31
+        local heightPopup = math.min(270, top+footer+6+math.max(optionHeight+3,#self.Options*(optionHeight+3)))
         local popup = Instance.new("Frame")
         popup.Size = UDim2.fromOffset(width, heightPopup)
         popup.Position = popupPosition(deps, button, width, heightPopup)
@@ -1706,7 +1707,7 @@ function Select.new(parent, deps, props)
         for _, option in ipairs(self.Options) do
             local selected = isSelected(option)
             local item = Instance.new("TextButton")
-            item.Size = UDim2.new(1, -2, 0, 31)
+            item.Size = UDim2.new(1, -2, 0, optionHeight)
             serenityColor(item,"BackgroundColor3",tokens,selected and "NavActive" or "PanelSoft")
             item.BackgroundTransparency = selected and 0.08 or 0.55
             item.BorderSizePixel = 0
@@ -1714,7 +1715,7 @@ function Select.new(parent, deps, props)
             item.TextXAlignment=Enum.TextXAlignment.Left
             local padding=Instance.new("UIPadding");padding.PaddingLeft=UDim.new(0,26);padding.PaddingRight=UDim.new(0,10);padding.Parent=item
             serenityColor(item,"TextColor3",tokens,selected and "Text" or "TextMuted")
-            item.TextSize = tokens.Type.Value
+            item.TextSize = deps.Mobile and math.max(14,tokens.Type.Value)or tokens.Type.Value
             item.Font = selected and deps.Typography.Font.Semibold or deps.Typography.Font.Medium
             item.AutoButtonColor = false
             item.ZIndex = 82
@@ -2942,7 +2943,7 @@ function Desktop.Mount(deps, options)
         statValues[1].Text=compactNumber(statusCounts.Clicks)
         statValues[2].Text="+"..compactNumber(statusCounts.Rewards)
         statValues[3].Text=statusTimeText
-        dockTime.Text=statusMobile() and compactNumber(statusCounts.Clicks) or statusTimeText
+        dockTime.Text=statusMobile() and (compactNumber(statusCounts.Clicks).."\n"..statNames[1].Text) or statusTimeText
         dockTime.TextSize=statusMobile() and 13 or (#statusTimeText>5 and 16 or 21)
     end
     local function refreshActivityGlyph()
@@ -2999,6 +3000,7 @@ function Desktop.Mount(deps, options)
     function app:SetStatusLabels(first,second)
         statNames[1].Text=tostring(first or "Actions"):sub(1,18)
         statNames[2].Text=tostring(second or "Rewards"):sub(1,18)
+        refreshMetrics()
     end
     function app:GetStatusSnapshot()
         return {Title=dockActivity.Text,Summary=dockMetrics.Text,Running=statusRunning,Complete=statusComplete,
@@ -3046,11 +3048,11 @@ function Desktop.Mount(deps, options)
         statusEvent.Position=statusRow.Position;statusEvent.Size=statusRow.Size
         local left=mobile and 52 or 64
         dockActivity.Position=UDim2.fromOffset(left,mobile and 0 or 11)
-        dockActivity.Size=UDim2.new(1,-left-(mobile and 66 or 126),0,mobile and head or 23)
+        dockActivity.Size=UDim2.new(1,-left-(mobile and 98 or 126),0,mobile and head or 23)
         dockActivity.TextSize=mobile and 13 or 17;dockActivity.Font=Enum.Font.GothamBold
         dockMetrics.Position=UDim2.fromOffset(left,36);dockMetrics.Size=UDim2.new(1,-left-126,0,16)
         dockMetrics.Visible=not mobile
-        dockTime.Visible=true;dockTime.Position=UDim2.new(1,mobile and -70 or -114,0,mobile and 0 or 26);dockTime.Size=UDim2.fromOffset(mobile and 36 or 76,mobile and head or 27)
+        dockTime.Visible=true;dockTime.Position=UDim2.new(1,mobile and -98 or -114,0,mobile and 0 or 26);dockTime.Size=UDim2.fromOffset(mobile and 64 or 76,mobile and head or 27)
         dockTime.TextSize=mobile and 13 or (#statusTimeText>5 and 16 or 21);dockTime.Font=Enum.Font.GothamBold
         detailToggle.Position=UDim2.new(1,-34,0,0);detailToggle.Size=UDim2.fromOffset(34,head)
         eventTitle.Position=UDim2.fromOffset(left,mobile and 0 or 11)
@@ -3836,19 +3838,21 @@ function Desktop.Mount(deps, options)
     heading.TextTruncate=Enum.TextTruncate.AtEnd
     brandSub.TextTruncate=Enum.TextTruncate.AtEnd
     if deps.Mobile then
-        heading.Position=UDim2.fromOffset(46,12)
-        heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-38,24)
-        heading.Position=UDim2.fromOffset(34,12);heading.TextSize=11
-        star.Position=UDim2.fromOffset(10,17);star.Size=UDim2.fromOffset(20,20)
-        brandSub.Position=UDim2.fromOffset(34,37)
-        brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-42,19)
-        brandSub.TextSize=11
-        brandSub.TextYAlignment=Enum.TextYAlignment.Center
+        -- Fit branding inside existing sidebar width; game names get two readable lines.
+        heading.Position=UDim2.fromOffset(36,8)
+        heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-46,22)
+        heading.TextSize=13;heading.Font=deps.Typography.Font.Semibold;heading.TextScaled=false
+        brandSub.Position=UDim2.fromOffset(12,33)
+        brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-24,32)
+        brandSub.TextSize=12;brandSub.TextScaled=false;brandSub.TextWrapped=true
+        brandSub.TextYAlignment=Enum.TextYAlignment.Top
+        serenityColor(brandSub,"TextColor3",tokens,"TextMuted")
+        brandSub.Text=options.Subtitle or "Loading game…"
     end
     pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(deps.Mobile and 160 or 190,40)
     pageButton.BackgroundTransparency=1;pageText.TextSize=17;serenityColor(pageText,"TextColor3",tokens,"Text")
-    navHolder.Position=UDim2.fromOffset(10,66)
-    navHolder.Size=UDim2.new(1,-20,1,-(66+tokens.Size.SidebarUser+8))
+    navHolder.Position=UDim2.fromOffset(10,deps.Mobile and 76 or 66)
+    navHolder.Size=UDim2.new(1,-20,1,-((deps.Mobile and 76 or 66)+tokens.Size.SidebarUser+8))
     content.Position=UDim2.fromOffset(tokens.Size.Sidebar+(deps.Mobile and 12 or 20),tokens.Size.Topbar+4)
     content.Size=UDim2.new(1,-(tokens.Size.Sidebar+(deps.Mobile and 24 or 40)),1,-(tokens.Size.Topbar+14))
     -- A static divider replaces the bright full-window glass rim.
@@ -3858,7 +3862,7 @@ function Desktop.Mount(deps, options)
     edge.Transparency=0.7;edge.Thickness=1
     -- Small branded motion, suspended with the window and cleaned up on reload.
     star.AnchorPoint=Vector2.new(0.5,0.5)
-    star.Position=UDim2.fromOffset(29,30);star.Size=UDim2.fromOffset(30,30)
+    star.Position=UDim2.fromOffset(deps.Mobile and 21 or 29,deps.Mobile and 19 or 30);star.Size=UDim2.fromOffset(deps.Mobile and 22 or 30,deps.Mobile and 22 or 30)
     local glow=Instance.new("Frame");glow.Name="StarGlow";glow.BorderSizePixel=0
     glow.AnchorPoint=Vector2.new(0.5,0.5);glow.Position=UDim2.fromScale(0.5,0.5)
     glow.Size=UDim2.fromOffset(18,18);glow.BackgroundColor3=Color3.fromRGB(166,145,103)
@@ -5805,7 +5809,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity Official Test 1.0.0-test.5"},
+                {name="UI build",value="Serenity Official Test 1.0.0-test.6"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
