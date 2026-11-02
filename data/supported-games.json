@@ -204,6 +204,27 @@
       "placeId": null,
       "status": "Patched",
       "updatedAt": 1787678826
+    },
+    {
+      "name": "Throw Food for Animals",
+      "universeId": 10766972131,
+      "placeId": 120219252362013,
+      "status": "Supported",
+      "updatedAt": 1793561442
+    },
+    {
+      "name": "Bike For Egg!",
+      "universeId": null,
+      "placeId": 74023858073178,
+      "status": "Supported",
+      "updatedAt": 1793564206
+    },
+    {
+      "name": "Steal a Pet and Ride It",
+      "universeId": null,
+      "placeId": 95168737547508,
+      "status": "Supported",
+      "updatedAt": 1793564228
     }
   ]
 }
