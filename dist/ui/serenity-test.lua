@@ -1,5 +1,5 @@
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="1.0.0-test.3",Channel="OfficialTest",APIVersion=1}
+local Library={Version="1.0.0-test.4",Channel="OfficialTest",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -2568,9 +2568,9 @@ function Desktop.Mount(deps, options)
         if id=="About" then return 0 end
         if id=="Dashboard" then return 1 end
         if id=="Feedback" then return 3 end
-        if id=="Settings" then return 4 end
-        if id=="Languages" then return 5 end
-        if id=="Profile" then return 6 end
+        if id=="Profile" then return 4 end
+        if id=="Settings" then return 5 end
+        if id=="Languages" then return 6 end
         return 2
     end
     function app:ArrangeLibraryNavigation()
@@ -2583,17 +2583,14 @@ function Desktop.Mount(deps, options)
         end)
         local index=0
         for _,entry in ipairs(navItems)do
-            local visible=entry.Id~="Profile"
-            entry.NavItem.Row.Visible=visible
-            if visible then index=index+1;entry.NavItem.Row.LayoutOrder=index end
+            entry.NavItem.Row.Visible=true
+            index=index+1;entry.NavItem.Row.LayoutOrder=index
         end
     end
     function app:GetNavigation()
         local result={}
         for _,entry in ipairs(navItems)do
-            if entry.Id~="Profile"then
-                result[#result+1]={Id=entry.Id,Title=entry.Title,Icon=entry.Icon,Order=entry.NavItem.Row.LayoutOrder}
-            end
+            result[#result+1]={Id=entry.Id,Title=entry.Title,Icon=entry.Icon,Order=entry.NavItem.Row.LayoutOrder}
         end
         return result
     end
@@ -3673,7 +3670,7 @@ function Desktop.Mount(deps, options)
         local matches = {}
         for _, entry in ipairs(navItems) do
             if categoriesOnly then
-                if entry.Id~="Profile"then table.insert(matches,{Entry=entry,Title=entry.Title})end
+                table.insert(matches,{Entry=entry,Title=entry.Title})
             else
                 for _, target in ipairs(entry.Page:GetDescendants()) do
                     local title=target:GetAttribute("FeatureTitle")
@@ -4419,9 +4416,9 @@ local function normalizeWhatsNew(entries)
     return result
 end
 local defaultWhatsNew=normalizeWhatsNew({
+    {Title="Profile restored",Description="Profile is visible again between Feedback and Settings. Change your presets, appearance and privacy there.",UpdatedAt=1793602607,Version="1.0.0-test.4",Source="Serenity library"},
+    {Title="Consistent text styling",Description="Language changes preserve each component's font, weight and size instead of forcing regular SourceSans across the UI.",UpdatedAt=1793602607,Version="1.0.0-test.4",Source="Serenity library"},
     {Title="Three games added",Description="Throw Food for Animals, Bike For Egg! and Steal a Pet and Ride It now appear in About with runtime update times.",UpdatedAt=1793601893,Version="1.0.0-test.3",Source="Serenity library"},
-    {Title="Connected game release notes",Description="Game scripts can provide dated, versioned changes here. Newest changes appear first.",UpdatedAt=1793601893,Version="1.0.0-test.3",Source="Serenity library"},
-    {Title="Sidebar order corrected",Description="About, Dashboard, game features, Feedback, Settings, Languages. Open Profile from your user card.",UpdatedAt=1793560754,Version="1.0.0-test.2",Source="Serenity library"},
 })
 
 -- Game-owned callbacks only; no sample gameplay actions are registered.
@@ -5846,7 +5843,7 @@ function I18N.new(selection,detected)
         -- Explicit user choice; Roblox locale never changes the selected language.
     end
     function self:Bind(object,property)
-        local binding={Source=object[property],Last=nil,Font=object.Font,Wrapped=object.TextWrapped,Truncate=object.TextTruncate}
+        local binding={Source=object[property],Last=nil,Wrapped=object.TextWrapped,Truncate=object.TextTruncate}
         local id={};self.Bindings[id]=binding
         function binding.Render()
             if self.Destroyed then return end
@@ -5854,8 +5851,7 @@ function I18N.new(selection,detected)
             if binding.Last~=nil and object[property]~=binding.Last then binding.Source=object[property] end
             binding.Last=self:T(binding.Source)
             if object[property]~=binding.Last then object[property]=binding.Last end
-            -- SourceSans provides Roblox's fallback glyph handling, including Thai.
-            object.Font=self:Language()=='th' and Enum.Font.SourceSans or binding.Font
+            -- Translate content only. Preserve the component's font, weight and TextSize.
             if property=='Text' then
                 local translated=binding.Last~=binding.Source
                 object.TextWrapped=translated or binding.Wrapped
@@ -6634,7 +6630,6 @@ I18N.Packs["ru"]["Paused"]="Пауза"
         b.LayoutOrder=i
         local title=SampleUI.Text(b,name,14,9,-64,24,14)
         title:SetAttribute("LocalizationIgnore",true)
-        if name=="ไทย" then title.Font=Enum.Font.SourceSans;title.TextSize=17 end
         local sub=SampleUI.Text(b,english[i],14,36,-64,19,11,true);sub:SetAttribute("LocalizationIgnore",true)
         local check=SampleUI.Text(b,"✓",0,10,0,22,16)
         check.Position=UDim2.new(1,-33,0,9);check.Size=UDim2.fromOffset(22,22);serenityColor(check,"TextColor3",Tokens,"Accent")
