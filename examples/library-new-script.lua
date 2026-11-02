@@ -1,5 +1,6 @@
--- Serenity Official Test RC1: UI integration example; no gameplay actions.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/a3174802732a87b84ad0e430cc03bc9d43dea74c/dist/ui/serenity-test.lua"))()
+-- Serenity Official Test 1.0.0-test.3: UI integration example; no gameplay actions.
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/386c2fb2c9906da323bf88749d459bed3c9ebad5/dist/ui/serenity-test.lua"))()
+-- Important game releases must supply dated WhatsNew entries; see the integration guide.
 local CFG={Enabled=false,Delay=1,Target="Nearest",Rarities={}}
 local ui=Library.Create({Key="Serenity_MyGame_Test",Subtitle="My Game",AppearancePath="Serenity_MyGame_Test_Appearance.json"})
 local page=ui:AddPage({Id="Automation",Title="Automation",Icon="automation",Order=1})
