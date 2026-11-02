@@ -1,9 +1,9 @@
 {
-  "version": "1.0.0-test.5",
+  "version": "1.0.0-test.6",
   "channel": "OfficialTest",
-  "libraryURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/0ad33a3e3d1e087660fd65dcc16b85a592066866/dist/ui/serenity-test.lua",
-  "previewURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/c5a29eb330de31f4d91b7c0aa1d3c1421507aab7/examples/library-new-script.lua",
+  "libraryURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/aa496d350d1620558f0d8c4d3e05182d88617d3c/dist/ui/serenity-test.lua",
+  "previewURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/c1891df17762fb7712c9b530808a8e696b564471/examples/library-new-script.lua",
   "production": false,
-  "integrationExampleURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/c5a29eb330de31f4d91b7c0aa1d3c1421507aab7/examples/library-new-script.lua",
+  "integrationExampleURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/c1891df17762fb7712c9b530808a8e696b564471/examples/library-new-script.lua",
   "legacyPreviewURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/951318d08f6f9d8c5e725cebfa1a4cc4da22d1a2/examples/universal-pages.lua"
 }
