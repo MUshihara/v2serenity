@@ -12,7 +12,7 @@ local manifest={SerenityAPIVersion=3,Pages={{
         },
     }},
 }}}
-local ui=Library.Build(manifest,{Key="Serenity_MyGame_Manifest_Test",Subtitle="My Game"})
+local ui=Library.Build(manifest,{Key="Serenity_MyGame_Manifest_Test",KeyStatus={State="Keyless"},Subtitle="My Game"})
 ui:SetLive("Automation.Farm.State","Ready")
 -- Silent UI sync does not invoke Changed:
 ui.Controls["Automation.Farm.Enabled"]:Set(CFG.AutoFarm,true)
