@@ -1,5 +1,5 @@
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="1.0.0-test.2",Channel="OfficialTest",APIVersion=1}
+local Library={Version="1.0.0-test.3",Channel="OfficialTest",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -4396,6 +4396,34 @@ do
     end)
 end
 
+-- Release notes are explicit content: a file timestamp cannot describe a gameplay change.
+local function normalizeWhatsNew(entries)
+    assert(type(entries)=="table","WhatsNew must be an array")
+    local result={}
+    for i,entry in ipairs(entries)do
+        assert(i<=20 and type(entry)=="table","WhatsNew supports up to 20 release notes")
+        assert(type(entry.Title)=="string" and #entry.Title>0 and #entry.Title<=120,"WhatsNew.Title must contain 1..120 bytes")
+        assert(type(entry.Description)=="string" and #entry.Description>0 and #entry.Description<=800,"WhatsNew.Description must contain 1..800 bytes")
+        local stamp=entry.UpdatedAt
+        assert(stamp==nil or (type(stamp)=="number" and stamp==stamp and stamp%1==0 and stamp>0 and stamp<=4102444800),"WhatsNew.UpdatedAt must be a Unix timestamp")
+        for _,key in ipairs({"Version","Source"})do
+            assert(entry[key]==nil or (type(entry[key])=="string" and #entry[key]<=80),"WhatsNew."..key.." must be a short string")
+        end
+        result[#result+1]={Title=entry.Title,Description=entry.Description,UpdatedAt=stamp,Version=entry.Version,Source=entry.Source,Sequence=i}
+    end
+    table.sort(result,function(a,b)
+        local first,second=a.UpdatedAt or 0,b.UpdatedAt or 0
+        if first~=second then return first>second end
+        return a.Sequence<b.Sequence
+    end)
+    return result
+end
+local defaultWhatsNew=normalizeWhatsNew({
+    {Title="Three games added",Description="Throw Food for Animals, Bike For Egg! and Steal a Pet and Ride It now appear in About with runtime update times.",UpdatedAt=1793601893,Version="1.0.0-test.3",Source="Serenity library"},
+    {Title="Connected game release notes",Description="Game scripts can provide dated, versioned changes here. Newest changes appear first.",UpdatedAt=1793601893,Version="1.0.0-test.3",Source="Serenity library"},
+    {Title="Sidebar order corrected",Description="About, Dashboard, game features, Feedback, Settings, Languages. Open Profile from your user card.",UpdatedAt=1793560800,Version="1.0.0-test.2",Source="Serenity library"},
+})
+
 -- Game-owned callbacks only; no sample gameplay actions are registered.
 for _,action in ipairs(options.QuickActions or {})do app:RegisterQuickAction(action)end
 
@@ -5254,15 +5282,44 @@ do
     local openSettings=button(quick.Body,"Appearance & presets  ›",function() app:SelectPage("Profile") end)
     openSettings.Size=UDim2.new(1,0,0,38)
     local news=Section.new(cols.Right,deps,{Title="What's new"})
-    for i,data in ipairs({{"Your refreshed dashboard","Find your game, session and Quick Menu in one place."},{"Make it yours","Choose an appearance preset and control your profile privacy."},{"Game availability","Supported, Patched and Discontinued, with runtime update dates."}}) do
-        local row=Instance.new("Frame");row.Size=UDim2.new(1,0,0,55)
-        row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
-        local dot=Instance.new("Frame");dot.Size=UDim2.fromOffset(3,15);dot.Position=UDim2.fromOffset(12,9)
-        dot.BorderSizePixel=0;dot.BackgroundColor3=i==2 and Tokens.Color.Lavender or Tokens.Color.Accent;dot.Parent=row
-        label(row,data[1],24,5,-36,22,12)
-        local sub=label(row,data[2],24,27,-36,26,11,Tokens.Color.TextMuted)
-        sub.TextWrapped=true;sub.TextYAlignment=Enum.TextYAlignment.Top
+    local newsRows={}
+    function app:SetWhatsNew(entries)
+        if runtime.Destroyed then return self end
+        local notes=normalizeWhatsNew(entries) -- Validate before removing the currently visible notes.
+        for _,row in ipairs(newsRows)do row:Destroy()end
+        newsRows={}
+        news.Frame.Visible=#notes>0
+        for i,entry in ipairs(notes)do
+            local row=Instance.new("Frame");row.Name="ReleaseNote"
+            row.Size=UDim2.new(1,0,0,0);row.AutomaticSize=Enum.AutomaticSize.Y
+            row.BackgroundTransparency=1;row.LayoutOrder=i;row.Parent=news.Body
+            newsRows[#newsRows+1]=row
+            local pad=Instance.new("UIPadding");pad.PaddingLeft=UDim.new(0,24);pad.PaddingRight=UDim.new(0,12)
+            pad.PaddingTop=UDim.new(0,8);pad.PaddingBottom=UDim.new(0,10);pad.Parent=row
+            local list=Instance.new("UIListLayout");list.SortOrder=Enum.SortOrder.LayoutOrder
+            list.Padding=UDim.new(0,4);list.Parent=row
+            local function text(value,size,muted,order)
+                local line=SampleUI.Text(row,value,0,0,0,0,size,muted)
+                line.Size=UDim2.new(1,0,0,0);line.AutomaticSize=Enum.AutomaticSize.Y
+                line.TextWrapped=true;line.TextTruncate=Enum.TextTruncate.None
+                line.TextYAlignment=Enum.TextYAlignment.Top;line.LayoutOrder=order
+                return line
+            end
+            local title=text(entry.Title,12,false,1)
+            local meta={}
+            if entry.Source and entry.Source~=""then meta[#meta+1]=entry.Source end
+            if entry.Version and entry.Version~=""then meta[#meta+1]=entry.Version end
+            if entry.UpdatedAt then meta[#meta+1]=os.date("!%d %b %Y · %H:%M",entry.UpdatedAt+8*3600).." PHT"end
+            if #meta>0 then text(table.concat(meta," · "),10,true,2)end
+            text(entry.Description,11,true,3)
+            local dot=Instance.new("Frame");dot.Name="ReleaseAccent"
+            dot.Size=UDim2.fromOffset(3,13);dot.Position=UDim2.fromOffset(-12,1)
+            dot.BorderSizePixel=0;serenityColor(dot,"BackgroundColor3",Tokens,"Accent");dot.Parent=title
+        end
+        return self
     end
+    app:SetWhatsNew(options.WhatsNew or defaultWhatsNew)
+
     -- Keep the trial local to Dashboard, including its two preference sections.
     for _,section in ipairs({quick,news}) do
         solidSurface(section.Body,"Panel",4)
@@ -5298,39 +5355,42 @@ do
     -- Owner-maintained game availability, with runtime commit dates.
     -- Keep this independent of the preserved Dashboard and Settings.
     -- Statuses are maintained by Serenity; dates are runtime-file commit times.
-    -- Date snapshot: Serenity-hub @ 195d62265876dc08c1bc6504dbf9ee1ddefe115c.
+    -- Date snapshot: Serenity-hub @ ee3c8f547270d5e2b9e69b5c47471f5e268bd5c4.
     -- Bundled fallback. A single asynchronous JSON fetch refreshes it each execution.
     local aboutGames={
-        -- Name, UniverseId, launch PlaceId, status, last runtime update (PHT), UTC sort timestamp.
-        {"MM2",66654135,142823291,"Supported","21 Oct 2026 · 02:29",1792520940},
-        {"Steal A Seed",10764328008,122216176958450,"Supported","17 Sep 2026 · 16:39",1789634340},
-        {"Lift a Cube",10759860151,109530157755211,"Supported","15 Sep 2026 · 19:32",1789471920},
-        {"Steal An Anime Egg",10747748563,76377501906469,"Supported","15 Sep 2026 · 19:38",1789472280},
-        {"Break and Steal an Egg",10765288803,114326934417838,"Supported","23 Oct 2026 · 00:23",1792686180},
-        {"Ride A Pet",10035204815,124216119978534,"Supported","20 Oct 2026 · 23:54",1792511640},
-        {"+1 Strength to Grow Your Arm",10310999762,86259628805375,"Supported","26 Sep 2026 · 11:50",1790394600},
-        {"Anime Dice",10708913337,113290951185459,"Supported","19 Oct 2026 · 19:34",1792409640},
-        {"+1 Loot to Forge",10684750879,118805555015549,"Supported","21 Oct 2026 · 01:56",1792518960},
-        {"Lift Rock for Eggs",10768316438,76731343328034,"Supported","13 Oct 2026 · 22:52",1791903120},
-        {"+1 Drain Water Per Click",10561352230,103883942725157,"Supported","26 Aug 2026 · 01:27",1787678820},
-        {"Sell Ores",10336278580,122572082932179,"Supported","08 Sep 2026 · 18:45",1788864300},
-        {"+1 Cut Grass Adventure",10410945205,90086669327265,"Supported","28 Aug 2026 · 02:11",1787854260},
-        {"Greedy Growers",10440833423,74102906764176,"Supported","26 Aug 2026 · 21:12",1787749920},
-        {"Chicken Farm",10209534490,137233438285284,"Supported","27 Aug 2026 · 23:46",1787845560},
-        {"+1 Monkey Evolution",10605939914,91701030914075,"Supported","26 Aug 2026 · 20:03",1787745780},
-        {"+1 Superhero Evolution",10577588270,97824450589417,"Supported","26 Aug 2026 · 01:27",1787678820},
-        {"Heroes RNG",10153098880,108307565942574,"Discontinued","30 Aug 2026 · 00:24",1788020640},
-        {"Throw a Coin",10131390815,115681808123944,"Discontinued","30 Aug 2026 · 11:00",1788058800},
-        {"Cheating During Testing",9780429221,98894876188248,"Patched","31 Aug 2026 · 23:53",1788191580},
-        {"Roll Anime to Fight",10298144467,107653945083776,"Discontinued","17 Sep 2026 · 18:50",1789642200},
-        {"+1 Dino Evolution",10664667515,103138601755519,"Supported","12 Sep 2026 · 12:44",1789188240},
-        {"+1 Phonk Evolution",10544327471,104809044319701,"Supported","04 Sep 2026 · 10:24",1788488640},
-        {"Unscathed RNG",8959257868,122951224417794,"Supported","05 Sep 2026 · 15:19",1788592740},
+        -- Name, UniverseId, launch PlaceId, status, last runtime update (PHT), UTC timestamp.
+        {"MM2",66654135,142823291,"Supported","21 Oct 2026 · 02:29",1792520973},
+        {"Steal A Seed",10764328008,122216176958450,"Supported","17 Sep 2026 · 16:39",1789634374},
+        {"Lift a Cube",10759860151,109530157755211,"Supported","15 Sep 2026 · 19:32",1789471945},
+        {"Steal An Anime Egg",10747748563,76377501906469,"Supported","15 Sep 2026 · 19:38",1789472320},
+        {"Break and Steal an Egg",10765288803,114326934417838,"Supported","28 Oct 2026 · 02:46",1793126767},
+        {"Ride A Pet",10035204815,124216119978534,"Supported","20 Oct 2026 · 23:54",1792511674},
+        {"+1 Strength to Grow Your Arm",10310999762,86259628805375,"Supported","26 Sep 2026 · 11:50",1790394646},
+        {"Anime Dice",10708913337,113290951185459,"Supported","28 Oct 2026 · 02:09",1793124544},
+        {"+1 Loot to Forge",10684750879,118805555015549,"Supported","21 Oct 2026 · 01:56",1792518967},
+        {"Lift Rock for Eggs",10768316438,76731343328034,"Supported","13 Oct 2026 · 22:52",1791903128},
+        {"+1 Drain Water Per Click",10561352230,103883942725157,"Supported","26 Aug 2026 · 01:27",1787678826},
+        {"Sell Ores",10336278580,122572082932179,"Supported","08 Sep 2026 · 18:45",1788864313},
+        {"+1 Cut Grass Adventure",10410945205,90086669327265,"Supported","28 Aug 2026 · 02:11",1787854309},
+        {"Greedy Growers",10440833423,74102906764176,"Supported","26 Aug 2026 · 21:12",1787749931},
+        {"Chicken Farm",10209534490,137233438285284,"Supported","27 Aug 2026 · 23:46",1787845575},
+        {"+1 Monkey Evolution",10605939914,91701030914075,"Supported","26 Aug 2026 · 20:03",1787745786},
+        {"+1 Superhero Evolution",10577588270,97824450589417,"Supported","26 Aug 2026 · 01:27",1787678826},
+        {"Heroes RNG",10153098880,108307565942574,"Discontinued","30 Aug 2026 · 00:24",1788020683},
+        {"Throw a Coin",10131390815,115681808123944,"Discontinued","30 Aug 2026 · 11:00",1788058818},
+        {"Cheating During Testing",9780429221,98894876188248,"Patched","31 Aug 2026 · 23:53",1788191592},
+        {"Roll Anime to Fight",10298144467,107653945083776,"Discontinued","17 Sep 2026 · 18:50",1789642245},
+        {"+1 Dino Evolution",10664667515,103138601755519,"Supported","12 Sep 2026 · 12:44",1789188285},
+        {"+1 Phonk Evolution",10544327471,104809044319701,"Supported","04 Sep 2026 · 10:24",1788488676},
+        {"Unscathed RNG",8959257868,122951224417794,"Supported","05 Sep 2026 · 15:19",1788592775},
         {"Mine a Mountain",10187294555,125927821145949,"Supported","07 Sep 2026 · 19:45",1788781500},
-        {"Search for the Needle",10756011174,77108422251420,"Discontinued","09 Sep 2026 · 07:52",1788911520},
-        {"+1 Tongue Escape",10681914462,122245938604556,"Supported","12 Sep 2026 · 01:17",1789147020},
-        {"Collect All the Leaves",nil,nil,"Patched","26 Aug 2026 · 01:27",1787678820},
-        {"Jump To Steal Soccer Players",nil,nil,"Patched","26 Aug 2026 · 01:27",1787678820},
+        {"Search for the Needle",10756011174,77108422251420,"Discontinued","09 Sep 2026 · 07:52",1788911539},
+        {"+1 Tongue Escape",10681914462,122245938604556,"Supported","12 Sep 2026 · 01:17",1789147059},
+        {"Collect All the Leaves",nil,nil,"Patched","26 Aug 2026 · 01:27",1787678826},
+        {"Jump To Steal Soccer Players",nil,nil,"Patched","26 Aug 2026 · 01:27",1787678826},
+        {"Throw Food for Animals",10766972131,120219252362013,"Supported","02 Nov 2026 · 03:30",1793561442},
+        {"Bike For Egg!",nil,74023858073178,"Supported","02 Nov 2026 · 04:16",1793564206},
+        {"Steal a Pet and Ride It",nil,95168737547508,"Supported","02 Nov 2026 · 04:17",1793564228},
     }
 
     -- Newest first; older runtime updates appear farther down.
@@ -6748,6 +6808,7 @@ function app:Destroy()runtime:Destroy()end
 function app:Build(manifest)
     local ok,errors=validateManifest(manifest)
     assert(ok,table.concat(errors,"\n"))
+    if manifest.WhatsNew~=nil then self:SetWhatsNew(options.WhatsNew or manifest.WhatsNew)end
     local constructors={Switch="AddToggle",Toggle="AddToggle",Select="AddSelect",MultiSelect="AddMultiSelect",Slider="AddSlider",Input="AddInput",Live="AddLive",Progress="AddProgress",Paragraph="AddParagraph",Action="AddButton"}
     for _,page in ipairs(manifest.Pages) do
         local target=self:GetPage(page.Id)or self:AddPage({Id=page.Id,Title=page.Title,Icon=page.Icon,Group=page.Group or "Game",Order=page.Order})
@@ -6800,6 +6861,8 @@ end
 Library.Create=create
 function Library.Build(manifest,options)
     local ok,errors=validateManifest(manifest);assert(ok,table.concat(errors,"\n"))
-    return create(options):Build(manifest)
+    local settings={};for k,v in pairs(options or {})do settings[k]=v end
+    if settings.WhatsNew==nil then settings.WhatsNew=manifest.WhatsNew end
+    return create(settings):Build(manifest)
 end
 return Library
