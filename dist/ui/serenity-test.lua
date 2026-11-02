@@ -4421,7 +4421,7 @@ end
 local defaultWhatsNew=normalizeWhatsNew({
     {Title="Three games added",Description="Throw Food for Animals, Bike For Egg! and Steal a Pet and Ride It now appear in About with runtime update times.",UpdatedAt=1793601893,Version="1.0.0-test.3",Source="Serenity library"},
     {Title="Connected game release notes",Description="Game scripts can provide dated, versioned changes here. Newest changes appear first.",UpdatedAt=1793601893,Version="1.0.0-test.3",Source="Serenity library"},
-    {Title="Sidebar order corrected",Description="About, Dashboard, game features, Feedback, Settings, Languages. Open Profile from your user card.",UpdatedAt=1793560800,Version="1.0.0-test.2",Source="Serenity library"},
+    {Title="Sidebar order corrected",Description="About, Dashboard, game features, Feedback, Settings, Languages. Open Profile from your user card.",UpdatedAt=1793560754,Version="1.0.0-test.2",Source="Serenity library"},
 })
 
 -- Game-owned callbacks only; no sample gameplay actions are registered.
