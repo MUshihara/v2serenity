@@ -1,5 +1,5 @@
--- Serenity V2 2.0.1: UI integration example; no gameplay actions.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/fa228efdb1524a017f6fe1f948dec70a043970e6/dist/ui/serenity-v2.lua"))()
+-- Serenity V2 2.0.2: UI integration example; no gameplay actions.
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/ba1653704c0c7784491fd04591b23d0b2c086ad6/dist/ui/serenity-v2.lua"))()
 -- Important game releases must supply dated WhatsNew entries; see the integration guide.
 local CFG={Enabled=false,Delay=1,Target="Nearest",Rarities={}}
 local ui=Library.Create({Key="Serenity_MyGame_Test",KeyStatus={State="Keyless"},Subtitle="My Game",AppearancePath="Serenity_MyGame_Test_Appearance.json"})
