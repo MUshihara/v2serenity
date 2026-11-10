@@ -1,5 +1,65 @@
+-- Presence is opt-in per integration. Shares the V3 reporter slot across reruns.
+local function startPresence(app,options,manifest)
+    if type(options)~="table" or options.Presence~=true then return end
+    local runtime=app.Runtime
+    if not runtime or runtime.Destroyed then return end
+    local env=(type(getgenv)=="function" and getgenv()) or _G
+    if env.SerenityPresenceEnabled==false then return end
+    local send=request or http_request or (type(syn)=="table" and syn.request)
+    if type(send)~="function" then return end
+    local player=game:GetService("Players").LocalPlayer
+    local universe=game.GameId
+    if not player or player.UserId<=0 or universe<=0 then return end
+    local http=game:GetService("HttpService")
+    local session=env.__SERENITY_PRESENCE_ID
+    if type(session)~="string" or not session:match("^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$") then
+        session=http:GenerateGUID(false)
+    end
+    local body=http:JSONEncode({session=session})
+    local executionBody=http:JSONEncode({session=session,execution=http:GenerateGUID(false)})
+    local headers={
+        ["Content-Type"]="application/json",
+        ["X-Serenity-Account"]=tostring(player.UserId),
+        ["X-Serenity-Game"]=tostring(universe),
+    }
+    local previous=env.__SERENITY_PRESENCE
+    if type(previous)=="table" and type(previous.Stop)=="function" then previous:Stop() end
+    env.__SERENITY_PRESENCE_ID=session
+    local state={Stopped=false}
+    function state:Stop()
+        if self.Stopped then return end
+        self.Stopped=true
+        if env.__SERENITY_PRESENCE==self then env.__SERENITY_PRESENCE=nil end
+        if self.Thread and self.Thread~=coroutine.running() then pcall(task.cancel,self.Thread) end
+    end
+    runtime:TrackCleanup(function()state:Stop()end)
+    env.__SERENITY_PRESENCE=state
+    state.Thread=task.defer(function()
+        local recorded=false
+        while not state.Stopped and not runtime.Destroyed and env.SerenityPresenceEnabled~=false do
+            local name=(manifest and manifest.GameName) or app.GameTitle or options.Subtitle
+            if type(name)=="string" and #name>0 and #name<=96 and name~="Loading…" then
+                headers["X-Serenity-Game-Name"]=http:UrlEncode(name)
+            else
+                headers["X-Serenity-Game-Name"]=nil
+            end
+            local ok,response=pcall(send,{
+                Url="https://serenity-active.makimnaritn.workers.dev/heartbeat",
+                Method="POST",Headers=headers,Body=recorded and body or executionBody,Timeout=10,
+            })
+            if not recorded and ok and type(response)=="table" and tonumber(response.StatusCode)==200 then
+                local decoded,data=pcall(http.JSONDecode,http,response.Body or "")
+                recorded=decoded and type(data)=="table" and data.executionRecorded==true
+            end
+            if state.Stopped or runtime.Destroyed or env.SerenityPresenceEnabled==false then break end
+            task.wait(300)
+        end
+        state:Stop()
+    end)
+end
+
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.1",Channel="V2",APIVersion=1}
+local Library={Version="2.0.2",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -5831,7 +5891,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.1"},
+                {name="UI build",value="Serenity V2 2.0.2"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
@@ -6965,11 +7025,17 @@ return app
 
 
 end
-Library.Create=create
+function Library.Create(options)
+    local app=create(options)
+    pcall(startPresence,app,options)
+    return app
+end
 function Library.Build(manifest,options)
     local ok,errors=validateManifest(manifest);assert(ok,table.concat(errors,"\n"))
     local settings={};for k,v in pairs(options or {})do settings[k]=v end
     if settings.WhatsNew==nil then settings.WhatsNew=manifest.WhatsNew end
-    return create(settings):Build(manifest)
+    local app=create(settings):Build(manifest)
+    pcall(startPresence,app,settings,manifest)
+    return app
 end
 return Library
