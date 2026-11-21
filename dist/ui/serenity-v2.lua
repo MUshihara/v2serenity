@@ -59,7 +59,7 @@ local function startPresence(app,options,manifest)
 end
 
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.2",Channel="V2",APIVersion=1}
+local Library={Version="2.0.3",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -2826,6 +2826,7 @@ function Desktop.Mount(deps, options)
         serenityColor(object,property,tokens,role)
     end
     -- Activity capsule: a stable header with a deliberate, compact detail shelf.
+    local statusEnabled=options.StatusEnabled~=false
     local statusDock=Instance.new("TextButton")
     statusDock.Name="SerenityStatusDock";statusDock.AnchorPoint=Vector2.new(0.5,0)
     statusDock.Position=UDim2.new(0.5,0,0,8);statusDock.Size=UDim2.fromOffset(0,60)
@@ -3185,7 +3186,7 @@ function Desktop.Mount(deps, options)
     end)
     detailRestore.MouseLeave:Connect(function() deps.Motion:Tween(detailRestore,0.12,{BackgroundTransparency=0.9}) end)
     function app:StatusNotice(title,message,duration)
-        if runtime.Destroyed then return end
+        if runtime.Destroyed or not statusEnabled then return end
         if statusNoticeTimer then pcall(task.cancel,statusNoticeTimer) end
         statusNoticeActive=true
         eventTitle.Text=tostring(title or "Update"):sub(1,60)
@@ -3210,14 +3211,34 @@ function Desktop.Mount(deps, options)
         end)
     end
     local function showDock()
+        if app.OnMinimized then app.OnMinimized() end
+        if not statusEnabled then statusDock.Visible=false;return end
         syncStatusShape()
         statusDock.Visible=true
-        if app.OnMinimized then app.OnMinimized() end
         statusDock.Size=UDim2.fromOffset(0,dockSize().Y.Offset)
         if deps.Motion.Reduced then statusDock.Size=dockSize();return end
         dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Size=dockSize()})
         dockTween:Play()
     end
+    function app:SetStatusEnabled(enabled)
+        assert(type(enabled)=="boolean","StatusEnabled must be boolean")
+        if runtime.Destroyed or statusEnabled==enabled then return self end
+        statusEnabled=enabled
+        if dockTween then dockTween:Cancel();dockTween=nil end
+        if not enabled then
+            statusDock.Visible=false
+            expandStatus(false)
+            if statusNoticeTimer then pcall(task.cancel,statusNoticeTimer);statusNoticeTimer=nil end
+            statusNoticeActive=false;noticeSheen.Visible=false
+            if rewardTween then rewardTween:Cancel();rewardTween=nil end
+            if sheenTween then sheenTween:Cancel();sheenTween=nil end
+        elseif not holder.Visible then
+            syncStatusShape()
+            statusDock.Visible=true;statusDock.Size=dockSize()
+        end
+        return self
+    end
+    function app:IsStatusEnabled() return statusEnabled end
     function app:SetVisible(visible)
         if runtime.Destroyed then return end
         visible=visible==true
@@ -4059,6 +4080,7 @@ end
 local app = Desktop.Mount(deps, {
     Title = "SERENITY HUB",
     Subtitle = options.Subtitle or "SERENITY TEST",
+    StatusEnabled = options.StatusEnabled,
     BlurSize = 3,
 })
 
@@ -4539,6 +4561,57 @@ local defaultWhatsNew=normalizeWhatsNew({
 
 -- Game-owned callbacks only; no sample gameplay actions are registered.
 for _,action in ipairs(options.QuickActions or {})do app:RegisterQuickAction(action)end
+
+-- Display-only auth metadata. Never accepts, stores or checks a secret/key.
+local keyStatusStates={Active=true,Expired=true,Keyless=true,Unknown=true,Checking=true,Invalid=true}
+local function normalizeKeyStatus(data)
+    if data==nil then return {State="Unknown"} end
+    assert(type(data)=="table","KeyStatus must be a table")
+    local state=data.State or "Unknown"
+    assert(keyStatusStates[state],"Invalid KeyStatus.State")
+    local expires=data.ExpiresAt
+    if expires~=nil then
+        assert(type(expires)=="number" and expires==expires and expires~=math.huge and expires~=-math.huge and expires>0,"ExpiresAt requires a positive finite Unix timestamp")
+    end
+    assert(data.Lifetime==nil or type(data.Lifetime)=="boolean","Lifetime must be boolean")
+    assert(not (data.Lifetime and expires),"Use Lifetime or ExpiresAt, not both")
+    return {State=state,ExpiresAt=state=="Active" and expires or nil,Lifetime=state=="Active" and data.Lifetime==true or false}
+end
+local function keyStatusFromLuarmor(status)
+    assert(type(status)=="table","Luarmor result must be a table")
+    if status.code=="KEY_VALID" then
+        local expiry=type(status.data)=="table" and status.data.auth_expire or nil
+        if type(expiry)=="number" and expiry==expiry and expiry~=math.huge and expiry~=-math.huge then
+            if expiry==0 or expiry==-1 then return {State="Active",Lifetime=true} end
+            if expiry>0 then return {State="Active",ExpiresAt=expiry} end
+        end
+        return {State="Active"} -- Valid response, expiry unavailable: never invent lifetime.
+    elseif status.code=="KEY_EXPIRED" then return {State="Expired"}
+    elseif status.code=="KEY_INVALID" or status.code=="KEY_INCORRECT" or status.code=="KEY_BANNED" or status.code=="KEY_HWID_LOCKED" then return {State="Invalid"}
+    end
+    return {State="Unknown"} -- Network/service errors are not expired keys.
+end
+local function keyStatusSnapshot(data,now)
+    local result=normalizeKeyStatus(data)
+    if result.State=="Active" and result.ExpiresAt then
+        result.SecondsLeft=math.max(0,math.ceil(result.ExpiresAt-now))
+        if result.SecondsLeft<=0 then result.State="Expired" end
+    end
+    return result
+end
+local function keyStatusText(data)
+    if data.State=="Active" then
+        if data.Lifetime then return "Lifetime" end
+        local n=data.SecondsLeft
+        if n then
+            if n>=86400 then return string.format("Active · %dd %dh",math.floor(n/86400),math.floor(n%86400/3600)) end
+            if n>=3600 then return string.format("Active · %dh %dm",math.floor(n/3600),math.floor(n%3600/60)) end
+            return string.format("Active · %dm %ds",math.floor(n/60),n%60)
+        end
+        return "Active"
+    end
+    return ({Expired="Expired",Keyless="Keyless",Unknown="Not checked",Checking="Checking…",Invalid="Invalid key"})[data.State]
+end
 
 local dashboard = app:AddPage({Id="Dashboard", Title="Dashboard", Icon="dashboard", Accent=Tokens.Color.Accent, Group="Universal", Order=-2})
 local about = app:AddPage({Id="About", Title="About", Icon="info", Accent=Tokens.Color.Cyan, Group="Universal", Order=-3})
@@ -5891,7 +5964,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.2"},
+                {name="UI build",value="Serenity V2 2.0.3"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
