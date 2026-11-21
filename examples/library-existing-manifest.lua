@@ -1,7 +1,8 @@
--- Serenity V2 2.0.2: bridge for the common V3 manifest shape.
+-- Serenity V2 2.0.3: bridge for the common V3 manifest shape.
 -- Keep existing CFG, remotes, controllers and callbacks; replace only UI construction.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/ba1653704c0c7784491fd04591b23d0b2c086ad6/dist/ui/serenity-v2.lua"))()
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/c2353fb9a41318441b8929785efef84e9d13332a/dist/ui/serenity-v2.lua"))()
 -- Important game releases must supply dated WhatsNew entries; see the integration guide.
+-- StatusEnabled defaults to true. Set StatusEnabled=false in Create/Build options to omit the floating status.
 local CFG={AutoFarm=false,Target="Nearest"}
 local manifest={SerenityAPIVersion=3,Pages={{
     Id="Automation",Title="Automation",Icon="automation",Order=1,Features={{
