@@ -1,6 +1,7 @@
--- Serenity V2 2.0.2: UI integration example; no gameplay actions.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/ba1653704c0c7784491fd04591b23d0b2c086ad6/dist/ui/serenity-v2.lua"))()
+-- Serenity V2 2.0.3: UI integration example; no gameplay actions.
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/c2353fb9a41318441b8929785efef84e9d13332a/dist/ui/serenity-v2.lua"))()
 -- Important game releases must supply dated WhatsNew entries; see the integration guide.
+-- StatusEnabled defaults to true. Set StatusEnabled=false in Create/Build options to omit the floating status.
 local CFG={Enabled=false,Delay=1,Target="Nearest",Rarities={}}
 local ui=Library.Create({Key="Serenity_MyGame_Test",KeyStatus={State="Keyless"},Subtitle="My Game",AppearancePath="Serenity_MyGame_Test_Appearance.json"})
 local page=ui:AddPage({Id="Automation",Title="Automation",Icon="automation",Order=1})
