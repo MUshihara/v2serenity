@@ -1,9 +1,9 @@
 {
-  "version": "2.0.2",
+  "version": "2.0.3",
   "channel": "V2",
-  "libraryURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/ba1653704c0c7784491fd04591b23d0b2c086ad6/dist/ui/serenity-v2.lua",
-  "previewURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/acf49e63d39bfa29364f96b9ccf737ec59274a16/examples/library-new-script.lua",
+  "libraryURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/c2353fb9a41318441b8929785efef84e9d13332a/dist/ui/serenity-v2.lua",
+  "previewURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/261b922c0be756154ead105d4ed8854bee2c01a6/examples/library-new-script.lua",
   "production": false,
-  "integrationExampleURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/acf49e63d39bfa29364f96b9ccf737ec59274a16/examples/library-new-script.lua",
+  "integrationExampleURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/261b922c0be756154ead105d4ed8854bee2c01a6/examples/library-new-script.lua",
   "legacyPreviewURL": "https://raw.githubusercontent.com/MUshihara/v2serenity/951318d08f6f9d8c5e725cebfa1a4cc4da22d1a2/examples/universal-pages.lua"
 }
