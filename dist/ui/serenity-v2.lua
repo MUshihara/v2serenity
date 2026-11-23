@@ -59,7 +59,7 @@ local function startPresence(app,options,manifest)
 end
 
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.5-mobile-test",Channel="V2",APIVersion=1}
+local Library={Version="2.0.5-mobile-pc-test",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -2284,8 +2284,12 @@ local function mobileWindowFit(width,height)
     local availableW=width-2*margin
     local availableH=height-2*margin
     local portrait=height>width
-    local scale=math.min(1.25,availableW/(portrait and 400 or 740),availableH/(portrait and 480 or 470))
-    return availableW/scale,availableH/scale,scale,margin
+    -- Landscape uses the desktop canvas intact. Portrait trades width for
+    -- height so the sidebar and scrolling pages remain usable by touch.
+    local canvasW,canvasH=798,546
+    if portrait then canvasW,canvasH=480,650 end
+    local scale=math.min(1.25,availableW/canvasW,availableH/canvasH)
+    return canvasW,canvasH,scale,margin
 end
 
 function Desktop.Mount(deps, options)
@@ -4124,13 +4128,11 @@ local camera=workspace.CurrentCamera
 local viewport=camera and camera.ViewportSize or Vector2.new(1280,720)
 deps.Mobile=UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or viewport.Y<600)
 if deps.Mobile then
-    Tokens.Size.Window=Vector2.new(740,450) -- Initial canvas; renderer fits the live safe area.
-    Tokens.Size.Topbar=48
-    Tokens.Size.Sidebar=156
+    -- Keep desktop shell and sidebar widths; increase touch row sizes only.
     Tokens.Size.SectionLabel=28
-    Tokens.Size.NavRow=34
+    Tokens.Size.NavRow=40
     Tokens.Size.NavGroup=20
-    Tokens.Size.Control=40
+    Tokens.Size.Control=46
     Tokens.Size.Slider=55
     Tokens.Size.Select=58
 end
@@ -6022,7 +6024,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.5-mobile-test"},
+                {name="UI build",value="Serenity V2 2.0.5-mobile-pc-test"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
