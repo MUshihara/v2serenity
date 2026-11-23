@@ -1,5 +1,5 @@
--- Serenity V2 2.0.5-mobile-pc-wide-test: UI integration example; no gameplay actions.
-local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/a8f707bb2dc3155519f4f00fb931fe6f747d09a8/dist/ui/serenity-v2.lua"))()
+-- Serenity V2 2.0.5-mobile-pc-readable-test: UI integration example; no gameplay actions.
+local Library=loadstring(game:HttpGet("https://raw.githubusercontent.com/MUshihara/v2serenity/e0f876885577f5f8c3b43526bfed35dbef25b6ce/dist/ui/serenity-v2.lua"))()
 -- Important game releases must supply dated WhatsNew entries; see the integration guide.
 -- StatusEnabled defaults to true. Set StatusEnabled=false in Create/Build options to omit the floating status.
 local CFG={Enabled=false,Delay=1,Target="Nearest",Rarities={}}
