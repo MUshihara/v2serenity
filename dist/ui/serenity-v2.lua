@@ -59,7 +59,7 @@ local function startPresence(app,options,manifest)
 end
 
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.5-mobile-pc-readable-test",Channel="V2",APIVersion=1}
+local Library={Version="2.0.5-mobile-pc-polish-test",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -1002,6 +1002,7 @@ function NavItem.new(parent, deps, props)
     markerTip.Size=UDim2.fromOffset(2,4);markerTip.Position=UDim2.fromOffset(2,3)
     markerTip.BorderSizePixel=0;serenityColor(markerTip,"BackgroundColor3",tokens,"Accent")
     markerTip.BackgroundTransparency=1;markerTip.Parent=marker
+    markerTip.Visible=not deps.Mobile
     local icon = deps.Icons.Create(tile, props.Icon or "info", tokens.Size.NavIcon-2, tokens.Color.TextMuted)
     icon.AnchorPoint = Vector2.new(0.5, 0.5)
     icon.Position = UDim2.fromScale(0.5,0.5)
@@ -1035,10 +1036,12 @@ function NavItem.new(parent, deps, props)
     row.MouseEnter:Connect(function() if serenityInputBlocked(row) then return end;
         deps.Motion:Tween(tile,"Hover",{BackgroundTransparency=1})
         deps.Motion:Tween(rim,"Hover",{Transparency=0.25})
-        deps.Motion:Tween(label,"Hover",{Position=UDim2.fromOffset(deps.Motion.Reduced and 44 or 46,0)})
+        if not deps.Mobile then
+            deps.Motion:Tween(label,"Hover",{Position=UDim2.fromOffset(deps.Motion.Reduced and 44 or 46,0)})
+        end
         if not self.Selected then
             serenityColor(row,"BackgroundColor3",tokens,"NavHover")
-            deps.Motion:Tween(row, "Hover", {BackgroundTransparency = 0.34})
+            deps.Motion:Tween(row, "Hover", {BackgroundTransparency = deps.Mobile and 0.58 or 0.34})
             serenityColor(label,"TextColor3",tokens,"Text")
             serenityColor(icon,"ImageColor3",tokens,"Text")
         end
@@ -1074,7 +1077,7 @@ function NavItem:SetSelected(selected)
     self.Selected = not not selected
     local tokens = self.Deps.Tokens
     serenityColor(self.Row,"BackgroundColor3",tokens,"NavActive")
-    self.Deps.Motion:Tween(self.Row,"Select",{BackgroundTransparency=self.Selected and 0.18 or 1})
+    self.Deps.Motion:Tween(self.Row,"Select",{BackgroundTransparency=self.Selected and (self.Deps.Mobile and 0.36 or 0.18) or 1})
     serenityColor(self.Tile,"BackgroundColor3",tokens,"PanelSoft")
     serenityColor(self.Marker,"BackgroundColor3",tokens,"Accent")
     serenityColor(self.MarkerTip,"BackgroundColor3",tokens,"Accent")
@@ -1084,10 +1087,6 @@ function NavItem:SetSelected(selected)
     self.Deps.Motion:Tween(self.Rim,"Select",{Transparency=self.Selected and 0.3 or 0.72})
     serenityColor(self.Icon,"ImageColor3",tokens,self.Selected and "Accent" or "TextMuted")
     serenityColor(self.Label,"TextColor3",tokens,self.Selected and "Text" or "TextMuted")
-    if self.Deps.Mobile then
-        local fonts=self.Deps.Typography.Font
-        self.Label.Font=self.Selected and fonts.Bold or fonts.Medium
-    end
 end
 
 function NavItem:SetCollapsed(collapsed)
@@ -1101,9 +1100,10 @@ modules["src/components/Section.lua"] = (function()
 local Section = {}
 Section.__index = Section
 
-function Section.new(parent, deps, props)
+function Section.new(parent, deps, props, gameSection)
     local tokens = deps.Tokens
     props = props or {}
+    local unified = deps.Mobile and gameSection
 
     local frame = Instance.new("Frame")
     frame.Name = props.Id or "Section"
@@ -1111,15 +1111,20 @@ function Section.new(parent, deps, props)
     frame.Size = UDim2.new(1, 0, 0, 0)
     frame.AutomaticSize = Enum.AutomaticSize.Y
     frame.Parent = parent
+    if unified then
+        deps.Material.Section(frame, tokens)
+        frame:SetAttribute("ReadingSurface", true)
+    end
 
     local stack = Instance.new("UIListLayout")
-    stack.Padding = UDim.new(0, deps.Mobile and 4 or 6)
+    stack.Padding = UDim.new(0, unified and 0 or (deps.Mobile and 4 or 6))
     stack.SortOrder = Enum.SortOrder.LayoutOrder
     stack.Parent = frame
 
     local header = Instance.new("TextButton")
-    local headerTransparency=deps.Mobile and 0.62 or 1
+    local headerTransparency = deps.Mobile and not unified and 0.62 or 1
     header.BackgroundTransparency = headerTransparency
+    if unified then header.BorderSizePixel = 0 end
     serenityColor(header,"BackgroundColor3",tokens,"PanelSoft")
     local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,2);headerCorner.Parent=header
     local headerEdge=Instance.new("UIStroke");headerEdge.Name="SectionHeaderEdge"
@@ -1131,6 +1136,19 @@ function Section.new(parent, deps, props)
     header.Size = UDim2.new(1, 0, 0, headerHeight)
     header.LayoutOrder = 1
     header.Parent = frame
+    local divider
+    if unified then
+        divider=Instance.new("Frame")
+        divider.Name="SectionDivider"
+        divider.AnchorPoint=Vector2.new(0,1)
+        divider.Position=UDim2.new(0,13,1,0)
+        divider.Size=UDim2.new(1,-26,0,1)
+        divider.BorderSizePixel=0
+        serenityColor(divider,"BackgroundColor3",tokens,"Divider")
+        divider.BackgroundTransparency=0.46
+        divider.Visible=props.Open~=false
+        divider.Parent=header
+    end
 
     local title = deps.Typography.Label(
         header,
@@ -1143,21 +1161,22 @@ function Section.new(parent, deps, props)
     ,"TextDim")
     title.TextTransparency = 0
     title.Text = props.Title or "Section"
-    title.TextSize = deps.Mobile and 18 or 13
-    title.Font = deps.Mobile and deps.Typography.Font.Bold or deps.Typography.Font.Semibold
+    title.TextSize = unified and 17 or (deps.Mobile and 18 or 13)
+    title.Font = deps.Mobile and not unified and deps.Typography.Font.Bold or deps.Typography.Font.Semibold
     title.TextTruncate = Enum.TextTruncate.AtEnd
-    title.Position = UDim2.fromOffset(20,0)
+    local titleInset=unified and 27 or 20
+    title.Position = UDim2.fromOffset(titleInset,0)
     serenityColor(title,"TextColor3",tokens,"Text")
     local underline = Instance.new("Frame")
     underline.Name = "SectionAccent"
-    underline.Size = UDim2.fromOffset(deps.Mobile and 3 or 2, deps.Mobile and 14 or 10)
-    underline.AnchorPoint=Vector2.new(0,0.5);underline.Position=UDim2.new(0,10,0.5,0)
+    underline.Size = UDim2.fromOffset(deps.Mobile and not unified and 3 or 2, unified and 12 or (deps.Mobile and 14 or 10))
+    underline.AnchorPoint=Vector2.new(0,0.5);underline.Position=UDim2.new(0,unified and 14 or 10,0.5,0)
     underline.BorderSizePixel=0;underline.BackgroundColor3=props.Accent or tokens.Color.Accent
     underline.BackgroundTransparency=0.32;underline.Parent=header
     local wings={}
     for _,x in ipairs({-2,2}) do
         local wing=Instance.new("Frame");wing.BorderSizePixel=0
-        wing.Size=UDim2.fromOffset(2,4);wing.Position=UDim2.fromOffset(x,deps.Mobile and 5 or 3)
+        wing.Size=UDim2.fromOffset(2,4);wing.Position=UDim2.fromOffset(x,unified and 4 or (deps.Mobile and 5 or 3))
         wing.BackgroundColor3=props.Accent or tokens.Color.Accent;wing.BackgroundTransparency=0.45;wing.Parent=underline
         table.insert(wings,wing)
     end
@@ -1179,8 +1198,7 @@ function Section.new(parent, deps, props)
         title.Text = props.Title or "Section"
         serenityColor(title,"TextColor3",tokens,"Text")
         title.TextTransparency = 0
-        title.Position = UDim2.fromOffset(20, 0)
-        title.Size = UDim2.new(1, -45, 1, 0)
+        if not unified then title.Size = UDim2.new(1, -45, 1, 0) end
         description = deps.Typography.Label(frame, "Description", tokens, props.Description,
             UDim2.fromOffset(10, 0), UDim2.new(1, -20, 0, 34), tokens.Color.TextMuted,"TextMuted")
         description.TextSize = 12
@@ -1189,12 +1207,18 @@ function Section.new(parent, deps, props)
         description.TextYAlignment = Enum.TextYAlignment.Center
         description.LayoutOrder = 2
         description.Visible = props.Open ~= false
+        if unified then
+            description.Size=UDim2.new(1,0,0,34)
+            local inset=Instance.new("UIPadding")
+            inset.PaddingLeft=UDim.new(0,13);inset.PaddingRight=UDim.new(0,13)
+            inset.Parent=description
+        end
     end
     if props.Tooltip and deps.Help then
         local help = Instance.new("TextButton")
         help.Name = "SectionHelp"
         help.AnchorPoint = Vector2.new(1, 0.5)
-        help.Position = UDim2.new(1, props.Collapsible and -20 or -2, 0.5, 0)
+        help.Position = UDim2.new(1, props.Collapsible and (unified and -32 or -20) or -2, 0.5, 0)
         help.Size = UDim2.fromOffset(24, deps.Mobile and headerHeight or 24)
         help.Text = "?"
         help.TextSize = 13
@@ -1223,7 +1247,7 @@ function Section.new(parent, deps, props)
     if props.Collapsible then
         caret = deps.Icons.Create(header, props.Open == false and "plus" or "minus", deps.Mobile and 16 or 12, tokens.Color.TextDim)
         caret.AnchorPoint = Vector2.new(1, 0.5)
-        caret.Position = UDim2.new(1, -2, 0.5, 0)
+        caret.Position = UDim2.new(1, unified and -13 or -2, 0.5, 0)
     end
 
     local body = Instance.new("Frame")
@@ -1233,8 +1257,14 @@ function Section.new(parent, deps, props)
     body.Visible = props.Open ~= false
     body.LayoutOrder = props.Description and 3 or 2
     body.Parent = frame
-    deps.Material.Section(body, tokens)
-    body:SetAttribute("ReadingSurface", true)
+    if unified then
+        body:SetAttribute("MobileGameSection",true)
+        body.BackgroundTransparency=1
+        body.BorderSizePixel=0
+    else
+        deps.Material.Section(body, tokens)
+        body:SetAttribute("ReadingSurface", true)
+    end
 
     local list = Instance.new("UIListLayout")
     list.Padding = UDim.new(0, 0)
@@ -1251,6 +1281,7 @@ function Section.new(parent, deps, props)
         Header = header,
         Body = body,
         Description = description,
+        Divider = divider,
         Open = props.Open ~= false,
         Status = status,
         Caret = caret,
@@ -1259,7 +1290,7 @@ function Section.new(parent, deps, props)
     }, Section)
 
     if self.Collapsible then
-        header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover,BackgroundTransparency=deps.Mobile and 0.48 or 0.88}) end)
+        header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover,BackgroundTransparency=deps.Mobile and not unified and 0.48 or 0.88}) end)
         header.MouseLeave:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.PanelSoft,BackgroundTransparency=headerTransparency}) end)
     end
     deps.Runtime:TrackConnection(header.MouseButton1Click:Connect(function() if serenityInputBlocked(header) then return end;
@@ -1274,6 +1305,7 @@ end
 function Section:SetOpen(value)
     self.Open = not not value
     self.Body.Visible = self.Open
+    if self.Divider then self.Divider.Visible=self.Open end
     if self.Description then self.Description.Visible=self.Open end
     if self.Caret then
         self.Caret.Image = self.Deps.Icons.Get(self.Open and "minus" or "plus")
@@ -1319,7 +1351,7 @@ function Toggle.new(parent, deps, props)
         tokens.Color.Text
     ,"Text")
 
-    if deps.Mobile then controlTitle.TextSize=13 end
+    if deps.Mobile then controlTitle.TextSize=parent:GetAttribute("MobileGameSection") and 15 or 13 end
     controlTitle.TextTruncate=Enum.TextTruncate.AtEnd
     if hasDescription then
         deps.Typography.Label(
@@ -1438,6 +1470,7 @@ Slider.__index = Slider
 function Slider.new(parent, deps, props)
     local tokens = deps.Tokens
     props = props or {}
+    local mobileGame=parent:GetAttribute("MobileGameSection")
 
     local min = props.Min or 0
     local max = props.Max or 100
@@ -1454,7 +1487,7 @@ function Slider.new(parent, deps, props)
     row.Parent = parent
     deps.Material.Control(row, tokens)
 
-    deps.Typography.Label(
+    local title=deps.Typography.Label(
         row,
         "Control",
         tokens,
@@ -1463,6 +1496,7 @@ function Slider.new(parent, deps, props)
         UDim2.new(1, -86, 0, 29),
         tokens.Color.Text
     ,"Text")
+    if mobileGame then title.TextSize=15 end
 
     if props.Settings and props.OnSettings then
         local dots = deps.Typography.Label(row, "Value", tokens, "•••", UDim2.new(0.39, 0, 0, 0), UDim2.fromOffset(30, tokens.Size.Slider), tokens.Color.TextDim,"TextDim")
@@ -1483,6 +1517,7 @@ function Slider.new(parent, deps, props)
     valueLabel.Text=tostring(value)
     valueLabel.Parent=valueBox
     deps.Typography.Apply(valueLabel,"Value",tokens,tokens.Color.TextMuted)
+    if mobileGame then valueLabel.TextSize=14 end
     valueLabel.TextXAlignment = Enum.TextXAlignment.Center
 
     local bar = Instance.new("Frame")
@@ -1650,8 +1685,10 @@ end
 function Select.new(parent, deps, props)
     local tokens = deps.Tokens
     props = props or {}
+    local mobileGame=parent:GetAttribute("MobileGameSection")
     local hasDescription = props.Description and props.Description ~= ""
-    local height = math.max(hasDescription and 76 or 58,hasDescription and tokens.Size.ControlWithDescription or tokens.Size.Select)
+    local minHeight=hasDescription and (mobileGame and 84 or 76) or (mobileGame and 64 or 58)
+    local height = math.max(minHeight,hasDescription and tokens.Size.ControlWithDescription or tokens.Size.Select)
 
     local row = Instance.new("CanvasGroup")
     row.Name = props.Id or "Select"
@@ -1663,15 +1700,16 @@ function Select.new(parent, deps, props)
 
     local titleY = 0
     local titleH = 24
-    deps.Typography.Label(row, "Control", tokens, props.Title or "Select", UDim2.fromOffset(13, titleY), UDim2.new(1, -26, 0, titleH), tokens.Color.Text,"Text")
+    local title=deps.Typography.Label(row, "Control", tokens, props.Title or "Select", UDim2.fromOffset(13, titleY), UDim2.new(1, -26, 0, titleH), tokens.Color.Text,"Text")
+    if mobileGame then title.TextSize=15 end
     if hasDescription then
         deps.Typography.Label(row, "Description", tokens, props.Description, UDim2.fromOffset(13, 27), UDim2.new(0.47, -12, 0, 15), tokens.Color.TextDim,"TextDim")
     end
 
     local button = Instance.new("TextButton")
     button.AnchorPoint = Vector2.new(1, 0.5)
-    button.Position = UDim2.new(1, -12, 1, -19)
-    button.Size = UDim2.new(1, -24, 0, 30)
+    button.Position = UDim2.new(1, -12, 1, mobileGame and -22 or -19)
+    button.Size = UDim2.new(1, -24, 0, mobileGame and 34 or 30)
     button.Text = ""
     button.AutoButtonColor = false
     button.Parent = row
@@ -1679,6 +1717,7 @@ function Select.new(parent, deps, props)
     deps.Material.PixelSurface(button,2)
 
     local valueLabel = deps.Typography.Label(button, "Value", tokens, tostring(props.Default or "Select"), UDim2.fromOffset(10, 0), UDim2.new(1, -34, 1, 0), tokens.Color.TextMuted,"TextMuted")
+    if mobileGame then valueLabel.TextSize=14 end
     local chevron = deps.Icons.Create(button, "chevron_down", 13, tokens.Color.TextDim)
     chevron.AnchorPoint = Vector2.new(1, 0.5)
     chevron.Position = UDim2.new(1, -9, 0.5, 0)
@@ -6042,7 +6081,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.5-mobile-pc-readable-test"},
+                {name="UI build",value="Serenity V2 2.0.5-mobile-pc-polish-test"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
@@ -7041,7 +7080,7 @@ function app:AddPage(props)
     return rawAddPage(self,props)
 end
 function app:GetPage(id) return self.Pages[id] and self.Pages[id].Page end
-function app:AddSection(parent,props) return Section.new(body(parent),deps,props) end
+function app:AddSection(parent,props) return Section.new(body(parent),deps,props,true) end
 function app:AddToggle(parent,props) return Toggle.new(body(parent),deps,propsCopy(props)) end
 function app:AddSlider(parent,props)
     assert(type(props.Min)=="number" and type(props.Max)=="number" and props.Max>props.Min,"Slider requires Min < Max")
