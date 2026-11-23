@@ -59,7 +59,7 @@ local function startPresence(app,options,manifest)
 end
 
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.3",Channel="V2",APIVersion=1}
+local Library={Version="2.0.4",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -2240,6 +2240,7 @@ local function makeDraggable(runtime, frame, handles)
         local x=start.X.Scale*parentSize.X+start.X.Offset+delta.X
         local y=start.Y.Scale*parentSize.Y+start.Y.Offset+delta.Y
         target=UDim2.fromOffset(x,y)
+        if runtime.ClampWindowPosition then target=runtime.ClampWindowPosition(target) end
         local style=runtime.ReducedMotion and "Direct" or runtime.DragStyle
         if style=="Outline" then
             if not ghost then
@@ -2275,6 +2276,17 @@ local function makeDraggable(runtime, frame, handles)
     runtime:TrackCleanup(function() dragging=false;destroyGhost();stopTween() end)
 end
 
+-- Logical canvas follows the device's safe area; control sizes stay readable.
+local function mobileWindowFit(width,height)
+    width=math.max(1,width);height=math.max(1,height)
+    local margin=math.min(10,math.max(4,math.min(width,height)*0.02))
+    margin=math.min(margin,math.min(width,height)/4)
+    local availableW=width-2*margin
+    local availableH=height-2*margin
+    local scale=math.min(math.clamp(math.min(width,height)/420,1,1.35),availableW/360,availableH/240)
+    return availableW/scale,availableH/scale,scale,margin
+end
+
 function Desktop.Mount(deps, options)
     options = options or {}
     local tokens = deps.Tokens
@@ -2290,6 +2302,9 @@ function Desktop.Mount(deps, options)
     screen.Name = options.Name or "SerenityNextM3"
     screen.ResetOnSpawn = false
     screen.IgnoreGuiInset = false
+    if deps.Mobile then
+        pcall(function()screen.ScreenInsets=Enum.ScreenInsets.CoreUISafeInsets end)
+    end
     screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screen.DisplayOrder = 999999
     screen.Parent = parentGui
@@ -2309,6 +2324,25 @@ function Desktop.Mount(deps, options)
     uiScale.Parent = holder
 
     local scalePending=false
+    local layoutChanged
+    local lastFitWidth,lastFitHeight,lastFitScale
+    local mobileMargin=8
+    local function safeScreenSize(viewport)
+        local actual=screen.AbsoluteSize
+        if actual.X>1 and actual.Y>1 then return actual end
+        local topLeft,bottomRight=GuiService:GetGuiInset()
+        return Vector2.new(math.max(1,viewport.X-topLeft.X-(bottomRight and bottomRight.X or 0)),math.max(1,viewport.Y-topLeft.Y-(bottomRight and bottomRight.Y or 0)))
+    end
+    if deps.Mobile then
+        runtime.ClampWindowPosition=function(position)
+            local bounds=safeScreenSize(workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280,720))
+            local width,height=holder.Size.X.Offset*uiScale.Scale,holder.Size.Y.Offset*uiScale.Scale
+            local halfX,halfY=math.min(bounds.X/2,width/2+mobileMargin),math.min(bounds.Y/2,height/2+mobileMargin)
+            local x=position.X.Scale*bounds.X+position.X.Offset
+            local y=position.Y.Scale*bounds.Y+position.Y.Offset
+            return UDim2.fromOffset(math.clamp(x,halfX,bounds.X-halfX),math.clamp(y,halfY,bounds.Y-halfY))
+        end
+    end
     local function refreshScale()
         -- Keep an open picker stable while the mobile keyboard changes the viewport.
         local focused=UserInputService:GetFocusedTextBox()
@@ -2317,19 +2351,16 @@ function Desktop.Mount(deps, options)
         local camera = workspace.CurrentCamera
         local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
         local inset = GuiService:GetGuiInset()
-        local touchLayout=UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or viewport.Y<600)
-        if touchLayout then
-            -- Keep a complete logical canvas, then fit all of it into the phone.
-            -- Shrinking only the frame left desktop-size controls in a short viewport.
-            local availableW=math.max(1,viewport.X-32)
-            local availableH=math.max(1,viewport.Y-inset.Y-32)
-            local scale=math.min(1.35,availableW*0.94/tokens.Size.Window.X,availableH*0.94/tokens.Size.Window.Y)
-            local tablet=math.min(viewport.X,viewport.Y)>=600
-            local width=tablet and 798 or (viewport.X<viewport.Y and 430 or 740)
-            local height=tablet and 546 or 450
-            scale=math.min(1.35,availableW*0.94/width,availableH*0.94/height)
+        if deps.Mobile then
+            local safe=safeScreenSize(viewport)
+            local width,height,scale,margin=mobileWindowFit(safe.X,safe.Y)
+            mobileMargin=margin
+            if lastFitWidth==width and lastFitHeight==height and lastFitScale==scale then return end
+            lastFitWidth,lastFitHeight,lastFitScale=width,height,scale
             holder.Size=UDim2.fromOffset(width,height)
             uiScale.Scale=scale
+            holder.Position=UDim2.fromScale(0.5,0.5)
+            if layoutChanged then layoutChanged() end
         else
             uiScale.Scale = 1
             holder.Size = UDim2.fromOffset(math.min(tokens.Size.Window.X, math.max(320, viewport.X - 24)), math.min(tokens.Size.Window.Y, math.max(240, viewport.Y - inset.Y - 24)))
@@ -2350,6 +2381,7 @@ function Desktop.Mount(deps, options)
     runtime:TrackConnection(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindCamera))
     runtime:TrackCleanup(function() if cameraConnection then cameraConnection:Disconnect() end deps.PopupManager:Close() end)
     bindCamera()
+    runtime:TrackConnection(screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(refreshScale))
 
     deps.Material.Shadow(holder, UDim2.fromScale(1, 1), tokens.Size.RadiusShell, tokens)
 
@@ -3220,6 +3252,16 @@ function Desktop.Mount(deps, options)
         dockTween=game:GetService("TweenService"):Create(statusDock,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Size=dockSize()})
         dockTween:Play()
     end
+    layoutChanged=function()
+        -- Cancel an old-orientation morph before it can restore stale dimensions.
+        transition=transition+1
+        cancelTransition()
+        expandedPosition=holder.Position;expandedScale=uiScale.Scale
+        if app._Minimizing then
+            holder.Visible=false
+            showDock()
+        end
+    end
     function app:SetStatusEnabled(enabled)
         assert(type(enabled)=="boolean","StatusEnabled must be boolean")
         if runtime.Destroyed or statusEnabled==enabled then return self end
@@ -3642,7 +3684,9 @@ function Desktop.Mount(deps, options)
         end
         function app:RestoreUIPreferences(data)
             if type(data)~="table" then return end
-            restorePosition(holder,data.Window);expandedPosition=holder.Position
+            restorePosition(holder,data.Window)
+            if runtime.ClampWindowPosition then holder.Position=runtime.ClampWindowPosition(holder.Position) end
+            expandedPosition=holder.Position
             restorePosition(statusDock,data.Status);restorePosition(restore,data.Icon)
             local pending={}
             for _,id in ipairs(order) do
@@ -4066,7 +4110,7 @@ local camera=workspace.CurrentCamera
 local viewport=camera and camera.ViewportSize or Vector2.new(1280,720)
 deps.Mobile=UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or viewport.Y<600)
 if deps.Mobile then
-    Tokens.Size.Window=Vector2.new(viewport.X<viewport.Y and 430 or 740,450)
+    Tokens.Size.Window=Vector2.new(740,450) -- Initial canvas; renderer fits the live safe area.
     Tokens.Size.Topbar=48
     Tokens.Size.Sidebar=156
     Tokens.Size.SectionLabel=28
@@ -5964,7 +6008,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.3"},
+                {name="UI build",value="Serenity V2 2.0.4"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
