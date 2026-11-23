@@ -59,7 +59,7 @@ local function startPresence(app,options,manifest)
 end
 
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.4",Channel="V2",APIVersion=1}
+local Library={Version="2.0.5-mobile-test",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -2283,7 +2283,8 @@ local function mobileWindowFit(width,height)
     margin=math.min(margin,math.min(width,height)/4)
     local availableW=width-2*margin
     local availableH=height-2*margin
-    local scale=math.min(math.clamp(math.min(width,height)/420,1,1.35),availableW/360,availableH/240)
+    local portrait=height>width
+    local scale=math.min(1.25,availableW/(portrait and 400 or 740),availableH/(portrait and 480 or 470))
     return availableW/scale,availableH/scale,scale,margin
 end
 
@@ -2825,6 +2826,13 @@ function Desktop.Mount(deps, options)
     restore.Visible = true
     restore.ZIndex = 90
     restore.Parent = screen
+    if deps.Mobile then
+        local function refreshRestoreVisibility()
+            restore.Visible=not holder.Visible
+        end
+        runtime:TrackConnection(holder:GetPropertyChangedSignal("Visible"):Connect(refreshRestoreVisibility))
+        refreshRestoreVisibility()
+    end
     local restoreScale=Instance.new("UIScale");restoreScale.Scale=1.155;restoreScale.Parent=restore
     corner(restore, 12)
     local restoreEdge=Instance.new("UIStroke");restoreEdge.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
@@ -3974,7 +3982,13 @@ function Desktop.Mount(deps, options)
         serenityColor(brandSub,"TextColor3",tokens,"TextMuted")
         brandSub.Text=options.Subtitle or "Loading game…"
     end
-    pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(deps.Mobile and 160 or 190,40)
+    pageButton.Position=UDim2.fromOffset(18,8);pageButton.Size=UDim2.fromOffset(190,40)
+    if deps.Mobile then
+        pageButton.Size=UDim2.new(1,-108,0,40)
+        local cap=Instance.new("UISizeConstraint")
+        cap.MaxSize=Vector2.new(160,40);cap.Parent=pageButton
+        pageText.TextTruncate=Enum.TextTruncate.AtEnd
+    end
     pageButton.BackgroundTransparency=1;pageText.TextSize=17;serenityColor(pageText,"TextColor3",tokens,"Text")
     navHolder.Position=UDim2.fromOffset(10,deps.Mobile and 70 or 66)
     navHolder.Size=UDim2.new(1,-20,1,-((deps.Mobile and 70 or 66)+tokens.Size.SidebarUser+8))
@@ -6008,7 +6022,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.4"},
+                {name="UI build",value="Serenity V2 2.0.5-mobile-test"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
