@@ -59,7 +59,7 @@ local function startPresence(app,options,manifest)
 end
 
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.5-mobile-pc-wide-test",Channel="V2",APIVersion=1}
+local Library={Version="2.0.5-mobile-pc-readable-test",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -1016,6 +1016,11 @@ function NavItem.new(parent, deps, props)
         tokens.Color.TextMuted
     ,"TextMuted")
 
+    if deps.Mobile then
+        label.TextSize=16
+        label.Font=deps.Typography.Font.Medium
+    end
+
     local self = setmetatable({
         Row = row,
         Icon = icon,
@@ -1079,6 +1084,10 @@ function NavItem:SetSelected(selected)
     self.Deps.Motion:Tween(self.Rim,"Select",{Transparency=self.Selected and 0.3 or 0.72})
     serenityColor(self.Icon,"ImageColor3",tokens,self.Selected and "Accent" or "TextMuted")
     serenityColor(self.Label,"TextColor3",tokens,self.Selected and "Text" or "TextMuted")
+    if self.Deps.Mobile then
+        local fonts=self.Deps.Typography.Font
+        self.Label.Font=self.Selected and fonts.Bold or fonts.Medium
+    end
 end
 
 function NavItem:SetCollapsed(collapsed)
@@ -1109,7 +1118,8 @@ function Section.new(parent, deps, props)
     stack.Parent = frame
 
     local header = Instance.new("TextButton")
-    header.BackgroundTransparency = 1
+    local headerTransparency=deps.Mobile and 0.62 or 1
+    header.BackgroundTransparency = headerTransparency
     serenityColor(header,"BackgroundColor3",tokens,"PanelSoft")
     local headerCorner=Instance.new("UICorner");headerCorner.CornerRadius=UDim.new(0,2);headerCorner.Parent=header
     local headerEdge=Instance.new("UIStroke");headerEdge.Name="SectionHeaderEdge"
@@ -1117,7 +1127,8 @@ function Section.new(parent, deps, props)
     serenityColor(headerEdge,"Color",tokens,"Stroke");headerEdge.Transparency=1;headerEdge.Parent=header
     header.Text = ""
     header.AutoButtonColor = false
-    header.Size = UDim2.new(1, 0, 0, deps.Mobile and 36 or 24)
+    local headerHeight=deps.Mobile and tokens.Size.SectionLabel or 24
+    header.Size = UDim2.new(1, 0, 0, headerHeight)
     header.LayoutOrder = 1
     header.Parent = frame
 
@@ -1132,21 +1143,21 @@ function Section.new(parent, deps, props)
     ,"TextDim")
     title.TextTransparency = 0
     title.Text = props.Title or "Section"
-    title.TextSize = deps.Mobile and 14 or 13
-    title.Font = deps.Typography.Font.Semibold
+    title.TextSize = deps.Mobile and 18 or 13
+    title.Font = deps.Mobile and deps.Typography.Font.Bold or deps.Typography.Font.Semibold
     title.TextTruncate = Enum.TextTruncate.AtEnd
     title.Position = UDim2.fromOffset(20,0)
     serenityColor(title,"TextColor3",tokens,"Text")
     local underline = Instance.new("Frame")
     underline.Name = "SectionAccent"
-    underline.Size = UDim2.fromOffset(2, 10)
+    underline.Size = UDim2.fromOffset(deps.Mobile and 3 or 2, deps.Mobile and 14 or 10)
     underline.AnchorPoint=Vector2.new(0,0.5);underline.Position=UDim2.new(0,10,0.5,0)
     underline.BorderSizePixel=0;underline.BackgroundColor3=props.Accent or tokens.Color.Accent
     underline.BackgroundTransparency=0.32;underline.Parent=header
     local wings={}
     for _,x in ipairs({-2,2}) do
         local wing=Instance.new("Frame");wing.BorderSizePixel=0
-        wing.Size=UDim2.fromOffset(2,4);wing.Position=UDim2.fromOffset(x,3)
+        wing.Size=UDim2.fromOffset(2,4);wing.Position=UDim2.fromOffset(x,deps.Mobile and 5 or 3)
         wing.BackgroundColor3=props.Accent or tokens.Color.Accent;wing.BackgroundTransparency=0.45;wing.Parent=underline
         table.insert(wings,wing)
     end
@@ -1184,7 +1195,7 @@ function Section.new(parent, deps, props)
         help.Name = "SectionHelp"
         help.AnchorPoint = Vector2.new(1, 0.5)
         help.Position = UDim2.new(1, props.Collapsible and -20 or -2, 0.5, 0)
-        help.Size = UDim2.fromOffset(24, 24)
+        help.Size = UDim2.fromOffset(24, deps.Mobile and headerHeight or 24)
         help.Text = "?"
         help.TextSize = 13
         help.Font = Enum.Font.GothamBold
@@ -1210,7 +1221,7 @@ function Section.new(parent, deps, props)
 
     local caret
     if props.Collapsible then
-        caret = deps.Icons.Create(header, props.Open == false and "plus" or "minus", 12, tokens.Color.TextDim)
+        caret = deps.Icons.Create(header, props.Open == false and "plus" or "minus", deps.Mobile and 16 or 12, tokens.Color.TextDim)
         caret.AnchorPoint = Vector2.new(1, 0.5)
         caret.Position = UDim2.new(1, -2, 0.5, 0)
     end
@@ -1248,8 +1259,8 @@ function Section.new(parent, deps, props)
     }, Section)
 
     if self.Collapsible then
-        header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover,BackgroundTransparency=0.88}) end)
-        header.MouseLeave:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.PanelSoft,BackgroundTransparency=1}) end)
+        header.MouseEnter:Connect(function() if serenityInputBlocked(header) then return end; deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.InsetHover,BackgroundTransparency=deps.Mobile and 0.48 or 0.88}) end)
+        header.MouseLeave:Connect(function() deps.Motion:Tween(header,"Hover",{BackgroundColor3=tokens.Color.PanelSoft,BackgroundTransparency=headerTransparency}) end)
     end
     deps.Runtime:TrackConnection(header.MouseButton1Click:Connect(function() if serenityInputBlocked(header) then return end;
         if self.Collapsible then
@@ -3847,12 +3858,18 @@ function Desktop.Mount(deps, options)
         end
         for _,match in ipairs(matches) do
             local row=Instance.new("TextButton")
-            row.Size=UDim2.new(1,-2,0,categoriesOnly and (deps.Mobile and 44 or 35) or 48)
+            row.Size=UDim2.new(1,-2,0,categoriesOnly and (deps.Mobile and 46 or 35) or 48)
             row.BackgroundColor3=(categoriesOnly and match.Entry.Id==currentPage) and tokens.Color.Accent or tokens.Color.PanelSoft;row.BackgroundTransparency=0.12
             row.BorderSizePixel=0;row.Text="";row.AutoButtonColor=false;row.ZIndex=82;row.Parent=listFrame
             corner(row,6)
             local title=deps.Typography.Label(row,"Value",tokens,match.Title,UDim2.fromOffset(10,4),UDim2.new(1,-20,0,25),tokens.Color.Text,"Text")
             title.ZIndex=83
+            if categoriesOnly and deps.Mobile then
+                title.TextSize=16
+                title.Font=deps.Typography.Font.Semibold
+                title.Position=UDim2.fromOffset(12,0)
+                title.Size=UDim2.new(1,-24,1,0)
+            end
             if not categoriesOnly then
                 local subtitle=deps.Typography.Label(row,"Description",tokens,match.Entry.Title,UDim2.fromOffset(10,28),UDim2.new(1,-20,0,15),tokens.Color.TextMuted,"TextMuted")
                 subtitle.ZIndex=83
@@ -4129,8 +4146,9 @@ local viewport=camera and camera.ViewportSize or Vector2.new(1280,720)
 deps.Mobile=UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or viewport.Y<600)
 if deps.Mobile then
     -- Keep desktop shell and sidebar widths; increase touch row sizes only.
-    Tokens.Size.SectionLabel=28
-    Tokens.Size.NavRow=40
+    Tokens.Size.SectionLabel=44
+    Tokens.Size.NavRow=46
+    Tokens.Size.NavIcon=24
     Tokens.Size.NavGroup=20
     Tokens.Size.Control=46
     Tokens.Size.Slider=55
@@ -6024,7 +6042,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.5-mobile-pc-wide-test"},
+                {name="UI build",value="Serenity V2 2.0.5-mobile-pc-readable-test"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
