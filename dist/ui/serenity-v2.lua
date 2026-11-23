@@ -59,7 +59,7 @@ local function startPresence(app,options,manifest)
 end
 
 -- Serenity Official Test Library RC1. Keyless integration build; production remains separate.
-local Library={Version="2.0.5-mobile-pc-test",Channel="V2",APIVersion=1}
+local Library={Version="2.0.5-mobile-pc-wide-test",Channel="V2",APIVersion=1}
 local libraryIconNames={"home","dashboard","about","info","automation","progression","shops","shop","configs","misc","settings","search","activity","webhook","roll","target","inventory","pets","world","server","store","shield","lock","warning","check","chevron_right","chevron_down","plus","minus","close","save","discord"}
 local libraryIconKeys={}
 for _,name in ipairs(libraryIconNames)do libraryIconKeys[name]=true end
@@ -2284,9 +2284,9 @@ local function mobileWindowFit(width,height)
     local availableW=width-2*margin
     local availableH=height-2*margin
     local portrait=height>width
-    -- Landscape uses the desktop canvas intact. Portrait trades width for
+    -- Landscape keeps desktop height with a wider content pane. Portrait trades width for
     -- height so the sidebar and scrolling pages remain usable by touch.
-    local canvasW,canvasH=798,546
+    local canvasW,canvasH=894,546
     if portrait then canvasW,canvasH=480,650 end
     local scale=math.min(1.25,availableW/canvasW,availableH/canvasH)
     return canvasW,canvasH,scale,margin
@@ -3975,12 +3975,12 @@ function Desktop.Mount(deps, options)
     heading.TextTruncate=Enum.TextTruncate.AtEnd
     brandSub.TextTruncate=Enum.TextTruncate.AtEnd
     if deps.Mobile then
-        -- Fit branding inside existing sidebar width; game names get two readable lines.
-        heading.Position=UDim2.fromOffset(38,8)
-        heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-48,22)
-        heading.TextSize=13;heading.Font=deps.Typography.Font.Semibold;heading.TextScaled=false
-        brandSub.Position=UDim2.fromOffset(12,33)
-        brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-24,32)
+        -- Reserve a separate column for the 30-unit pixel emblem.
+        heading.Position=UDim2.fromOffset(54,10)
+        heading.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,22)
+        heading.TextSize=15;heading.Font=deps.Typography.Font.Bold;heading.TextScaled=false
+        brandSub.Position=UDim2.fromOffset(54,34)
+        brandSub.Size=UDim2.fromOffset(tokens.Size.Sidebar-64,30)
         brandSub.TextSize=12;brandSub.TextScaled=false;brandSub.TextWrapped=true
         brandSub.TextYAlignment=Enum.TextYAlignment.Top
         serenityColor(brandSub,"TextColor3",tokens,"TextMuted")
@@ -4005,7 +4005,7 @@ function Desktop.Mount(deps, options)
     edge.Transparency=0.7;edge.Thickness=1
     -- Small branded motion, suspended with the window and cleaned up on reload.
     star.AnchorPoint=Vector2.new(0.5,0.5)
-    star.Position=UDim2.fromOffset(deps.Mobile and 21 or 29,deps.Mobile and 19 or 30);star.Size=UDim2.fromOffset(deps.Mobile and 22 or 30,deps.Mobile and 22 or 30)
+    star.Position=UDim2.fromOffset(deps.Mobile and 26 or 29,30);star.Size=UDim2.fromOffset(30,30)
     local glow=Instance.new("Frame");glow.Name="StarGlow";glow.BorderSizePixel=0
     glow.AnchorPoint=Vector2.new(0.5,0.5);glow.Position=UDim2.fromScale(0.5,0.5)
     glow.Size=UDim2.fromOffset(18,18);glow.BackgroundColor3=Color3.fromRGB(166,145,103)
@@ -6024,7 +6024,7 @@ do
                 {name="Game",value=tostring(type(app.GameTitle)=="string"and app.GameTitle or feedbackOptions.Subtitle or "Unknown"):sub(1,200)},
                 {name="Place ID",value=tostring(game.PlaceId)},
                 {name="Job ID",value=tostring(game.JobId or "Unavailable")},
-                {name="UI build",value="Serenity V2 2.0.5-mobile-pc-test"},
+                {name="UI build",value="Serenity V2 2.0.5-mobile-pc-wide-test"},
                 {name="Device",value=deps.Mobile and "Mobile / touch"or "PC"},
             }}}}
         end,
